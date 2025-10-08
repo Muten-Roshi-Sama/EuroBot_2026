@@ -1,30 +1,20 @@
 // v0.0
 
-
-//  TODO :
-//        - Fix 
-//        - Add 
-//        -
-//        - 
-
 #include <Arduino.h>
 #include "FSM.h"
+#include "Mapping.h"
 // #include "Movement.h"
 
-
+Mapping boardMap;
 
 void setup() {
-  Serial.println("Setup.");
-
+    Serial.begin(115200);
+    Serial.println("Setup.");
+    boardMap.begin();
 }
 
-
-
-void loop(){
-
-
+void loop() {
+    boardMap.update();
 }
-
-
 
 
