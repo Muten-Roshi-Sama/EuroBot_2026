@@ -35,34 +35,34 @@ Each library contains its own `.cpp` and `.h` files, making it easy to test and 
 
 ## 🧠 Development Workflow
 
-### 🪴 Branching Model
+### Branching Model
 - `main` → stable, competition-ready robot code  
 - `dev` → integration branch for tested features  
 - `feature/...` → one branch per subsystem (owned by its team)
 
 Example branches:
-feature/movement-ibtihal-adam
-feature/servo-ayoub-ibrahim
-feature/thermometer-ibrahim-ayoub
-feature/detection-chaimae
-feature/mapping-ibtihal
-feature/fsm-felix-vassily
-feature/hardware-adam-vassily
+- feature/movement
+- feature/servo
+- feature/thermometer
+- feature/detection
+- feature/mapping
+- feature/fsm
+- feature/hardware
 
-bash
-Copy code
 
 ### 🧰 Setup Instructions for Collaborators
 
 **1. Clone the repository**
 ```bash
 # Clone the repository
-git clone https://github.com/<TEAM_OR_USER>/EuroBot_2026.git
+git clone https://github.com/Muten-Roshi-Sama/EuroBot_2026
 cd EuroBot_2026
 ```
 **2. Switch to your assigned branch**
 ```
 git checkout -b feature/<your-feature> origin/feature/<your-feature>
+# Example
+git checkout -b feature/movement origin/feature/movement
 ```
 **3. Work in your module folder**
 Example:
@@ -75,7 +75,7 @@ lib/movement/
 ```bash
 git add .
 git commit -m "Implement PID control for movement"
-git push origin feature/movement-ibtihal-adam
+git push origin feature/movement
 ```
 **5. Merge process**
 Open a Pull Request (PR) to merge into dev
@@ -128,3 +128,4 @@ FSM integration lead: Felix
 Hardware coordination: Adam
 
 “Think modular, build stable, test continuously — then dominate Eurobot.” ⚙️🤖
+
