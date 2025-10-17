@@ -1,5 +1,8 @@
-#include <Wire.h>
+
 #include <Adafruit_MotorShield.h>
+#include <Arduino.h>
+#include "Encoder.h"
+
 
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 Adafruit_DCMotor *motor1 = AFMS.getMotor(1);
@@ -50,8 +53,9 @@ void loop() {
 }
 
 void countPulse() {
-  pulseCount++;
+  
 }
 void minusPulse() {
-  pulseCount--;
+  
 }
+  
