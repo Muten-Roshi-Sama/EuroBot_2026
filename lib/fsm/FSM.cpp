@@ -47,20 +47,18 @@ void fsmStep(FsmContext &ctx) {
     }
     case FsmAction::MOVE_FORWARD: {
         Serial.print("Action: MOVE_FORWARD\n");
-        movement.moveDistance(50);
+        movement.moveDistance(500);
         fsmChangeAction(ctx, FsmAction::TURN_AROUND);
     break;
     }
     case FsmAction::MOVE_BACKWARD: {
         movement.backward();
-      // Transition when done:
-      // fsmChangeAction(ctx, FsmAction::TURN_AROUND);
     break;
     }
     case FsmAction::TURN_AROUND: {
         Serial.print("Action: TURN_AROUND\n");
         movement.rotate(-180);        // Tourne de 180° à gauche
-        fsmChangeAction(ctx, FsmAction::END);
+        fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
     break;
     }
     case FsmAction::END: {
