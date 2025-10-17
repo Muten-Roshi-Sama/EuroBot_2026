@@ -158,17 +158,12 @@ void Movement::moveDistance(float cm, int speed) {
     } else {
         backward(speed);
         targetTicks = -targetTicks; // Valeur absolue pour la comparaison
+        
     }
     
     // Boucle bloquante jusqu'à atteindre la distance
     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
         updateEncoderTimestamps();
-        Serial.print("Ticks Gauche: ");
-        Serial.print(encoderLeft.getTicks());
-        Serial.print(" | Ticks Droite: ");
-        Serial.println(encoderRight.getTicks());
-        Serial.print("targetTicks: ");
-        Serial.print(targetTicks);
         delay(MOVEMENT_LOOP_DELAY);
     }
     

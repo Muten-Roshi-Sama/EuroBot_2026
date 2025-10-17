@@ -8,7 +8,8 @@ enum class FsmAction {
 	MOVE_BACKWARD,
 	TURN_AROUND,
 	END,
-	EMERGENCY_STOP 
+	EMERGENCY_STOP,
+    CALIBRATE_ENCODERS
 };
 
 struct FsmContext {
@@ -24,6 +25,7 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next);
 
 void fsmEmergencyStop(FsmContext &ctx);
 
+void calibrateEncoders();
 
 #ifndef FSM_H
 #define FSM_H
