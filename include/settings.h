@@ -10,9 +10,9 @@
 
 
 
-#define WHEEL_DIAMETER 6.5f // Diamètre des roues en centimètres
-#define WHEEL_BASE 15.0f // Distance entre les centres des deux roues en centimètres
-#define ENCODER_RESOLUTION 20   // Résolution de l'encodeur (nombre de ticks par tour complet)
+#define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
+#define WHEEL_BASE 10.0f // Distance entre les centres des deux roues en centimètres (10cm)
+#define ENCODER_RESOLUTION 20   // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
 
 

@@ -47,7 +47,7 @@ void fsmStep(FsmContext &ctx) {
     }
     case FsmAction::MOVE_FORWARD: {
         Serial.print("Action: MOVE_FORWARD\n");
-        movement.moveDistance(500);
+        movement.moveDistance(100);
         fsmChangeAction(ctx, FsmAction::TURN_AROUND);
     break;
     }
