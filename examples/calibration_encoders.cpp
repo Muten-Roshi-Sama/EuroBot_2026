@@ -8,6 +8,7 @@
 #include <Arduino.h>
 #include "Movement.h"
 #include "settings.h"
+#include <Adafruit_MotorShield.h>
 
 Movement movement;
 
@@ -44,7 +45,7 @@ void setup() {
         Serial.print(movement.getLeftTicks());
         Serial.print(" | Ticks droite: ");
         Serial.println(movement.getRightTicks());
-        delay(100);
+        
     }
     
     movement.stop();

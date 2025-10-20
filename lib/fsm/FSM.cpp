@@ -3,6 +3,7 @@
 #include "FSM.h"
 #include "Movement.h"
 #include "settings.h"
+#include <Adafruit_MotorShield.h>
 
 
 // Instance du système de mouvement
@@ -165,7 +166,8 @@ void calibrateEncoders() {
     delay(5000);
     
     Serial.println(">>> ROTATION 180 DEGRES <<<");
-    movement.rotate(180);
+    movement.rotate(90);
+    //movement.moveDistance(5); // Petit mouvement pour eviter blocage
     
     Serial.println("\n=== RESULTATS ROTATION ===");
     Serial.println("Le robot a-t-il tourne exactement 180 degres?");
@@ -180,6 +182,7 @@ void calibrateEncoders() {
     Serial.print("  Si 170° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (170.0/180.0), 2); Serial.println(" cm");
     Serial.print("  Si 190° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (190.0/180.0), 2); Serial.println(" cm");
     Serial.print("  Si 200° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (200.0/180.0), 2); Serial.println(" cm");
+    
     
     Serial.println("\n\n=========================================");
     // Serial.println("  CALIBRATION TERMINEE");

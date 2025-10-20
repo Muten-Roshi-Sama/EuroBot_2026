@@ -2,6 +2,8 @@
 // v1.0
 #include <Arduino.h>
 #include "FSM.h"
+#include <Adafruit_MotorShield.h>
+#include <Encoder.h>
 
 
 static FsmContext gFsm; 

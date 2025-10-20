@@ -1,5 +1,6 @@
 #include "Movement.h"
 #include <Arduino.h>
+#include <Adafruit_MotorShield.h>
 
 // Instance statique pour les callbacks d'interruption
 Movement* Movement::instance = nullptr;
@@ -40,7 +41,9 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
         Serial.println("ERREUR: Motor Shield non detecte!");
         while (1); // Arrêt si le shield n'est pas détecté
     }
+    AFMS.begin();
     Serial.println("Motor Shield initialise avec succes");
+    //AFMS.begin();
     
     // Récupération des moteurs (Motor 1 = gauche, Motor 2 = droite)
     motorLeft = AFMS.getMotor(MOTOR_LEFT_ID);
@@ -48,7 +51,7 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     
     // Initialisation des encodeurs avec la résolution
     encoderLeft.changeResolution(encoderResolution);
-    encoderRight.changeResolution(encoderResolution);
+    encoderRight.changeResolution(encoderResolution);// verif
     
     // Configuration des pins des encodeurs
     pinMode(encoderPinLeft, INPUT_PULLUP);
@@ -183,6 +186,9 @@ void Movement::moveDistance(float cm) {
 void Movement::rotate(float degrees, int speed) {
     resetEncoders();
     long targetTicks = degreesToTicks(degrees);
+    Serial.print(targetTicks);
+    Serial.print("\n ");
+    
     
     if (degrees > 0) {
         rotateRight(speed); // Rotation dans le sens horaire
@@ -192,8 +198,17 @@ void Movement::rotate(float degrees, int speed) {
     }
     
     // Boucle bloquante jusqu'à atteindre l'angle
-    while (abs(encoderLeft.getTicks()) < targetTicks || abs(encoderRight.getTicks()) < targetTicks) {
+    while ( abs(encoderRight.getTicks()) <= targetTicks) {
+        // abs(encoderLeft.getTicks()) <= targetTicks || le probleme tant une des 2 conditions est vraie on continue probleme avec decrementation de getLEft + abs cette condition est tjrs fausse ou autre probleme c est condition ne sont jmais vrai au meme 
+        //moment
         updateEncoderTimestamps();
+        Serial.print(encoderRight.getTicks());
+        Serial.print("\n ");
+        Serial.print(targetTicks);
+        Serial.print("\n ");
+        
+        
+        //Serial.print(encoderRight.getTicks());
         delay(MOVEMENT_LOOP_DELAY);
     }
     
