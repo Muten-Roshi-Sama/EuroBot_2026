@@ -45,7 +45,7 @@ void fsmStep(FsmContext &ctx) {
 
     case FsmAction::CALIBRATE_ENCODERS: {
         calibrateEncoders();
-        delay(2000);
+        
         // fsmChangeAction(ctx, FsmAction::END);
     break;
     }
@@ -163,11 +163,13 @@ void calibrateEncoders() {
     Serial.println("Le robot va tourner de 180 degres (demi-tour)");
     Serial.println("Verifiez si il tourne exactement 180 degres");
     Serial.println("\nDemarrage dans 5 secondes...\n");
-    delay(5000);
+    
     
     Serial.println(">>> ROTATION 180 DEGRES <<<");
-    movement.rotate(90);
-    //movement.moveDistance(5); // Petit mouvement pour eviter blocage
+    
+    
+    movement.moveDistance(10); // Petit mouvement pour eviter blocage
+   
     
     Serial.println("\n=== RESULTATS ROTATION ===");
     Serial.println("Le robot a-t-il tourne exactement 180 degres?");

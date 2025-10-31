@@ -11,8 +11,8 @@
 
 
 #define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
-#define WHEEL_BASE 10.5f // Distance entre les centres des deux roues en centimètres (10cm)
-#define ENCODER_RESOLUTION 62  // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
+#define WHEEL_BASE 10.0f // Distance entre les centres des deux roues en centimètres (10cm)
+#define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
 
 
@@ -23,7 +23,7 @@
 // PARAMÈTRES DE VITESSE
 
 
-#define DEFAULT_SPEED 150   // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale)
+#define DEFAULT_SPEED 100   // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
 #define MIN_SPEED 80
 #define MAX_SPEED 255
 
@@ -53,7 +53,7 @@
 // ============================================
 
 // Délai dans les boucles bloquantes (ms)
-#define MOVEMENT_LOOP_DELAY 10
+#define MOVEMENT_LOOP_DELAY 2
 
 // Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2

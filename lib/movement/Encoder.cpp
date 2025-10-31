@@ -9,6 +9,9 @@ Encoder::Encoder(int resolution) {
 void Encoder::addTick() {
     tick++;
 }
+void Encoder::subtractTick() {
+    tick--;
+}
 
 int Encoder::getTicks() {
     return tick;

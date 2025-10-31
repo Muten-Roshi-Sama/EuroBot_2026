@@ -13,7 +13,8 @@ private:
 public:
     Encoder();                        
     Encoder(int resolution);          
-    void addTick();                  
+    void addTick();
+    void subtractTick();                 
     int getTicks();                   
     void changeResolution(int newResolution); 
     void setTimestamp(unsigned long time);   
