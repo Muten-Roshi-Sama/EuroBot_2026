@@ -1,8 +1,8 @@
 /*
-README (Arduino UNO SPI Master → ESP32-C3 SPI Slave, NDJSON bridge)
--------------------------------------------------------------------
+README (Arduino UNO SPI Master → ESP32-C6 SPI Slave, NDJSON bridge)
+------------------------------------------------------------------
 Purpose: The Arduino UNO is the SPI master. It periodically sends telemetry
-NDJSON to the ESP32-C3 and receives NDJSON commands back via SPI.
+NDJSON to the ESP32-C6 and receives NDJSON commands back via SPI.
 
 Framing over SPI:
 - Fixed frame size: 2 + 512 bytes (LEN_L, LEN_H, PAYLOAD[0..511])
@@ -11,10 +11,10 @@ Framing over SPI:
 - Each SPI transaction transfers one full frame in both directions.
 
 Wiring (UNO master):
-- SCK  -> ESP32-C3 SCLK
-- MOSI -> ESP32-C3 MOSI
-- MISO <- ESP32-C3 MISO
-- SS   -> ESP32-C3 SS (slave select)
+- SCK  -> ESP32-C6 SCLK
+- MOSI -> ESP32-C6 MOSI
+- MISO <- ESP32-C6 MISO
+- SS   -> ESP32-C6 SS (slave select)
 - GND shared between boards.
 
 Build:
@@ -23,6 +23,7 @@ Build:
 
 Notes:
 - We keep the JSON stream clean for ESP side; debug is on USB Serial only.
+ - ESP32-C6 uses 2.4 GHz Wi‑Fi only; this project does not use 5 GHz.
 */
 
 #include <Arduino.h>

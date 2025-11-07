@@ -1,8 +1,8 @@
 /*
-README (ESP32-C3 SPI Slave <-> Wi-Fi TCP NDJSON Bridge)
--------------------------------------------------------
-Purpose: ESP32-C3 acts as SPI slave to an Arduino UNO master. It bridges
-NDJSON messages between SPI and a single TCP client over 2.4 GHz Wi‑Fi.
+README (ESP32-C6 SPI Slave <-> Wi-Fi TCP NDJSON Bridge)
+------------------------------------------------------
+Purpose: ESP32-C6 acts as SPI slave to an Arduino UNO master. It bridges
+NDJSON messages between SPI and a single TCP client over Wi‑Fi (2.4 GHz).
 
 SPI Frame format (per transaction, full-duplex):
 - 514 bytes: [LEN_L, LEN_H, PAYLOAD[0..511]]
@@ -10,7 +10,7 @@ SPI Frame format (per transaction, full-duplex):
   (UTF-8, ending with '\n'). Each transaction can carry at most one line.
 - Both directions use the same frame size.
 
-Wi‑Fi: 2.4 GHz only (ESP32‑C3). Starts TCP server on port 3333, single client.
+Wi‑Fi: 2.4 GHz only (ESP32‑C6). Starts TCP server on port 3333, single client.
 JSON: Validates with ArduinoJson. Optional pre‑shared key filtering on commands.
 */
 
@@ -23,15 +23,15 @@ JSON: Validates with ArduinoJson. Optional pre‑shared key filtering on command
 // Wi‑Fi credentials
 static const char *WIFI_SSID = "YOUR_SSID";
 static const char *WIFI_PASS = "YOUR_PASSWORD";
-static const char *HOSTNAME  = "esp32c3-spi-bridge";
+static const char *HOSTNAME  = "esp32c6-spi-bridge";
 static const uint16_t TCP_PORT = 3333;
 
-// SPI pins (adjust for your ESP32‑C3 board)
-// These are examples; verify your board's available GPIOs.
+// SPI pins (ESP32‑C6 — adjust for your board/wiring)
+// Example defaults for ESP32‑C6 DevKitC‑1 (change if your wiring differs)
 static const int PIN_MOSI = 6;   // connect to UNO MOSI
-static const int PIN_MISO = 7;   // connect to UNO MISO
-static const int PIN_SCLK = 4;   // connect to UNO SCK
-static const int PIN_SS   = 5;   // connect to UNO SS
+static const int PIN_MISO = 5;   // connect to UNO MISO
+static const int PIN_SCLK = 7;   // connect to UNO SCK
+static const int PIN_SS   = 4;   // connect to UNO SS
 
 // JSON & framing
 static const size_t MAX_JSON_SIZE = 512;  // bytes
@@ -144,7 +144,7 @@ static void dropClient() { if (client) { client.stop(); debugln("Client disconne
 void setup() {
   Serial.begin(115200);
   delay(100);
-  debugln("ESP32‑C3 SPI slave NDJSON bridge (2.4 GHz)");
+  debugln("ESP32‑C6 SPI slave NDJSON bridge (2.4 GHz)");
 
   // SPI slave setup
   spiSlave.setDataMode(SPI_MODE0);
