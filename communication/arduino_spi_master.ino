@@ -28,13 +28,12 @@ Notes:
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <ArduinoJson.h>
 
 // CONFIG --------------------------------------------------------------
 static const uint8_t PIN_SS = 10; // UNO SS
 static const uint32_t SPI_CLOCK_HZ = 1000000UL; // 1 MHz (safe)
 static const uint8_t SPI_MODE = SPI_MODE0;
-static const size_t MAX_JSON_SIZE = 512;
+static const size_t MAX_LINE_SIZE = 512;
 static const uint32_t TELEMETRY_PERIOD_MS = 1000;
 
 // Frame constants
@@ -42,22 +41,19 @@ static const size_t FRAME_DATA_LEN = 512;
 static const size_t FRAME_LEN = 2 + FRAME_DATA_LEN; // 514 bytes
 
 // State ---------------------------------------------------------------
-static uint32_t lastTelemetryMs = 0;
-static int currentSpeed = 0;
+static uint32_t lastInfoMs = 0;
+static uint32_t infoCounter = 1;
+static char pendingLine[MAX_LINE_SIZE];
+static size_t pendingLen = 0;
 
 // Helpers -------------------------------------------------------------
-static void buildTelemetry(char *out, size_t &outLen) {
-  StaticJsonDocument<MAX_JSON_SIZE> doc;
-  doc["type"] = "telemetry";
-  doc["ts"] = millis();
-  doc["battery"] = 92;
-  doc["speed"] = currentSpeed;
-  // Serialize with trailing newline (NDJSON)
-  String s;
-  serializeJson(doc, s);
-  s += '\n';
-  outLen = min((size_t)s.length(), (size_t)MAX_JSON_SIZE);
-  memcpy(out, s.c_str(), outLen);
+static void buildInfoLine(char *out, size_t &outLen) {
+  // Format: "info envoyée N\n"
+  char buf[64];
+  int n = snprintf(buf, sizeof(buf), "info envoyée %lu\n", (unsigned long)infoCounter++);
+  if (n < 0) { outLen = 0; return; }
+  outLen = (size_t)min(n, (int)MAX_LINE_SIZE);
+  memcpy(out, buf, outLen);
 }
 
 static size_t encodeFrame(uint8_t *frame, const uint8_t *payload, size_t payloadLen) {
@@ -89,13 +85,18 @@ static void sendLineIfAnyAndReceive(char *rxLineBuf, size_t &rxLen) {
   // Prepare TX frame (possibly empty)
   uint8_t txFrame[FRAME_LEN];
   uint8_t rxFrame[FRAME_LEN];
-  char line[MAX_JSON_SIZE];
+  char line[MAX_LINE_SIZE];
   size_t lineLen = 0;
 
-  // Telemetry every TELEMETRY_PERIOD_MS
-  if (millis() - lastTelemetryMs >= TELEMETRY_PERIOD_MS) {
-    lastTelemetryMs = millis();
-    buildTelemetry(line, lineLen);
+  // Priority: send pending reply if any, else periodic info line
+  if (pendingLen > 0) {
+    size_t copyLen = min(pendingLen, (size_t)MAX_LINE_SIZE);
+    memcpy(line, pendingLine, copyLen);
+    lineLen = copyLen;
+    pendingLen = 0;
+  } else if (millis() - lastInfoMs >= TELEMETRY_PERIOD_MS) {
+    lastInfoMs = millis();
+    buildInfoLine(line, lineLen);
   }
 
   size_t toSend = encodeFrame(txFrame, (const uint8_t *)line, lineLen);
@@ -114,20 +115,20 @@ static void sendLineIfAnyAndReceive(char *rxLineBuf, size_t &rxLen) {
 }
 
 static void handleIncomingLine(const char *line, size_t len) {
-  // Expect NDJSON line
-  StaticJsonDocument<MAX_JSON_SIZE> doc;
-  DeserializationError err = deserializeJson(doc, line, len);
-  if (err) {
-    Serial.print('#'); Serial.print("Invalid JSON from SPI: "); Serial.write(line, len); Serial.println();
-    return;
-  }
-  const char *type = doc["type"] | "command";
-  if (strcmp(type, "command") == 0) {
-    const char *cmd = doc["command"] | "";
-    if (strcmp(cmd, "set_speed") == 0) {
-      currentSpeed = (int)doc["value"] | currentSpeed;
-      Serial.print('#'); Serial.print("Set speed to "); Serial.println(currentSpeed);
-    }
+  // Raw line-based protocol. If we receive "come", queue reply "bien recu!\n"
+  // Normalize by trimming CR/LF for comparison
+  size_t n = len;
+  while (n > 0 && (line[n-1] == '\n' || line[n-1] == '\r')) n--;
+  bool isCome = (n == 4 && strncmp(line, "come", 4) == 0);
+  if (isCome) {
+    const char *reply = "bien recu!\n";
+    size_t rlen = strlen(reply);
+    size_t copyLen = min(rlen, (size_t)MAX_LINE_SIZE);
+    memcpy(pendingLine, reply, copyLen);
+    pendingLen = copyLen;
+    Serial.println("# RX 'come' -> queued 'bien recu!'");
+  } else {
+    Serial.print('#'); Serial.print("RX: "); Serial.write(line, len); Serial.println();
   }
 }
 

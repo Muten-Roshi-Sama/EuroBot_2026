@@ -15,7 +15,6 @@ JSON: Validates with ArduinoJson. Optional pre‑shared key filtering on command
 */
 
 #include <WiFi.h>
-#include <ArduinoJson.h>
 #include <esp_task_wdt.h>
 #include <ESP32SPISlave.h>
 
@@ -33,17 +32,13 @@ static const int PIN_MISO = 5;   // connect to UNO MISO
 static const int PIN_SCLK = 7;   // connect to UNO SCK
 static const int PIN_SS   = 4;   // connect to UNO SS
 
-// JSON & framing
-static const size_t MAX_JSON_SIZE = 512;  // bytes
+// Line protocol & framing
+static const size_t MAX_LINE_SIZE = 512;  // bytes (includes trailing '\n')
 static const size_t FRAME_DATA_LEN = 512;
 static const size_t FRAME_LEN = 2 + FRAME_DATA_LEN; // 514 bytes
 
-// Security (optional pre‑shared key). Empty string disables check.
-static const char *PRE_SHARED_KEY = ""; // e.g. "secret123"
-
 // Behavior
 #define DEBUG 1
-static const bool SEND_RELAY_ACK = true;
 
 // Wi‑Fi backoff
 static const uint32_t WIFI_RETRY_BASE_MS = 500;
@@ -96,23 +91,9 @@ static size_t frameToLine(uint8_t *out) {
   return len;
 }
 
-static void sendJsonLine(WiFiClient &c, const JsonDocument &doc) {
-  if (!c) return;
-  String out; serializeJson(doc, out); out += '\n';
-  c.print(out);
-}
-
-static void sendErrorJson(WiFiClient &c, const char *reason) {
-  StaticJsonDocument<64> err;
-  err["type"] = "error";
-  err["reason"] = reason;
-  sendJsonLine(c, err);
-}
-
-static bool requireKeyOk(const JsonDocument &doc) {
-  if (PRE_SHARED_KEY == nullptr || PRE_SHARED_KEY[0] == '\0') return true;
-  const char *key = doc["key"] | "";
-  return strcmp(key, PRE_SHARED_KEY) == 0;
+static void sendRawLine(WiFiClient &c, const uint8_t *data, size_t len) {
+  if (!c || len == 0) return;
+  c.write(data, len);
 }
 
 static void ensureWiFi() {
@@ -170,10 +151,10 @@ void loop() {
   // Prepare a response for SPI (if there's a pending line from TCP)
   bool prepared = false;
   if (client && client.connected() && client.available()) {
-    // Read one line from TCP and validate, then place to SPI TX buffer
-    static char tcpLine[MAX_JSON_SIZE];
+    // Read one line from TCP and place to SPI TX buffer as-is
+    static char tcpLine[MAX_LINE_SIZE];
     size_t idx = 0;
-    while (client.available() && idx < MAX_JSON_SIZE) {
+    while (client.available() && idx < MAX_LINE_SIZE) {
       int c = client.read();
       if (c < 0) break;
       if (c == '\r') continue;
@@ -181,15 +162,8 @@ void loop() {
       if (c == '\n') break;
     }
     if (idx > 0) {
-      StaticJsonDocument<MAX_JSON_SIZE> doc;
-      DeserializationError err = deserializeJson(doc, tcpLine, idx);
-      if (err) { sendErrorJson(client, "invalid_json"); }
-      else if (requireKeyOk(doc)) {
-        frameFromLine((const uint8_t*)tcpLine, idx);
-        prepared = true;
-      } else {
-        debugln("Command rejected: bad key");
-      }
+      frameFromLine((const uint8_t*)tcpLine, idx);
+      prepared = true;
     }
   }
   if (!prepared) { frameClearTx(); }
@@ -203,19 +177,8 @@ void loop() {
     static uint8_t rxPayload[FRAME_DATA_LEN];
     size_t rxLen = frameToLine(rxPayload);
     if (rxLen > 0) {
-      StaticJsonDocument<MAX_JSON_SIZE> doc;
-      DeserializationError err = deserializeJson(doc, rxPayload, rxLen);
-      if (err) {
-        if (client && client.connected()) sendErrorJson(client, "invalid_json");
-      } else {
-        // Ensure seq exists
-        if (!doc.containsKey("seq")) doc["seq"] = seqCounter++;
-        if (client && client.connected()) {
-          sendJsonLine(client, doc);
-          if (SEND_RELAY_ACK) {
-            StaticJsonDocument<64> ack; ack["type"] = "relay_ack"; ack["seq"] = (int)doc["seq"]; sendJsonLine(client, ack);
-          }
-        }
+      if (client && client.connected()) {
+        sendRawLine(client, rxPayload, rxLen);
       }
     }
   }
