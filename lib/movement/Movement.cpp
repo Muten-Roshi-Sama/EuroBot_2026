@@ -207,111 +207,155 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
 }
 
 // ============= MOUVEMENTS AVEC DISTANCE (BLOQUANTS) =============
-
 void Movement::moveDistance(float cm, int speed) {
     resetEncoders();
     long targetTicks = cmToTicks(cm);
 
-    if (cm > 0) {
-        forward(speed);
-    } else {
-        backward(speed);
-        targetTicks = -targetTicks; // Valeur absolue pour la comparaison
-    }
+    bool forwardDir = (cm > 0);
+    if (!forwardDir) targetTicks = -targetTicks;
 
-    // Boucle bloquante jusqu'à atteindre la distance
+    static float persistentError = 0.0f; // <--- persiste entre itérations
+    float Kp = 0.8f;                     // ajuste selon ton robot
+    float alpha = 0.6f;                  // facteur de lissage (0.0 = réactif, 1.0 = très stable)
+
     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
-        
         long leftTicks = encoderLeft.getTicks();
         long rightTicks = encoderRight.getTicks();
 
-        // Erreur entre les roues
-        long error = leftTicks - rightTicks;
-        Serial.print("Error: ");
-        Serial.println(error);
-        Serial.print("Left Ticks: ");
-        Serial.println(leftTicks);
-        Serial.print("Right Ticks: ");
-        Serial.println(rightTicks);
+        // erreur instantanée
+        float currentError = leftTicks - rightTicks;
 
-        // PID simple pour corriger l'écart
-        float Kp_wheel = 0.6f; // à ajuster
-        int correction = Kp_wheel * error;
-        if (abs(error) <= 1) correction = 0;
+        // on lisse l’erreur persistante (moyenne pondérée)
+        persistentError = alpha * persistentError + (1 - alpha) * currentError;
 
-        int leftSpeed  = constrain(speed - correction, 0, 255);
-        int rightSpeed = constrain(speed + correction, 0, 255);
-        
+        // correction proportionnelle avec mémoire
+        float correction = Kp * persistentError;
+
+        int leftSpeed  = constrain(speed - correction, 100, 255);
+        int rightSpeed = constrain(speed + correction, 100, 255);
 
         motorLeft->setSpeed(leftSpeed);
         motorRight->setSpeed(rightSpeed);
-        motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
-        motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
+        motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+        motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+        // Debug (facultatif)
+        Serial.print("Err: "); Serial.print(currentError);
+        Serial.print(" | PersErr: "); Serial.print(persistentError);
+        Serial.print(" | Corr: "); Serial.println(correction);
 
         updateEncoderTimestamps();
         delay(MOVEMENT_LOOP_DELAY);
     }
-    
 
     stop();
+}
 
-    #if DEBUG_MOVEMENT
-    Serial.print("Distance parcourue: ");
-    Serial.print(getDistanceTraveled());
-    Serial.println(" cm");
-    #endif
-    // resetEncoders();
-    // unsigned long lastUpdateTimeDist = micros();
 
-    // float targetDistance = abs(cm);
-    // float Kp = 4.0;  // à ajuster selon ton robot
-    // float Ki = 0.5;   // à ajuster aussi (souvent plus petit)
+// void Movement::moveDistance(float cm, int speed) {
+//     resetEncoders();
+//     long targetTicks = cmToTicks(cm);
 
-    // while (true) {
-    //     // Distance parcourue actuelle
-    //     float currentDistance = getDistanceTraveled();
+//     if (cm > 0) {
+//         forward(speed);
+//     } else {
+//         backward(speed);
+//         targetTicks = -targetTicks; // Valeur absolue pour la comparaison
+//     }
 
-    //     // Erreur = cible - actuelle
-    //     float error = targetDistance - currentDistance;
+//     // Boucle bloquante jusqu'à atteindre la distance
+//     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
+        
+//         long leftTicks = encoderLeft.getTicks();
+//         long rightTicks = encoderRight.getTicks();
 
-    //     // Condition d’arrêt : proche de la cible
-    //     if (fabs(error) <= 1.00f) break;
+//         // Erreur entre les roues
+//         long error = leftTicks - rightTicks;
+//         Serial.print("Error: ");
+//         Serial.println(error);
+//         Serial.print("Left Ticks: ");
+//         Serial.println(leftTicks);
+//         Serial.print("Right Ticks: ");
+//         Serial.println(rightTicks);
 
-    //     // PID pour obtenir la consigne de vitesse
-    //     float pidOutput = PIDControlDistance(lastUpdateTimeDist, targetDistance, currentDistance, Kp, Ki);
+//         // PID simple pour corriger l'écart
+//         float Kp_wheel = 0.6f; // à ajuster
+//         int correction = Kp_wheel * error;
+//         if (abs(error) <= 1) correction = 0;
 
-    //     // La direction dépend du signe de l’erreur :
-    //     // Si erreur > 0 → aller vers l’avant
-    //     // Si erreur < 0 → reculer pour corriger
-    //     int direction = (error >= 0) ? FORWARD : BACKWARD;
+//         int leftSpeed  = constrain(speed - correction, 0, 255);
+//         int rightSpeed = constrain(speed + correction, 0, 255);
+        
 
-    //     // Vitesse moteur = amplitude du PID, limitée et plancher minimal
-    //     int motorSpeed = constrain(fabs(pidOutput), 0, 255);
+//         motorLeft->setSpeed(leftSpeed);
+//         motorRight->setSpeed(rightSpeed);
+//         motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
+//         motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
+
+//         updateEncoderTimestamps();
+//         delay(MOVEMENT_LOOP_DELAY);
+//     }
+    
+
+//     stop();
+
+//     #if DEBUG_MOVEMENT
+//     Serial.print("Distance parcourue: ");
+//     Serial.print(getDistanceTraveled());
+//     Serial.println(" cm");
+//     #endif
+//     // resetEncoders();
+//     // unsigned long lastUpdateTimeDist = micros();
+
+//     // float targetDistance = abs(cm);
+//     // float Kp = 4.0;  // à ajuster selon ton robot
+//     // float Ki = 0.5;   // à ajuster aussi (souvent plus petit)
+
+//     // while (true) {
+//     //     // Distance parcourue actuelle
+//     //     float currentDistance = getDistanceTraveled();
+
+//     //     // Erreur = cible - actuelle
+//     //     float error = targetDistance - currentDistance;
+
+//     //     // Condition d’arrêt : proche de la cible
+//     //     if (fabs(error) <= 1.00f) break;
+
+//     //     // PID pour obtenir la consigne de vitesse
+//     //     float pidOutput = PIDControlDistance(lastUpdateTimeDist, targetDistance, currentDistance, Kp, Ki);
+
+//     //     // La direction dépend du signe de l’erreur :
+//     //     // Si erreur > 0 → aller vers l’avant
+//     //     // Si erreur < 0 → reculer pour corriger
+//     //     int direction = (error >= 0) ? FORWARD : BACKWARD;
+
+//     //     // Vitesse moteur = amplitude du PID, limitée et plancher minimal
+//     //     int motorSpeed = constrain(fabs(pidOutput), 0, 255);
        
 
-    //     // Appliquer la consigne aux deux moteurs
-    //     motorLeft->setSpeed(motorSpeed);
-    //     motorRight->setSpeed(motorSpeed);
-    //     motorLeft->run(direction);
-    //     motorRight->run(direction);
+//     //     // Appliquer la consigne aux deux moteurs
+//     //     motorLeft->setSpeed(motorSpeed);
+//     //     motorRight->setSpeed(motorSpeed);
+//     //     motorLeft->run(direction);
+//     //     motorRight->run(direction);
 
-    //     // Debug (facultatif)
-    //     Serial.print("Erreur: "); Serial.print(error);
-    //     Serial.print(" | PID: "); Serial.print(pidOutput);
-    //     Serial.print(" | Speed: "); Serial.println(motorSpeed);
+//     //     // Debug (facultatif)
+//     //     Serial.print("Erreur: "); Serial.print(error);
+//     //     Serial.print(" | PID: "); Serial.print(pidOutput);
+//     //     Serial.print(" | Speed: "); Serial.println(motorSpeed);
 
-    //     updateEncoderTimestamps();
-    //     delay(MOVEMENT_LOOP_DELAY);
-    // }
+//     //     updateEncoderTimestamps();
+//     //     delay(MOVEMENT_LOOP_DELAY);
+//     // }
 
-    // stop();
+//     // stop();
 
-    // #if DEBUG_MOVEMENT
-    // Serial.print("Distance parcourue: ");
-    // Serial.print(getDistanceTraveled());
-    // Serial.println(" cm");
-    // #endif
-}
+//     // #if DEBUG_MOVEMENT
+//     // Serial.print("Distance parcourue: ");
+//     // Serial.print(getDistanceTraveled());
+//     // Serial.println(" cm");
+//     // #endif
+// }
 
 
 
