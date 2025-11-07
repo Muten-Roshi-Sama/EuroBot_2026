@@ -1,5 +1,10 @@
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include <stdint.h>
+static inline unsigned long millis() { return 0; }
+#endif
 #include "FSM.h"
 
 static void markStateStart(FsmContext &ctx) {
@@ -16,7 +21,18 @@ void fsmInit(FsmContext &ctx) {
   markStateStart(ctx);
 }
 
+// emergency flag (set by fsmTriggerEmergency)
+static volatile bool gEmergencyFlag = false;
+
 void fsmStep(FsmContext &ctx) {
+  // Priority: emergency stop preempts any state
+  if (gEmergencyFlag && ctx.currentAction != FsmAction::EMERGENCY_STOP) {
+    fsmEmergencyStop(ctx);
+    // Once we force the stop, clear the flag so it doesn't retrigger endlessly
+    gEmergencyFlag = false;
+    return;
+  }
+
   switch (ctx.currentAction) {
     case FsmAction::INIT: {
       // TODO: initialize subsystems, wait for start condition
@@ -63,4 +79,8 @@ void fsmStep(FsmContext &ctx) {
 void fsmEmergencyStop(FsmContext &ctx) {
   // Force transition to EMERGENCY_STOP
   fsmChangeAction(ctx, FsmAction::EMERGENCY_STOP);
+}
+
+void fsmTriggerEmergency() {
+  gEmergencyFlag = true;
 }
