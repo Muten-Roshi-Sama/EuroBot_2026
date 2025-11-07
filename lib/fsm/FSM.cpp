@@ -170,6 +170,8 @@ void calibrateEncoders() {
     
     movement.moveDistance(50); // Petit mouvement pour eviter blocage
    
+
+   
     
     Serial.println("\n=== RESULTATS ROTATION ===");
     Serial.println("Le robot a-t-il tourne exactement 180 degres?");
