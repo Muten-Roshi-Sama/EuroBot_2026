@@ -27,7 +27,8 @@ Notes:
 */
 
 #include <Arduino.h>
-#include <SPI.h>
+
+
 
 // CONFIG --------------------------------------------------------------
 static const uint8_t PIN_SS = 10; // UNO SS

@@ -23,7 +23,7 @@ import time
 from typing import Optional
 
 
-DEFAULT_HOST = "esp32c3.local"  # or static IP
+DEFAULT_HOST = "esp32c6.local"  # or static IP
 DEFAULT_PORT = 3333
 RECONNECT_BASE_SEC = 0.5
 RECONNECT_MAX_SEC = 8.0
