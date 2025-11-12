@@ -167,8 +167,8 @@ void calibrateEncoders() {
     
     Serial.println(">>> ROTATION 180 DEGRES <<<");
     
-    
-    movement.moveDistance(50); // Petit mouvement pour eviter blocage
+    movement.moveDistance(20);
+    //movement.rotate(90); // Petit mouvement pour eviter blocage
    
 
    

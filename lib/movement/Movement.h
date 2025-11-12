@@ -95,6 +95,9 @@ public:
     static void minrightEncoderISR();
     float PIDControlAngle(unsigned long& lastUpdateTimeAngle,float targetAngle, float currentAngle, float Kp, float Ki);
     float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
+    static void encoderLeftISRWrapper();
+    static void encoderRightISRWrapper();
+    
     
     
     // Instance statique pour accès depuis les ISR

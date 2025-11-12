@@ -151,33 +151,33 @@ void Movement::turnRightSoft(int speed) {
     motorRight->run(FORWARD);
 }
 // ============= PID Integration =============
-float Movement::PIDControlAngle(unsigned long& lastUpdateTimeAngle,float targetAngle, float currentAngle, float Kp, float Ki) {
+float Movement::PIDControlAngle(unsigned long& lastUpdateTimeAngle, 
+                                float targetAngle, 
+                                float currentAngle, 
+                                float Kp, 
+                                float Ki) 
+{
     unsigned long now = micros();
-    unsigned long interval = now - lastUpdateTimeAngle;
+    float dt = (now - lastUpdateTimeAngle) / 1e6f;
+    if (dt <= 0) dt = 1e-3f; // sécurité en cas de débordement timer
 
-   
-    static float integral = 0;
-    
-    float error = fmodf(((targetAngle - currentAngle) + 540.0f), 360.0f) - 180.0f;
-    float dt = interval / 1e6; 
-    integral += (error * dt);
-    if (integral > 1000) integral = 1000;
-    if (integral < -1000) integral = -1000;
-    
-    
-    float output = Kp * error + Ki * integral ;
-    
-    
-    // Limiter la sortie pour éviter des vitesses excessives
-    if (output > 360) output = 360;
-    if (output < -360) output = -360;
-    lastUpdateTime = now;
+    static float integral = 0.0f;
 
-    
+    // Erreur d'angle normalisée entre -180° et +180°
+    float error = fmodf((targetAngle - currentAngle + 540.0f), 360.0f) - 180.0f;
+
+    // Intégration (avec anti-windup)
+    integral += error * dt;
+    integral = constrain(integral, -50.0f, 50.0f);
+
+    // Sortie PI
+    float output = Kp * error + Ki * integral;
+    output = constrain(output, -255.0f, 255.0f);
+
+    lastUpdateTimeAngle = now;
     return output;
-    
-    
 }
+
 float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki) {
     unsigned long now = micros();
     
@@ -189,8 +189,8 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
     float dt = interval / 1e6; 
     integral += error * dt;
 
-    if (integral > 100) integral = 100;
-    if (integral < -100) integral = -100;
+    if (integral > 50) integral = 50;
+    if (integral < -50) integral = -50;
     
     float output = Kp * error + Ki * integral ;
     
@@ -216,7 +216,9 @@ void Movement::moveDistance(float cm, int speed) {
 
     static float persistentError = 0.0f; // <--- persiste entre itérations
     float Kp = 0.8f;                     // ajuste selon ton robot
-    float alpha = 0.6f;                  // facteur de lissage (0.0 = réactif, 1.0 = très stable)
+    float alpha = 0.5f;     
+    float leftFactor = 1.00;
+    float rightFactor = 0.97;             // facteur de lissage (0.0 = réactif, 1.0 = très stable)
 
     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
         long leftTicks = encoderLeft.getTicks();
@@ -363,43 +365,71 @@ void Movement::moveDistance(float cm) {
     moveDistance(cm, defaultSpeed); // Utilise default Kp et Ki
 }
 
-void Movement::rotate(float degrees, int speed) {
+volatile int8_t encoderDirection = 1; // 1 = avant, -1 = arrière
+
+void Movement::rotate(float degrees, int baseSpeed) {
     resetEncoders();
-    long targetTicks = degreesToTicks(degrees);
-    Serial.print(targetTicks);
-    Serial.print("\n ");
+    unsigned long lastUpdateTimeAngle = micros();
+
+    float Kp = 0.8f;
+    float Ki = 0.01f;
+
+    // Direction initiale
     
-    
-    if (degrees > 0) {
-        rotateRight(speed); // Rotation dans le sens horaire
-    } else {
-        rotateLeft(speed); // Rotation dans le sens anti-horaire
-        targetTicks = -targetTicks;
-    }
-    
-    // Boucle bloquante jusqu'à atteindre l'angle
-    while ( abs(encoderRight.getTicks()) <= targetTicks) {
-        // abs(encoderLeft.getTicks()) <= targetTicks || le probleme tant une des 2 conditions est vraie on continue probleme avec decrementation de getLEft + abs cette condition est tjrs fausse ou autre probleme c est condition ne sont jmais vrai au meme 
-        //moment
+
+    // Attache les interruptions une seule fois
+    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), encoderLeftISRWrapper, RISING);
+    attachInterrupt(digitalPinToInterrupt(encoderPinRight), encoderRightISRWrapper, RISING);
+
+    Serial.println("=== Début rotation PID ===");
+
+    while (true) {
+        float currentAngle = ticksToDegrees(encoderRight.getTicks());
+        float pidOutput = PIDControlAngle(lastUpdateTimeAngle, degrees, currentAngle, Kp, Ki);
+        int speed = constrain(abs(pidOutput), 60, 255);
+
+        float error = degrees - currentAngle;
+
+        
+
+        // Changer de sens si on dépasse la cible
+        encoderDirection = (error >= 0) ? 1 : -1;
+
+        // Zone morte de ±2°
+        
+
+        // Mouvements moteurs selon le signe du PID
+        if (error > 0) {
+            motorLeft->setSpeed(fabs(speed));
+            motorRight->setSpeed(fabs(speed));
+            motorLeft->run(FORWARD);
+            motorRight->run(BACKWARD);
+        } else {
+            motorLeft->setSpeed(fabs(speed));
+            motorRight->setSpeed(fabs(speed));
+            motorLeft->run(BACKWARD);
+            motorRight->run(FORWARD);
+        }
+
+        // Debug
+        Serial.print("Target: "); Serial.print(degrees);
+        Serial.print(" | Current: "); Serial.print(encoderRight.getTicks());
+        Serial.print(" | PID: "); Serial.print(pidOutput);
+        Serial.print(" | Error: "); Serial.print(error);
+        Serial.print(" | Angle: "); Serial.println(currentAngle);
+        if (error < 5.0f) {
+            break;
+        }
+        
+
         updateEncoderTimestamps();
-        Serial.print(encoderRight.getTicks());
-        Serial.print("\n ");
-        Serial.print(targetTicks);
-        Serial.print("\n ");
-        
-        
-        //Serial.print(encoderRight.getTicks());
         delay(MOVEMENT_LOOP_DELAY);
     }
-    
+
     stop();
-    
-    #if DEBUG_MOVEMENT
-    Serial.print("Rotation effectuee: ");
-    Serial.print(degrees);
-    Serial.println(" degres");
-    #endif
+    Serial.println("=== Rotation terminée ===");
 }
+
 
 void Movement::rotate(float degrees) {
     rotate(degrees, defaultSpeed);
@@ -519,5 +549,27 @@ void Movement::minrightEncoderISR()
         instance->encoderRight.subtractTick(); // ✅
     }
 }
+void Movement::encoderLeftISRWrapper() {
+    if (instance != nullptr) {
+        if (encoderDirection < 0){
+            instance->encoderLeft.addTick();
+        }
+        else{
+            instance->encoderLeft.subtractTick();
+        }
+    }
+}
+
+void Movement::encoderRightISRWrapper() {
+    if (instance != nullptr) {
+        if (encoderDirection > 0){
+            instance->encoderRight.addTick();
+        }
+        else{
+            instance->encoderRight.subtractTick();
+        }
+    }
+}
+
 
 
