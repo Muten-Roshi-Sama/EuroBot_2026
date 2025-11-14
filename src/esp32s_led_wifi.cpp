@@ -1,102 +1,94 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-// ============================================================================
-// Configuration WiFi
-// ============================================================================
-const char* ssid = "wifiesp";           // Remplacer par votre SSID WiFi
-const char* password = "wifiesp";   // Remplacer par votre mot de passe WiFi
-const int port = 8080;                   // Port du serveur TCP
+const int LED_PIN = 2;
+const int PORT_TCP = 8080;
 
-// ============================================================================
-// Configuration LED
-// ============================================================================
-const int LED_PIN = 2;  // GPIO 2 - adapter selon votre broche LED
+const char* AP_SSID = "ESP_LED_AP";
+const char* AP_PASS = "esp_password";
 
-// ============================================================================
-// Serveur WiFi
-// ============================================================================
-WiFiServer server(port);
+WiFiServer server(PORT_TCP);
 
-// ============================================================================
-// Setup
-// ============================================================================
+bool blinkEnabled = false;
+unsigned long blinkInterval = 500;
+unsigned long lastBlink = 0;
+int ledState = LOW;
+
+void handleBlink() {
+  if (!blinkEnabled) return;
+  unsigned long now = millis();
+  if (now - lastBlink >= blinkInterval) {
+    lastBlink = now;
+    ledState = !ledState;
+    digitalWrite(LED_PIN, ledState);
+  }
+}
+
+void handleCommand(const String &command, WiFiClient &client) {
+  if (command == "LED_ON") {
+    blinkEnabled = false;
+    digitalWrite(LED_PIN, HIGH);
+    client.println("OK: LED ON");
+    return;
+  }
+
+  if (command == "LED_OFF") {
+    blinkEnabled = false;
+    digitalWrite(LED_PIN, LOW);
+    client.println("OK: LED OFF");
+    return;
+  }
+
+  if (command.startsWith("LED_BLINK")) {
+    unsigned long interval = 0;
+    int sp = command.indexOf(' ');
+    if (sp > 0) {
+      String param = command.substring(sp + 1);
+      interval = param.toInt();
+    }
+    if (interval >= 50) blinkInterval = interval;
+    blinkEnabled = true;
+    lastBlink = millis();
+    ledState = digitalRead(LED_PIN);
+    client.print("OK: LED BLINK ");
+    client.println(blinkInterval);
+    return;
+  }
+
+  client.println("ERR: Unknown command");
+}
+
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-
-  // Initialiser LED
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
-  Serial.println("\n\nESP32-S LED WiFi Server Starting...");
-  // Start in Access Point (AP) mode so you can connect your PC directly
-  // AP credentials (change if you want)
-  const char* ap_ssid = "ESP_LED_AP";
-  const char* ap_pass = "esp_password"; // minimum 8 characters
-
   WiFi.mode(WIFI_AP);
-  WiFi.softAP(ap_ssid, ap_pass);
-  IPAddress apIP = WiFi.softAPIP(); // usually 192.168.4.1
-
-  Serial.print("AP SSID: ");
-  Serial.println(ap_ssid);
-  Serial.print("AP IP Address: ");
+  WiFi.softAP(AP_SSID, AP_PASS);
+  IPAddress apIP = WiFi.softAPIP();
+  Serial.print("AP IP: ");
   Serial.println(apIP);
-  Serial.print("Port: ");
-  Serial.println(port);
 
-  // Start server
   server.begin();
-  Serial.println("Server started (AP mode), waiting for connections...");
 }
 
-// ============================================================================
-// Loop
-// ============================================================================
 void loop() {
-  // Vérifier les connexions entrantes
   WiFiClient client = server.available();
 
   if (client) {
-    Serial.println("Client connected!");
-
-    // Lire les données du client
-    while (client.connected()) {
-      if (client.available()) {
-        String command = client.readStringUntil('\n');
-        command.trim();
-
-        Serial.print("Received: ");
-        Serial.println(command);
-
-        // Parser commande
-        if (command == "LED_ON") {
-          digitalWrite(LED_PIN, HIGH);
-          client.println("LED is ON");
-          Serial.println("LED ON");
-        } else if (command == "LED_OFF") {
-          digitalWrite(LED_PIN, LOW);
-          client.println("LED is OFF");
-          Serial.println("LED OFF");
-        } else if (command == "LED_TOGGLE") {
-          int currentState = digitalRead(LED_PIN);
-          digitalWrite(LED_PIN, !currentState);
-          client.println(currentState ? "LED is OFF" : "LED is ON");
-          Serial.println(currentState ? "LED OFF" : "LED ON");
-        } else if (command == "LED_STATUS") {
-          int status = digitalRead(LED_PIN);
-          client.print("LED Status: ");
-          client.println(status ? "ON" : "OFF");
-        } else {
-          client.println("Unknown command. Use: LED_ON, LED_OFF, LED_TOGGLE, LED_STATUS");
-        }
-      }
+    unsigned long start = millis();
+    while (!client.available() && (millis() - start) < 2000) {
+      handleBlink();
+      delay(1);
     }
-
+    if (client.available()) {
+      String command = client.readStringUntil('\n');
+      command.trim();
+      handleCommand(command, client);
+    }
     client.stop();
-    Serial.println("Client disconnected");
   }
 
-  delay(10);
+  handleBlink();
+  delay(1);
 }
