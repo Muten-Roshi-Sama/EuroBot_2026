@@ -11,7 +11,7 @@
 
 
 #define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
-#define WHEEL_BASE 10.7f // Distance entre les centres des deux roues en centimètres (10cm)
+#define WHEEL_BASE 10.8f // Distance entre les centres des deux roues en centimètres (10cm)
 #define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
 
@@ -53,7 +53,7 @@
 // ============================================
 
 // Délai dans les boucles bloquantes (ms)
-#define MOVEMENT_LOOP_DELAY 10
+#define MOVEMENT_LOOP_DELAY 5
 
 // Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2
