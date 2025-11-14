@@ -37,7 +37,7 @@ void handleCommand(const String &command, WiFiClient &client) {
     digitalWrite(LED_PIN, LOW);
     client.println("OK: LED OFF");
     return;
-  }
+  }    
 
   if (command.startsWith("LED_BLINK")) {
     unsigned long interval = 0;
