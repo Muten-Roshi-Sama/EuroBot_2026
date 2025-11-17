@@ -8,18 +8,12 @@
 //        - 
 
 // v0.1 wiring FSM minimal usage
-#if __has_include(<Arduino.h>)
+
+
+
 #include <Arduino.h>
-#else
-// Minimal mock for non-Arduino analysis/linting
-struct MockSerial {
-  void begin(unsigned long) {}
-  void println(const char*) {}
-  explicit operator bool() const { return true; }
-} Serial;
-static inline void delay(unsigned long) {}
-#endif
-#include "C:/Users/felix/Documents/Master 1 ECAM/Embbeded_project/Projet_git/EuroBot_2026/lib/fsm/FSM.h"
+#include "FSM.h"
+#include "settings.h"
 
 
 static FsmContext gFsm; 
@@ -29,6 +23,9 @@ void setup() {
   while (!Serial) {}
   Serial.println("Setup.");
   
+  // Init
+  init();
+
   fsmInit(gFsm);
 }
 
@@ -38,7 +35,4 @@ void loop(){
 
   fsmStep(gFsm);
 }
-
-
-
 
