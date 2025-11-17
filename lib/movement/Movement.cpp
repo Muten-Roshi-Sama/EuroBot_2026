@@ -177,7 +177,7 @@ float Movement::PIDControlAngle(unsigned long& lastUpdateTimeAngle,
 
     // --- Sortie PI(D) ---
     float output = Kp * error + Ki * integral;
-    output = constrain(output, 90.0f, 255.0f);
+    output = constrain(output, 60.0f, 255.0f);
 
     lastError = error;
     lastUpdateTimeAngle = now;
@@ -220,57 +220,89 @@ void Movement::moveDistance(float cm, int speed) {
     bool forwardDir = (cm > 0);
     if (!forwardDir) targetTicks = -targetTicks;
 
-    static float persistentError = 0.0f; // <--- persiste entre itérations
-    float Kp = 0.4f;                     // ajuste selon ton robot
-    float alpha = 0.4f;                  // facteur de lissage de l'erreur persistante
-    //float leftFactor = 1.00;
-    //float rightFactor = 0.97;             // facteur de lissage (0.0 = réactif, 1.0 = très stable)
+    // --- PI PARAMETERS ---
+    float Kp = 0.6f;
+    float Ki = 0.03f;
+    float integral = 0.0;
+    float integralMax = 300.0f; 
+    float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
 
-    while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
-        long leftTicks = encoderLeft.getTicks();
+    // --- erreur persistante (filtrée) ---
+    static float persistentError = 0.0f;   // mémorise l'erreur entre itérations
+    float alpha = 0.2f;                    // 0 = brut, 1 = très filtré
+
+    int warmupIterations = 50;  
+    int loopCounter = 0;
+
+    while (abs(encoderLeft.getTicks()) < abs(targetTicks) &&
+           abs(encoderRight.getTicks()) < abs(targetTicks)) {
+
+        long leftTicks  = encoderLeft.getTicks();
         long rightTicks = encoderRight.getTicks();
 
-        // erreur instantanée
-        float currentError = leftTicks - rightTicks;
+        // --- erreur instantanée ---
+        float error = leftTicks - rightTicks;
 
-        // on lisse l’erreur persistante (moyenne pondérée)
-        persistentError = alpha * persistentError + (1 - alpha) * currentError;
+        // --- calcul erreur persistante (filtrée) ---
+        persistentError = alpha * persistentError + (1.0f - alpha) * error;
 
-        // correction proportionnelle avec mémoire
-        float correction = Kp * persistentError;
+        // --- intégration + anti-windup ---
+        integral += persistentError * dt;
+        if (integral > integralMax) integral = integralMax;
+        if (integral < -integralMax) integral = -integralMax;
 
-        // int leftSpeed  = 1.00f*constrain(speed - correction, 70, 255);
-        // int rightSpeed = 1.00f*constrain(speed + correction, 70, 255);
-        int leftSpeed  = 0;
+        // --- correction PI (avec erreur persistante) ---
+        float correction = Kp * persistentError + Ki * integral;
+
+        int leftSpeed = 0;
         int rightSpeed = 0;
-        if (persistentError > 0.00f) {// gauche plus rapide → ralentir gauche
-            leftSpeed = constrain(speed - correction, 70, 255);
-            rightSpeed = speed;
+
+        // --- warm-up ---
+        if (loopCounter < warmupIterations) {
+
+            motorLeft->setSpeed(0);
+            motorRight->setSpeed(0);
+            motorLeft->run(RELEASE);
+            motorRight->run(RELEASE);
+
+            Serial.print("[Warm-up] Err: "); Serial.print(error);
+            Serial.print(" | PersErr: "); Serial.print(persistentError);
+            Serial.print(" | I: "); Serial.println(integral);
+
         } else {
-            // droite plus rapide → ralentir droite
-            leftSpeed = speed;
-            rightSpeed = constrain(speed + correction, 70, 255);
+
+            // --- PI normal après warm-up ---
+            if (persistentError > 0.0f) {
+                leftSpeed  = constrain(speed - correction, 80, 255);
+                rightSpeed = speed;
+            } else {
+                leftSpeed  = speed;
+                rightSpeed = constrain(speed + correction, 80, 255);
+            }
+
+            motorLeft->setSpeed(leftSpeed);
+            motorRight->setSpeed(rightSpeed);
+            motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+            motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+            Serial.print("Err: "); Serial.print(error);
+            Serial.print(" | PersErr: "); Serial.print(persistentError);
+            Serial.print(" | I: "); Serial.print(integral);
+            Serial.print(" | Corr: "); Serial.print(correction);
+            Serial.print(" | L: "); Serial.print(leftSpeed);
+            Serial.print(" | R: "); Serial.println(rightSpeed);
+            Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
         }
 
-
-        motorLeft->setSpeed(leftSpeed);
-        motorRight->setSpeed(rightSpeed);
-        motorLeft->run(forwardDir ? FORWARD : BACKWARD);
-        motorRight->run(forwardDir ? FORWARD : BACKWARD);
-
-        // Debug (facultatif)
-        Serial.print("Err: "); Serial.print(currentError);
-        Serial.print(" | PersErr: "); Serial.print(persistentError);
-        Serial.print(" | Corr: "); Serial.println(correction);
-        Serial.print("leftSpeed: ") ; Serial.print(leftSpeed);
-        Serial.print(" | rightSpeed: ") ; Serial.println(rightSpeed);
-
+        loopCounter++;
         updateEncoderTimestamps();
         delay(MOVEMENT_LOOP_DELAY);
     }
 
     stop();
 }
+
+
 
 
 // void Movement::moveDistance(float cm, int speed) {
@@ -393,7 +425,7 @@ void Movement::rotate(float degrees, int baseSpeed) {
     // --- Paramètres PID ---
     const float Kp = 0.5f;     // Gain proportionnel (ajusté un peu plus haut)
     const float Ki = 0.05f;   // Gain intégral légèrement augmenté pour réduire erreur statique
-    const float deadZone = 3.0f;  // Zone morte en degrés
+    const float deadZone = 2.0f;  // Zone morte en degrés
      // Anti-windup plus large pour plus de flexibilité
 
     // --- Interruption encodeurs (une seule fois) ---
@@ -407,12 +439,14 @@ void Movement::rotate(float degrees, int baseSpeed) {
 
     while (true) {
         float currentAngle = ticksToDegrees(encoderRight.getTicks());
+        float currentAngleLeft = ticksToDegrees(encoderLeft.getTicks());
 
         // PID amélioré (avec dérivée légère et anti-windup)
         float pidOutput = PIDControlAngle(lastUpdateTimeAngle, degrees, currentAngle, Kp, Ki);
-        int speed = constrain(fabs(pidOutput), 90.0f, 255.0f);
+        int speed = constrain(fabs(pidOutput), 0.0f, 255.0f);
 
         float error = degrees - currentAngle;
+        
 
         // --- Normalisation de l’erreur entre -180 et +180 ---
         error = fmodf((error + 540.0f), 360.0f) - 180.0f;
@@ -445,12 +479,13 @@ void Movement::rotate(float degrees, int baseSpeed) {
         Serial.print(" | Angle: "); Serial.print(currentAngle);
         Serial.print(" | PID: "); Serial.print(pidOutput);
         Serial.print(" | Error: "); Serial.println(error);
-
-        updateEncoderTimestamps();
-        if (fabs(error) <= deadZone) {
+        if (fabs(error) <= deadZone ) {
              break;  // 150 ms de stabilité avant arrêt
         }
         delay(MOVEMENT_LOOP_DELAY);
+
+        updateEncoderTimestamps();
+        
     }
 
     stop();

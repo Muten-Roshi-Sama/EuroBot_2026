@@ -167,15 +167,15 @@ void calibrateEncoders() {
     
     Serial.println(">>> ROTATION 180 DEGRES <<<");
     
-    // movement.moveDistance(20);
+    //movement.moveDistance(30);
     // delay(500);
     // movement.rotate(90); // Petit mouvement pour eviter blocage
     // delay(500);
-    // movement.moveDistance(20); // Reset des moteurs
-    // delay(500);
-    // movement.rotate(90);
+     //movement.moveDistance(50); // Reset des moteurs
     // delay(500);
     movement.rotate(90);
+    // delay(500);
+    //movement.rotate(90);
     // delay(500);
     //movement.rotate(90);
      //Rotation de 180 degres

@@ -23,7 +23,7 @@
 // PARAMÈTRES DE VITESSE
 
 
-#define DEFAULT_SPEED 100   // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
+#define DEFAULT_SPEED 100  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
 #define MIN_SPEED 80
 #define MAX_SPEED 255
 
@@ -53,7 +53,7 @@
 // ============================================
 
 // Délai dans les boucles bloquantes (ms)
-#define MOVEMENT_LOOP_DELAY 5
+#define MOVEMENT_LOOP_DELAY 2
 
 // Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2
