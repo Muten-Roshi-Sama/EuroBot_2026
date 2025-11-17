@@ -1,21 +1,30 @@
 
-
+#include "Demarage.h"
 #include "FSM.h"
 #include "EmergencyStop.h"
 
 void fsmInit(FsmContext &ctx) {
+  demarage_init(12);
+  emergency_stop_init(13);
   ctx.currentAction = FsmAction::INIT;
 }
 
 void fsmStep(FsmContext &ctx) {
+    demarage_update();
+    emergency_stop_update();
+  
+  
   // Déclenchement prioritaire de l'arrêt d'urgence
   if (emergency_button_pressed() && ctx.currentAction != FsmAction::EMERGENCY_STOP) {
     ctx.currentAction = FsmAction::EMERGENCY_STOP;
   }
-  
+
   switch (ctx.currentAction) {
     case FsmAction::INIT:
-      // TODO: initialize subsystems, wait for start condition
+     if (demarage_is_ready()) {
+        ctx.currentAction = FsmAction::MOVE_FORWARD;
+        Serial.println("Démarrage enclenché !");
+      }
       break;
     case FsmAction::MOVE_FORWARD:
       // TODO: command motors to move forward
