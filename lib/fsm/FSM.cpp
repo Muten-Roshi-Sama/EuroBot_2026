@@ -1,12 +1,18 @@
 
 
 #include "FSM.h"
+#include "EmergencyStop.h"
 
 void fsmInit(FsmContext &ctx) {
   ctx.currentAction = FsmAction::INIT;
 }
 
 void fsmStep(FsmContext &ctx) {
+  // Déclenchement prioritaire de l'arrêt d'urgence
+  if (emergency_button_pressed() && ctx.currentAction != FsmAction::EMERGENCY_STOP) {
+    ctx.currentAction = FsmAction::EMERGENCY_STOP;
+  }
+  
   switch (ctx.currentAction) {
     case FsmAction::INIT:
       // TODO: initialize subsystems, wait for start condition
@@ -24,11 +30,8 @@ void fsmStep(FsmContext &ctx) {
       // TODO: stop motors, finalize
       break;
     case FsmAction::EMERGENCY_STOP:
-      // Appel à la librairie EmergencyStop
-      if (emergency_button_pressed()) {
-        // Ici, on peut ajouter la logique d'arrêt d'urgence (ex: couper moteurs, etc)
-        // Serial.println("Arrêt d'urgence déclenché !");
-      }
+      Serial.println("Arrêt d'urgence déclenché !");
+      // Ici, on peut ajouter la logique d'arrêt d'urgence (ex: couper moteurs, etc)
       break;
     default:
       ctx.currentAction = FsmAction::INIT;
