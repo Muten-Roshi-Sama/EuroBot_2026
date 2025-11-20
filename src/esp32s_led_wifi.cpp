@@ -1,13 +1,16 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ArduinoJson.h>
 
 const int LED_PIN = 2;
 const int PORT_TCP = 8080;
 
-const char* AP_SSID = "ESP_LED_AP";
-const char* AP_PASS = "esp_password";
 
-WiFiServer server(PORT_TCP);
+const char* WIFI_SSID = "PCDEFÉLIX 4208"; // SSID du hotspot PC
+const char* WIFI_PASS = "E9]3445n";       // Mot de passe du hotspot PC
+const char* SERVER_IP = "192.168.137.1";  // IP du PC (à adapter si besoin)
+
+WiFiClient client;
 
 bool blinkEnabled = false;
 unsigned long blinkInterval = 500;
@@ -25,37 +28,54 @@ void handleBlink() {
 }
 
 void handleCommand(const String &command, WiFiClient &client) {
-  if (command == "LED_ON") {
+  StaticJsonDocument<256> doc;
+  DeserializationError error = deserializeJson(doc, command);
+  StaticJsonDocument<256> response;
+
+  if (error) {
+    response["status"] = "ERR";
+    response["msg"] = "Invalid JSON";
+    serializeJson(response, client);
+    client.println();
+    return;
+  }
+
+  String cmd = doc["cmd"] | "";
+  if (cmd == "LED_ON") {
     blinkEnabled = false;
     digitalWrite(LED_PIN, HIGH);
-    client.println("OK: LED ON");
+    response["status"] = "OK";
+    response["msg"] = "LED ON";
+    serializeJson(response, client);
+    client.println();
     return;
   }
-
-  if (command == "LED_OFF") {
+  if (cmd == "LED_OFF") {
     blinkEnabled = false;
     digitalWrite(LED_PIN, LOW);
-    client.println("OK: LED OFF");
+    response["status"] = "OK";
+    response["msg"] = "LED OFF";
+    serializeJson(response, client);
+    client.println();
     return;
   }
-
-  if (command.startsWith("LED_BLINK")) {
-    unsigned long interval = 0;
-    int sp = command.indexOf(' ');
-    if (sp > 0) {
-      String param = command.substring(sp + 1);
-      interval = param.toInt();
-    }
+  if (cmd == "LED_BLINK") {
+    unsigned long interval = doc["interval"] | 500;
     if (interval >= 50) blinkInterval = interval;
     blinkEnabled = true;
     lastBlink = millis();
     ledState = digitalRead(LED_PIN);
-    client.print("OK: LED BLINK ");
-    client.println(blinkInterval);
+    response["status"] = "OK";
+    response["msg"] = "LED BLINK";
+    response["interval"] = blinkInterval;
+    serializeJson(response, client);
+    client.println();
     return;
   }
-
-  client.println("ERR: Unknown command");
+  response["status"] = "ERR";
+  response["msg"] = "Unknown command";
+  serializeJson(response, client);
+  client.println();
 }
 
 void setup() {
@@ -63,30 +83,37 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(AP_SSID, AP_PASS);
-  IPAddress apIP = WiFi.softAPIP();
-  Serial.print("AP IP: ");
-  Serial.println(apIP);
-
-  server.begin();
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.print("Connexion au WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connecté, IP ESP32: ");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
-  WiFiClient client = server.available();
+  static bool connected = false;
+  if (!connected) {
+    Serial.print("Connexion au serveur TCP...");
+    if (client.connect(SERVER_IP, PORT_TCP)) {
+      Serial.println(" OK");
+      connected = true;
+    } else {
+      Serial.println(" ECHEC");
+      delay(2000);
+      return;
+    }
+  }
 
-  if (client) {
-    unsigned long start = millis();
-    while (!client.available() && (millis() - start) < 2000) {
-      handleBlink();
-      delay(1);
-    }
-    if (client.available()) {
-      String command = client.readStringUntil('\n');
-      command.trim();
-      handleCommand(command, client);
-    }
-    client.stop();
+  // Si connecté, lire les commandes du serveur Python
+  if (client.connected() && client.available()) {
+    String command = client.readStringUntil('\n');
+    command.trim();
+    handleCommand(command, client);
   }
 
   handleBlink();
