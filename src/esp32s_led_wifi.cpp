@@ -3,6 +3,10 @@
 #include <ArduinoJson.h>
 
 const int LED_PIN = 2;
+const int BUTTON_PIN = 9; // GPIO9, bouton BOOT sur ESP32-C3 DevKitM-1
+bool lastButtonState = HIGH;
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50;
 const int PORT_TCP = 8080;
 
 
@@ -80,8 +84,10 @@ void handleCommand(const String &command, WiFiClient &client) {
 
 void setup() {
   Serial.begin(115200);
+
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -117,5 +123,30 @@ void loop() {
   }
 
   handleBlink();
+  // Gestion bouton poussoir
+  static bool buttonSent = false;
+  int reading = digitalRead(BUTTON_PIN);
+  if (reading != lastButtonState) {
+    lastDebounceTime = millis();
+  }
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (lastButtonState == HIGH && reading == LOW && !buttonSent) {
+      // Bouton pressé (transition HIGH->LOW)
+      Serial.println("[DEBUG] Bouton BOOT pressé");
+      if (client.connected()) {
+        StaticJsonDocument<128> doc;
+        doc["event"] = "button_pressed";
+        doc["msg"] = "Bouton poussé";
+        serializeJson(doc, client);
+        client.println();
+        Serial.println("[DEBUG] Message JSON envoyé au serveur");
+        buttonSent = true;
+      }
+    }
+    if (reading == HIGH) {
+      buttonSent = false;
+    }
+  }
+  lastButtonState = reading;
   delay(1);
 }
