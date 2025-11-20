@@ -69,17 +69,24 @@ def handle_client(conn, addr, gui):
     gui.log(f"[+] Connecté par {addr}")
     with clients_lock:
         clients[addr] = conn
+    buffer = ""
     try:
         while True:
             data = conn.recv(1024)
             if not data:
                 gui.log(f'[-] Déconnecté de {addr}.')
                 break
-            try:
-                response = json.loads(data.decode().strip())
-                gui.log(f'[Réponse {addr}] {json.dumps(response, ensure_ascii=False)}')
-            except Exception as e:
-                gui.log(f'[Réponse {addr}] (non-JSON): {data.decode().strip()}')
+            buffer += data.decode(errors='ignore')
+            while '\n' in buffer:
+                line, buffer = buffer.split('\n', 1)
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    response = json.loads(line)
+                    gui.log(f'[Réponse {addr}] {json.dumps(response, ensure_ascii=False)}')
+                except Exception:
+                    gui.log(f'[Réponse {addr}] (non-JSON): {line}')
     except Exception as e:
         gui.log(f"[!] Erreur avec {addr}: {e}")
     finally:
