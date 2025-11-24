@@ -44,6 +44,10 @@ void handleCommand(const String &command, WiFiClient &client) {
     return;
   }
 
+  // Transmettre le JSON reçu à l'Arduino Uno via UART
+  serializeJson(doc, Serial);
+  Serial.println();
+
   String cmd = doc["cmd"] | "";
   if (cmd == "LED_ON") {
     blinkEnabled = false;
