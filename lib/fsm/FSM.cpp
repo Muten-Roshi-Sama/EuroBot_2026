@@ -1,14 +1,42 @@
 
 #include <Arduino.h>
-#include "FSM.h"
-#include "Movement.h"
 #include "settings.h"
-#include <Adafruit_MotorShield.h>
+#include "globals.h"
+#include "FSM.h"
+// Libs
+#include "../task_manager/TaskManager.h"
+#include "../drivers/button/Button.h"
+#include "../movement/Movement.h"
+#include "../tasks/MoveTask.h"
+#include "../util/Debug.h"
+
 
 
 // Instance du système de mouvement
 Movement movement;
+Button emergencyBtn(EMERGENCY_PIN, true, 2);
+static void markStateStart(FsmContext &ctx);
 
+
+// =================================
+
+void fsmInit(FsmContext &ctx) {
+  ctx.currentAction = FsmAction::INIT;
+  markStateStart(ctx);
+  // ===========
+
+  // DEBUG prints
+  debugInit(115200, DBG_FSM | DBG_TASKMANAGER);
+
+  // Emergency Button
+  emergencyBtn.begin();
+  pinMode(EMERGENCY_PIN, INPUT_PULLUP);
+  // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
+
+  // Others
+
+  //============
+}
 
 static void markStateStart(FsmContext &ctx) {
   ctx.stateStartMs = millis();
@@ -19,69 +47,77 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next) {
   markStateStart(ctx);
 }
 
-void fsmInit(FsmContext &ctx) {
-  ctx.currentAction = FsmAction::INIT;
-  markStateStart(ctx);
-}
-
-void fsmEmergencyStop(FsmContext &ctx) {
-  // Force transition to EMERGENCY_STOP
-    fsmChangeAction(ctx, FsmAction::EMERGENCY_STOP);
-}
-
 // =============================
 
 
+
 void fsmStep(FsmContext &ctx) {
+    // ------------------------------------
     switch (ctx.currentAction) {
+
+    // 1. INIT
     case FsmAction::INIT: {
+      // create TaskManager
+      if (!taskManager) taskManager = new TaskManager(&movement);
+
+      // Add task
+      taskManager->addTask(new MoveTask(50.0f, DEFAULT_SPEED, 0));   // move 50 cm
+      taskManager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
+      // taskManager.addTask()
+
+      //* Initialize all sensors
+      
       // Initialisation du système de mouvement avec les paramètres depuis settings.h
-    movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
-                    ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
+      movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
+                      ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
 
-    fsmChangeAction(ctx, FsmAction::CALIBRATE_ENCODERS);
-    break;
+      // Add if 
+      
+      ctx.currentAction = FsmAction::IDLE;
+      break;
     }
 
-    case FsmAction::CALIBRATE_ENCODERS: {
-        calibrateEncoders();
-        
-        
-        // fsmChangeAction(ctx, FsmAction::END);
-    break;
+    // 2. IDLE
+    case FsmAction::IDLE: {
+      
+      if (taskManager && !taskManager->isIdle()) {
+        //TODO: ADD "if" starting rope pulled.
+
+        // start 100sec timer
+
+        ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
+      } 
+      break;
     }
 
+    // 3. TASK
+    case FsmAction::TASK: {
+      if(taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
 
+      // Check for Interruptions every 100ms
+      if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;
 
+    }
+
+    
+    // ===========================
     case FsmAction::EMERGENCY_STOP: {
         movement.stop();
     break;
     }
-    case FsmAction::MOVE_FORWARD: {
-        Serial.print("Action: MOVE_FORWARD\n");
-        //movement.moveDistance(100);
-        fsmChangeAction(ctx, FsmAction::TURN_AROUND);
-    break;
-    }
-    case FsmAction::MOVE_BACKWARD: {
-        movement.backward();
-    break;
-    }
-    case FsmAction::TURN_AROUND: {
-        Serial.print("Action: TURN_AROUND\n");
-        movement.rotate(-180);        // Tourne de 180° à gauche
-        fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
-    break;
-    }
-    case FsmAction::END: {
+
+    case FsmAction::TIMER_END: {
         movement.stop();
     break;
     }
+
     default: {
       // Safety: reset to INIT on unknown action
         fsmChangeAction(ctx, FsmAction::INIT);
-    break;
+      break;
     }
+  
+  
   }
 }
 
@@ -156,6 +192,7 @@ void calibrateEncoders() {
     // Serial.println("");
     // Serial.println("Exemples:");
     // Serial.print("  Si 90 cm  -> Nouveau diametr_e = "); Serial.print(WHEEL_DIAMETER * 0.90, 2); Serial.println(" cm");
+    // Serial.print("  Si 90 cm  -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 0.90, 2); Serial.println(" cm");
     // Serial.print("  Si 95 cm  -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 0.95, 2); Serial.println(" cm");
     // Serial.print("  Si 105 cm -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 1.05, 2); Serial.println(" cm");
     // Serial.print("  Si 110 cm -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 1.10, 2); Serial.println(" cm");
@@ -201,6 +238,10 @@ void calibrateEncoders() {
    
 
    
+    delay(5000);
+    
+    Serial.println(">>> ROTATION 180 DEGRES <<<");
+    movement.rotate(180);
     
     Serial.println("\n=== RESULTATS ROTATION ===");
     Serial.println("Le robot a-t-il tourne exactement 180 degres?");

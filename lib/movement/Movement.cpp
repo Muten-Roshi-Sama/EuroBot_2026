@@ -106,7 +106,7 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
 // ============= MOUVEMENTS BASIQUES (NON-BLOQUANTS) =============
 
 void Movement::forward(int speed) {
-    motorLeft->setSpeed(speed-14);
+    motorLeft->setSpeed(speed);
     motorRight->setSpeed(speed);
     motorLeft->run(FORWARD);
     motorRight->run(FORWARD);
@@ -806,9 +806,15 @@ void Movement::rotate(float degrees, int baseSpeed) {
         
 
         // --- Debug ---
+        Serial.print("Target: "); Serial.print(degrees);
+        Serial.print(" | Angle: "); Serial.print(currentAngle);
+        Serial.print(" | PID: "); Serial.print(pidOutput);
+        Serial.print(" | Error: "); Serial.println(error);
         
-        
-        
+        if (fabs(error) <= deadZone ) {
+             break;  // 150 ms de stabilité avant arrêt
+        }
+        delay(MOVEMENT_LOOP_DELAY);
 
         updateEncoderTimestamps();
         

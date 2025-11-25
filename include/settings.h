@@ -1,6 +1,8 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#pragma once
+
 /**
  * SETTINGS.H
  * 
@@ -8,7 +10,13 @@
  * Tous les paramètres physiques et pins sont définis ici
  */
 
+// =========== Emergency Button ===========
+#define EMERGENCY_PIN 7
 
+
+
+
+// ============ Movement =============
 
 #define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
 #define WHEEL_BASE 10.8f // Distance entre les centres des deux roues en centimètres (10cm)
@@ -23,7 +31,7 @@
 // PARAMÈTRES DE VITESSE
 
 
-#define DEFAULT_SPEED 100// Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
+#define DEFAULT_SPEED 100  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
 #define MIN_SPEED 80
 #define MAX_SPEED 255
 
