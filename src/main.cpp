@@ -14,7 +14,7 @@
 #include <Arduino.h>
 #include "FSM.h"
 #include "settings.h"
-
+#include "../util/Debug.h"
 
 
 static FsmContext gFsm; 
@@ -27,7 +27,15 @@ void setup() {
   // Init ?
   init();
 
-  
+  // DEBUG prints
+  debugInit(115200,    // comment to deactivate
+    DBG_FSM | 
+    DBG_TASKMANAGER |
+    DBG_MOVEMENT |
+    DBG_SENSORS |
+    DBG_COMMS |
+    DBG_ENCODER
+  );
 
   fsmInit(gFsm);  // ! ALL init functions  ====>  HERE  <=======
 }

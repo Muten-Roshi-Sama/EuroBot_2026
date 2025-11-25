@@ -26,7 +26,9 @@ inline void debugEnable(uint8_t bits) { debugMask |= bits; }
 inline void debugDisable(uint8_t bits) { debugMask &= ~bits; }
 
 // Minimum safe formatted print for AVR
-inline void debugPrintf(uint8_t feature, const char *fmt, ...) {
+inline void debugPrintf(
+  uint8_t feature, 
+  const char *fmt, ...) {
   if (!(debugMask & feature)) return;
   char buf[80]; // keep small
   va_list args;

@@ -21,12 +21,12 @@ static void markStateStart(FsmContext &ctx);
 // =================================
 
 void fsmInit(FsmContext &ctx) {
+  debugPrintf(DBG_FSM, "FSM INIT !");
   ctx.currentAction = FsmAction::INIT;
   markStateStart(ctx);
   // ===========
 
-  // DEBUG prints
-  debugInit(115200, DBG_FSM | DBG_TASKMANAGER);
+  
 
   // Emergency Button
   emergencyBtn.begin();
@@ -43,9 +43,9 @@ static void markStateStart(FsmContext &ctx) {
 }
 
 void fsmChangeAction(FsmContext &ctx, FsmAction next) {
+  debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
   ctx.currentAction = next;
   markStateStart(ctx);
-  debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
 }
 
 // =============================
@@ -63,7 +63,7 @@ void fsmStep(FsmContext &ctx) {
 
       // Add task
       taskManager->addTask(new MoveTask(50.0f, DEFAULT_SPEED, 0));   // move 50 cm
-      taskManager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
+      // taskManager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
       // taskManager.addTask()
 
       //* Initialize all sensors
