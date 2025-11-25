@@ -46,6 +46,7 @@ void fsmStep(FsmContext &ctx) {
     case FsmAction::CALIBRATE_ENCODERS: {
         calibrateEncoders();
         
+        
         // fsmChangeAction(ctx, FsmAction::END);
     break;
     }
@@ -58,7 +59,7 @@ void fsmStep(FsmContext &ctx) {
     }
     case FsmAction::MOVE_FORWARD: {
         Serial.print("Action: MOVE_FORWARD\n");
-        movement.moveDistance(100);
+        //movement.moveDistance(100);
         fsmChangeAction(ctx, FsmAction::TURN_AROUND);
     break;
     }
@@ -154,7 +155,7 @@ void calibrateEncoders() {
     // Serial.println("  Nouveau_Diametre = WHEEL_DIAMETER × (Distance_reelle / 100)");
     // Serial.println("");
     // Serial.println("Exemples:");
-    // Serial.print("  Si 90 cm  -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 0.90, 2); Serial.println(" cm");
+    // Serial.print("  Si 90 cm  -> Nouveau diametr_e = "); Serial.print(WHEEL_DIAMETER * 0.90, 2); Serial.println(" cm");
     // Serial.print("  Si 95 cm  -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 0.95, 2); Serial.println(" cm");
     // Serial.print("  Si 105 cm -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 1.05, 2); Serial.println(" cm");
     // Serial.print("  Si 110 cm -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 1.10, 2); Serial.println(" cm");
@@ -167,11 +168,23 @@ void calibrateEncoders() {
     
     Serial.println(">>> ROTATION 180 DEGRES <<<");
     
-    movement.moveDistance(80);
-    delay(500);
+    movement.moveDistance(-50);
+    //movement.forward(100);
+    // Serial.println("Vitesse moyenne (Ticks/loop): ");
+    // Serial.println(movement.getAverageSpeedTicks());
+    // delay(500);
+    // movement.rotate(90);
+    // delay(500);
+    // movement.moveDistance(80);
+    // delay(500);
     // movement.rotate(90); // Petit mouvement pour eviter blocage
     // delay(500);
-    //  movement.moveDistance(50); // Reset des moteurs
+    // movement.moveDistance(80);
+    // delay(500);
+    // movement.rotate(90);
+    // delay(500);
+    // movement.moveDistance(80);
+     // Reset des moteurs
     // delay(500);
     // movement.rotate(90);
     // delay(500);

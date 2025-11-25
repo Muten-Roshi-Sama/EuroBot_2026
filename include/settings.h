@@ -53,7 +53,7 @@
 // ============================================
 
 // Délai dans les boucles bloquantes (ms)
-#define MOVEMENT_LOOP_DELAY 2
+#define MOVEMENT_LOOP_DELAY 0.01f
 
 // Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2

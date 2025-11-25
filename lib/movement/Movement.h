@@ -36,6 +36,7 @@ public:
     
     // Fonctions internes
     float ticksToCm(long ticks);
+    float ticksToRotations(long ticksRight, long ticksLeft);
     long cmToTicks(float cm);
     float ticksToDegrees(long ticks);
     long degreesToTicks(float degrees);
@@ -83,6 +84,7 @@ public:
     float getRightRPM();         // Vitesse roue droite en RPM
     float getLeftRevolutions();  // Nombre de tours roue gauche
     float getRightRevolutions(); // Nombre de tours roue droite
+    float getAverageSpeedTicks();     // Vitesse moyenne en RPM
     
     // Accès direct aux objets encodeurs (pour fonctionnalités avancées)
     Encoder* getLeftEncoder();
