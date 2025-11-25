@@ -4,9 +4,9 @@
 
 enum class FsmAction {
 	INIT,
-	MOVE_FORWARD,
-	MOVE_BACKWARD,
-	TURN_AROUND,
+	IDLE,
+	TASK,
+	TIMER_END,
 	END,
 	EMERGENCY_STOP 
 };
@@ -22,9 +22,5 @@ void fsmStep(FsmContext &ctx);
 
 void fsmChangeAction(FsmContext &ctx, FsmAction next);
 
-void fsmEmergencyStop(FsmContext &ctx);
-
-// Déclenchement prioritaire de l'arrêt d'urgence (appelable depuis ISR/callback)
-void fsmTriggerEmergency();
 
 

@@ -1,20 +1,36 @@
 
+
+//  TODO :
+//        - Fix 
+//        - Add 
+//        -
+//        - 
+
+// v0.1 wiring FSM minimal usage
+
+
+
 #include <Arduino.h>
 #include "FSM.h"
-#include "EmergencyStop.h"
-#include "Demarage.h"
+#include "settings.h"
+
 
 FsmContext ctx;
 
 void setup() {
   Serial.begin(115200);
-  fsmInit(ctx);
+  while (!Serial) {}
+  Serial.println("Setup.");
+  
+  // Init ?
+  init();
+
+  
+
+  fsmInit(gFsm);  // ! ALL init functions  ====>  HERE  <=======
 }
 
 void loop() {
   fsmStep(ctx);
 }
-
-
-
 
