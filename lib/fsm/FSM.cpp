@@ -168,7 +168,7 @@ void calibrateEncoders() {
     
     Serial.println(">>> ROTATION 180 DEGRES <<<");
     
-    movement.moveDistance(-50);
+    movement.moveDistance(-100);
     //movement.forward(100);
     // Serial.println("Vitesse moyenne (Ticks/loop): ");
     // Serial.println(movement.getAverageSpeedTicks());

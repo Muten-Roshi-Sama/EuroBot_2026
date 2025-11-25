@@ -9,7 +9,7 @@ double CapSetpoint = 0;
 double CapInput;        // Erreur persistante (Ticks Gauche - Ticks Droit)
 double CapOutput;       // Correction directionnelle (PWM +/-)
 // Gains : Kp élevé pour réactivité, Ki faible pour éviter le windup, Kd pour l'amortissement.
-PID CapPID(&CapInput, &CapOutput, &CapSetpoint,0.4, 0.5, 0.8, REVERSE);
+PID CapPID(&CapInput, &CapOutput, &CapSetpoint,0.4, 0.4, 0.8, REVERSE);
 #define TICKS_PER_PWM_UNIT 0.58f
 // 0.6, 0.8, 0.3
 
@@ -262,7 +262,7 @@ void Movement::moveDistance(float cm, int speed) {
     float minSlowFactor = 0.3f;  
     
     // Sécurité anti-calage : On met 85 ici directement
-    #define MIN_MOTOR_PWM 88
+    #define MIN_MOTOR_PWM 80
 
     int warmupIterations = 50;
     int loopCounter = 0;
@@ -273,7 +273,7 @@ void Movement::moveDistance(float cm, int speed) {
     
     // 1. Cap PID
     CapPID.SetMode(AUTOMATIC);
-    CapPID.SetOutputLimits(-20, 20); 
+    CapPID.SetOutputLimits(-30, 30); 
     CapPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
 
     // 2. Speed PID
