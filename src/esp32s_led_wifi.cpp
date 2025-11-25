@@ -14,11 +14,12 @@ const uint16_t server_port = 8080;
 WiFiClient client;
 
 void setup() {
-  Serial.begin(115200);          // UART vers Arduino
+  // Pas de Serial USB
+  Serial2.begin(115200, SERIAL_8N1, 9, 10); // UART2: RX=9 (rx1), TX=10 (tx1)
   delay(500);
 
   // ---- Connexion WiFi ----
-  Serial.print("Connexion au WiFi");
+  // Pas de Serial USB
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
@@ -27,64 +28,49 @@ void setup() {
     Serial.print(".");
   }
 
-  Serial.println("\nWiFi connectée !");
-  Serial.print("IP ESP32 : ");
-  Serial.println(WiFi.localIP());
+  // Pas de Serial USB
 }
 
 void loop() {
+  // Relaye tout message JSON reçu de l'Arduino (UART2) au PC via WiFi
+  if (Serial2.available()) {
+    String uartStr = Serial2.readStringUntil('\n');
+    uartStr.trim();
+    if (uartStr.length() > 0) {
+      client.print(uartStr + "\n");
+    }
+  }
+
 
   // -------------------- Connexion TCP au serveur --------------------
   if (!client.connected()) {
-    Serial.print("Connexion au serveur TCP...");
+    // Log de perte de connexion envoyé au PC via WiFi
+    client.print("{\"log\":\"Connexion au serveur TCP perdue !\"}\n");
     if (client.connect(server_ip, server_port)) {
-      Serial.println(" OK");
+      // Connexion rétablie, rien à afficher côté ESP32
     } else {
-      Serial.println(" ECHEC");
       delay(1000);
       return;
     }
   }
 
-  // -------------------- Lecture JSON venant du serveur --------------------
-  if (client.connected() && client.available()) {
+  // Receive from PC and send to Arduino (via UART2)
+  if (client.available()) {
     String jsonStr = client.readStringUntil('\n');
-    jsonStr.trim();
-
-    if (jsonStr.length() == 0) return;
-
-    StaticJsonDocument<256> doc;
-    DeserializationError err = deserializeJson(doc, jsonStr);
-
-    if (err) {
-      Serial.println("[ERR] JSON invalide reçu du serveur");
-      return;
-    }
-
-    const char* cmd = doc["command"];
-    if (!cmd) return;
-
-    // --------------------------------------------------------------------
-    //       TRAITEMENT des commandes venant de l'application GUI
-    // --------------------------------------------------------------------
-
-
-    if (strcmp(cmd, "led2:on") == 0) {
-      StaticJsonDocument<64> out;
-      out["led7"] = "on";
-      serializeJson(out, Serial);
-      Serial.println();
-      Serial.println("[UART] led7:on envoyé à l’Arduino");
-    } else if (strcmp(cmd, "led2:off") == 0) {
-      StaticJsonDocument<64> out;
-      out["led7"] = "off";
-      serializeJson(out, Serial);
-      Serial.println();
-      Serial.println("[UART] led7:off envoyé à l’Arduino");
-
-    } else {
-      Serial.print("[WARN] Commande inconnue : ");
-      Serial.println(cmd);
+    StaticJsonDocument<128> doc;
+    if (deserializeJson(doc, jsonStr) == DeserializationError::Ok) {
+      const char* cmd = doc["command"];
+      if (cmd && strcmp(cmd, "led2:on") == 0) {
+        StaticJsonDocument<32> outDoc;
+        outDoc["led7"] = "on";
+        serializeJson(outDoc, Serial2);
+        Serial2.println();
+      } else if (cmd && strcmp(cmd, "led2:off") == 0) {
+        StaticJsonDocument<32> outDoc;
+        outDoc["led7"] = "off";
+        serializeJson(outDoc, Serial2);
+        Serial2.println();
+      }
     }
   }
 }

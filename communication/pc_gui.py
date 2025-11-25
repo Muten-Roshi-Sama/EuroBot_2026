@@ -1,14 +1,20 @@
 import tkinter as tk
-from tkinter import simpledialog, {"command": "led2:on"}scrolledtext
+from tkinter import simpledialog,scrolledtext
 import socket
 import threading
 import json
+import time
+
+#{"command": "led2:on"}
 
 HOST = ''
 PORT = 8080
 
 clients = {}  # addr -> conn
 clients_lock = threading.Lock()
+
+PING_INTERVAL = 5  # secondes
+PING_TIMEOUT = 10  # secondes
 
 class ServerGUI:
     def __init__(self, root):
@@ -75,6 +81,7 @@ def handle_client(conn, addr, gui):
             data = conn.recv(1024)
             if not data:
                 gui.log(f'[-] Déconnecté de {addr}.')
+                gui.log(f'[ALERTE] ESP32 déconnecté !')
                 break
             buffer += data.decode(errors='ignore')
             while '\n' in buffer:
@@ -82,8 +89,15 @@ def handle_client(conn, addr, gui):
                 line = line.strip()
                 if not line:
                     continue
+                gui.log(f'[DEBUG] Ligne brute reçue: {line}')
                 try:
                     response = json.loads(line)
+                    # Log LED ON event
+                    if isinstance(response, dict):
+                        if response.get('led7') == 'on':
+                            gui.log(f'[INFO] LED sur pin 7 allumée (Arduino)')
+                        if response.get('button5') == 'pressed':
+                            gui.log(f'[INFO] Bouton sur pin 5 pressé (Arduino)')
                     gui.log(f'[Réponse {addr}] {json.dumps(response, ensure_ascii=False)}')
                 except Exception:
                     gui.log(f'[Réponse {addr}] (non-JSON): {line}')
@@ -106,10 +120,33 @@ def server_thread(gui):
             t = threading.Thread(target=handle_client, args=(conn, addr, gui), daemon=True)
             t.start()
 
+def ping_clients(gui):
+    while True:
+        time.sleep(PING_INTERVAL)
+        with clients_lock:
+            to_remove = []
+            for addr, conn in list(clients.items()):
+                try:
+                    conn.settimeout(PING_TIMEOUT)
+                    conn.sendall(b'{"ping":1}\n')
+                    # Essaye de lire une réponse (non bloquant)
+                    # Si le client est mort, une exception sera levée
+                    # On ne lit pas la réponse ici, juste on détecte la déconnexion
+                except Exception:
+                    gui.log(f'[ALERTE] Client {addr} inactif ou déconnecté (ping) !')
+                    to_remove.append(addr)
+            for addr in to_remove:
+                try:
+                    clients[addr].close()
+                except Exception:
+                    pass
+                del clients[addr]
+
 def main():
     root = tk.Tk()
     gui = ServerGUI(root)
     threading.Thread(target=server_thread, args=(gui,), daemon=True).start()
+    threading.Thread(target=ping_clients, args=(gui,), daemon=True).start()
     root.mainloop()
 
 if __name__ == "__main__":
