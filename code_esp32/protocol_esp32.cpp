@@ -88,7 +88,9 @@ void bridge_uart_wifi_loop() {
     }
 }
 
-} // namespace protocol_esp32
+} 
+
+// namespace protocol_esp32
 
 /*
 // --- Exemple d'utilisation dans main.cpp ---
@@ -171,4 +173,4 @@ void loop() {
       }
     }
   }
-}
+*/

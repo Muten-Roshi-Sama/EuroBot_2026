@@ -11,38 +11,24 @@ namespace protocol {
 void init(HardwareSerial& serial = Serial, unsigned long baudrate = 115200) {
     serial.begin(baudrate);
 }
-
 // Envoie un message JSON générique (clé/valeur)
 bool send(const JsonDocument& doc, HardwareSerial& serial = Serial) {
     serializeJson(doc, serial);
     serial.println();
     return true;
 }
-
 // Envoie un événement simple (clé/valeur string)
 bool send_event(const char* key, const char* value, HardwareSerial& serial = Serial) {
     StaticJsonDocument<64> doc;
     doc[key] = value;
     return send(doc, serial);
 }
-
 // Envoie un entier (clé/valeur int)
 bool send_int(const char* key, int value, HardwareSerial& serial = Serial) {
     StaticJsonDocument<64> doc;
     doc[key] = value;
     return send(doc, serial);
 }
-
-// Vérifie l'état d'un bouton (LOW = pressé) et envoie un événement si pressé
-void check_button(uint8_t button_pin, const char* event_key = "button", const char* event_value = "pressed", HardwareSerial& serial = Serial) {
-    static bool lastButton = HIGH;
-    bool button = digitalRead(button_pin);
-    if (lastButton == HIGH && button == LOW) {
-        send_event(event_key, event_value, serial);
-    }
-    lastButton = button;
-}
-
 // Tente de lire un message JSON reçu sur le port série donné
 // Retourne true si un message valide a été reçu et parsé
 bool receive(JsonDocument& doc, HardwareSerial& serial = Serial) {
@@ -52,6 +38,13 @@ bool receive(JsonDocument& doc, HardwareSerial& serial = Serial) {
         return (err == DeserializationError::Ok);
     }
     return false;
+}
+// Envoie un log texte au format JSON sur Serial
+void log(const char* msg) {
+    StaticJsonDocument<64> doc;
+    doc["log"] = msg;
+    serializeJson(doc, Serial);
+    Serial.println();
 }
 
 } // namespace protocol
