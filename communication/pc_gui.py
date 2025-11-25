@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import simpledialog, scrolledtext
+from tkinter import simpledialog, {"command": "led2:on"}scrolledtext
 import socket
 import threading
 import json

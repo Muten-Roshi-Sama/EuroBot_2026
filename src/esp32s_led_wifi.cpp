@@ -1,162 +1,90 @@
-#include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClient.h>
 #include <ArduinoJson.h>
 
-const int LED_PIN = 2;
-const int BUTTON_PIN = 9; // GPIO9, bouton BOOT sur ESP32-C3 DevKitM-1
-bool lastButtonState = HIGH;
-unsigned long lastDebounceTime = 0;
-const unsigned long debounceDelay = 50;
-const int PORT_TCP = 8080;
+// ------------ CONFIG WIFI -------------
+const char* ssid = "PCDEFÉLIX 4208";
+const char* password = "E9]3445n";
 
+// ------------ CONFIG TCP --------------
+const char* server_ip   = "192.168.137.1";
+const uint16_t server_port = 8080;
 
-const char* WIFI_SSID = "PCDEFÉLIX 4208"; // SSID du hotspot PC
-const char* WIFI_PASS = "E9]3445n";       // Mot de passe du hotspot PC
-const char* SERVER_IP = "192.168.137.1";  // IP du PC (à adapter si besoin)
-
+// ------------ OBJETS ------------------
 WiFiClient client;
 
-bool blinkEnabled = false;
-unsigned long blinkInterval = 500;
-unsigned long lastBlink = 0;
-int ledState = LOW;
-
-void handleBlink() {
-  if (!blinkEnabled) return;
-  unsigned long now = millis();
-  if (now - lastBlink >= blinkInterval) {
-    lastBlink = now;
-    ledState = !ledState;
-    digitalWrite(LED_PIN, ledState);
-  }
-}
-
-void handleCommand(const String &command, WiFiClient &client) {
-  StaticJsonDocument<256> doc;
-  DeserializationError error = deserializeJson(doc, command);
-  StaticJsonDocument<256> response;
-
-  if (error) {
-    response["status"] = "ERR";
-    response["msg"] = "Invalid JSON";
-    serializeJson(response, client);
-    client.println();
-    return;
-  }
-
-  // Transmettre le JSON reçu à l'Arduino Uno via UART
-  serializeJson(doc, Serial);
-  Serial.println();
-
-  String cmd = doc["cmd"] | "";
-  if (cmd == "LED_ON") {
-    blinkEnabled = false;
-    digitalWrite(LED_PIN, HIGH);
-    response["status"] = "OK";
-    response["msg"] = "LED ON";
-    serializeJson(response, client);
-    client.println();
-    return;
-  }
-  if (cmd == "LED_OFF") {
-    blinkEnabled = false;
-    digitalWrite(LED_PIN, LOW);
-    response["status"] = "OK";
-    response["msg"] = "LED OFF";
-    serializeJson(response, client);
-    client.println();
-    return;
-  }
-
-  if (command.startsWith("LED_BLINK")) {
-    unsigned long interval = 0;
-    int sp = command.indexOf(' ');
-    if (sp > 0) {
-      String param = command.substring(sp + 1);
-      interval = param.toInt();
-    }
-    if (interval >= 50) blinkInterval = interval;
-    blinkEnabled = true;
-    lastBlink = millis();
-    ledState = digitalRead(LED_PIN);
-    response["status"] = "OK";
-    response["msg"] = "LED BLINK";
-    response["interval"] = blinkInterval;
-    serializeJson(response, client);
-    client.println();
-    return;
-  }
-  response["status"] = "ERR";
-  response["msg"] = "Unknown command";
-  serializeJson(response, client);
-  client.println();
-}
-
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200);          // UART vers Arduino
+  delay(500);
 
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  // ---- Connexion WiFi ----
   Serial.print("Connexion au WiFi");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println();
-  Serial.print("Connecté, IP ESP32: ");
+
+  Serial.println("\nWiFi connectée !");
+  Serial.print("IP ESP32 : ");
   Serial.println(WiFi.localIP());
 }
 
 void loop() {
-  static bool connected = false;
-  if (!connected) {
+
+  // -------------------- Connexion TCP au serveur --------------------
+  if (!client.connected()) {
     Serial.print("Connexion au serveur TCP...");
-    if (client.connect(SERVER_IP, PORT_TCP)) {
+    if (client.connect(server_ip, server_port)) {
       Serial.println(" OK");
-      connected = true;
     } else {
       Serial.println(" ECHEC");
-      delay(2000);
+      delay(1000);
       return;
     }
   }
 
-  // Si connecté, lire les commandes du serveur Python
+  // -------------------- Lecture JSON venant du serveur --------------------
   if (client.connected() && client.available()) {
-    String command = client.readStringUntil('\n');
-    command.trim();
-    handleCommand(command, client);
-  }
+    String jsonStr = client.readStringUntil('\n');
+    jsonStr.trim();
 
-  handleBlink();
-  // Gestion bouton poussoir
-  static bool buttonSent = false;
-  int reading = digitalRead(BUTTON_PIN);
-  if (reading != lastButtonState) {
-    lastDebounceTime = millis();
-  }
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (lastButtonState == HIGH && reading == LOW && !buttonSent) {
-      // Bouton pressé (transition HIGH->LOW)
-      Serial.println("[DEBUG] Bouton BOOT pressé");
-      if (client.connected()) {
-        StaticJsonDocument<128> doc;
-        doc["event"] = "button_pressed";
-        doc["msg"] = "Bouton poussé";
-        serializeJson(doc, client);
-        client.println();
-        Serial.println("[DEBUG] Message JSON envoyé au serveur");
-        buttonSent = true;
-      }
+    if (jsonStr.length() == 0) return;
+
+    StaticJsonDocument<256> doc;
+    DeserializationError err = deserializeJson(doc, jsonStr);
+
+    if (err) {
+      Serial.println("[ERR] JSON invalide reçu du serveur");
+      return;
     }
-    if (reading == HIGH) {
-      buttonSent = false;
+
+    const char* cmd = doc["command"];
+    if (!cmd) return;
+
+    // --------------------------------------------------------------------
+    //       TRAITEMENT des commandes venant de l'application GUI
+    // --------------------------------------------------------------------
+
+
+    if (strcmp(cmd, "led2:on") == 0) {
+      StaticJsonDocument<64> out;
+      out["led7"] = "on";
+      serializeJson(out, Serial);
+      Serial.println();
+      Serial.println("[UART] led7:on envoyé à l’Arduino");
+    } else if (strcmp(cmd, "led2:off") == 0) {
+      StaticJsonDocument<64> out;
+      out["led7"] = "off";
+      serializeJson(out, Serial);
+      Serial.println();
+      Serial.println("[UART] led7:off envoyé à l’Arduino");
+
+    } else {
+      Serial.print("[WARN] Commande inconnue : ");
+      Serial.println(cmd);
     }
   }
-  lastButtonState = reading;
-  delay(1);
 }
