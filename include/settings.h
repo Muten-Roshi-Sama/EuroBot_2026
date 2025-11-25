@@ -1,18 +1,14 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#pragma once
+
 /**
  * SETTINGS.H
  * 
  * Configuration centrale pour le système de mouvement du robot
  * Tous les paramètres physiques et pins sont définis ici
  */
-
-// ======== ISR ==========
-#pragma once
-#define ISR_FLAG_EMERGENCY  0x01
-#define ISR_FLAG_OBSTACLE   0x02
-
 
 
 // ============ Movement =============
