@@ -250,260 +250,260 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
 
 // ============= MOUVEMENTS AVEC DISTANCE (BLOQUANTS) =============
 
-void Movement::moveDistance(float cm, int speed) {
-    resetEncoders();
-    persistentError = 0.0f;
-    long targetTicks = cmToTicks(cm);
-    bool forwardDir = (cm > 0);
-    
-    // --- PARAMÈTRES ---
-    float alpha = 0.5f; 
-    float slowDownTicks = 50.0f; 
-    float minSlowFactor = 0.3f;  
-    
-    // Sécurité anti-calage : On met 85 ici directement
-    #define MIN_MOTOR_PWM 80
-
-    int warmupIterations = 50;
-    int loopCounter = 0;
-    // Ajoutez cette variable paramètre au début de la fonction (ou en constante)
-    int rampUpDuration = 80; // Durée de l'accélération en nombre de boucles (approx 0.5 à 1 sec selon votre loop)
-
-    // *** CONFIGURATION PID (UNE SEULE FOIS AVANT LA BOUCLE) ***
-    
-    // 1. Cap PID
-    CapPID.SetMode(AUTOMATIC);
-    CapPID.SetOutputLimits(-30, 30); 
-    CapPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
-
-    // 2. Speed PID
-    SpeedPID.SetMode(AUTOMATIC);
-    // Ici on applique la limite de 85 pour empêcher l'effondrement à la fin
-    SpeedPID.SetOutputLimits(MIN_MOTOR_PWM, 255); 
-    SpeedPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
-
-    
-    
-    //----------------------------------------------------------------------
-    
-    while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
-
-        long leftTicks = encoderLeft.getTicks();
-        long rightTicks = encoderRight.getTicks();
-
-        // --- 1. CONTRÔLE DE VITESSE ---
-        float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
-        float slowFactor = constrain(distanceRemaining / slowDownTicks, minSlowFactor, 1.0f); 
-        
-        SpeedSetpoint = (float)speed * slowFactor * TICKS_PER_PWM_UNIT; 
-        SpeedInput = getAverageSpeedTicks(); 
-        
-        SpeedPID.Compute(); 
-        int basePWM = (int)SpeedOutput; // Le PWM dynamique (min 85)
-        
-        // --- 2. CONTRÔLE DE CAP ---
-        float error = leftTicks - rightTicks;
-        persistentError = ( persistentError) +  error;
-        
-        CapInput = error; 
-        CapPID.Compute(); 
-        float correction = CapOutput; 
-
-        // --- 3. APPLICATION ---
-        int leftSpeed = 0;
-        int rightSpeed = 0;
-
-        if (loopCounter < warmupIterations) {
-             // Warm-up (laisser les moteurs à 0 ou accélération douce si vous en avez une)
-             motorLeft->setSpeed(0);
-             motorRight->setSpeed(0);
-        } else {
-            // --- FEEDFORWARD (FF) ---
-            // Votre réglage final : on booste la gauche de +4
-            
-            // --- CALCUL DE LA RAMPE ---
-            int stepsSinceStart = loopCounter - warmupIterations;
-            float rampFactor = (float)stepsSinceStart / (float)rampUpDuration;
-            rampFactor = constrain(rampFactor, 0.0f, 1.0f); 
-
-            // --- FEEDFORWARD (FF) ---
-            // Vos réglages validés (FF sur droite)
-            int offsetFF = 4; 
-            int targetBaseRight = basePWM  ; 
-            int targetBaseLeft  = basePWM + offsetFF;
-
-            // --- CORRECTION "PIÉDESTAL" (CRUCIAL) ---
-            // On ne part pas de 0. On part de MIN_MOTOR_PWM (85).
-            // Formule : Vitesse = Min + (Cible - Min) * Rampe
-            
-            int currentBaseLeft = MIN_MOTOR_PWM + (int)((targetBaseLeft - MIN_MOTOR_PWM) * rampFactor);
-            int currentBaseRight = MIN_MOTOR_PWM + (int)((targetBaseRight - MIN_MOTOR_PWM) * rampFactor);
-
-            // --- ATTÉNUATION DU PID PENDANT LA RAMPE ---
-            // Astuce : Si on est en train d'accélérer, on réduit la violence du PID
-            // pour éviter qu'il ne sur-réagisse aux petits frottements de départ.
-            float rampDamping = 1.0f; // 50% de force PID pendant la rampe
-            float effectiveCorrection = correction * rampDamping;
-
-            // --- APPLICATION PID ---
-            // Note : On utilise dynamicMinPWM = MIN_MOTOR_PWM car on est déjà au-dessus
-            leftSpeed  = constrain(currentBaseLeft - (int)effectiveCorrection, MIN_MOTOR_PWM, 255);
-            rightSpeed = constrain(currentBaseRight + (int)effectiveCorrection, MIN_MOTOR_PWM, 255);
-            
-            // ... envoi aux moteurs ...
-            
-            motorLeft->setSpeed(leftSpeed);
-            motorRight->setSpeed(rightSpeed);
-            motorLeft->run(forwardDir ? FORWARD : BACKWARD);
-            motorRight->run(forwardDir ? FORWARD : BACKWARD);
-
-            // Logs
-            Serial.print("ErrCap: "); Serial.print(error);
-            // Serial.print(" | encoderL: "); Serial.print(leftTicks);
-            // Serial.print(" | encoderR: "); Serial.print(rightTicks);
-            Serial.print(" | PersErr: "); Serial.print(persistentError);
-            Serial.print(" | CorrCap: "); Serial.print(correction);
-            Serial.print(" | BasePWM: "); Serial.print(basePWM);
-            Serial.print(" | L: "); Serial.print(leftSpeed);
-            Serial.print(" | R: "); Serial.println(rightSpeed);
-            Serial.print(" | Dist: "); Serial.println(getDistanceTraveled());
-        }
-        delay(MOVEMENT_LOOP_DELAY);
-
-        loopCounter++;
-        updateEncoderTimestamps();
-    }
-
-    stop();
-}
 // void Movement::moveDistance(float cm, int speed) {
 //     resetEncoders();
+//     persistentError = 0.0f;
 //     long targetTicks = cmToTicks(cm);
-
 //     bool forwardDir = (cm > 0);
-//     // if (!forwardDir) targetTicks = -targetTicks;
+    
+//     // --- PARAMÈTRES ---
+//     float alpha = 0.5f; 
+//     float slowDownTicks = 50.0f; 
+//     float minSlowFactor = 0.3f;  
+    
+//     // Sécurité anti-calage : On met 85 ici directement
+//     #define MIN_MOTOR_PWM 80
 
-//     // --- PI PARAMETERS ---
-//     float Kp = 0.4f; // plus fort que ton 0.4
-//     float Ki = 0.08f; // plus agressif
-//     //kp =0.4
-//     //ki=float Ki = 0.05f;
-//     float integral = 0.0;
-//     float integralMax = 300.0f; 
-//     float deadzone = 2.0f;
-//     float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
-
-//     // --- erreur persistante (filtrée) ---
-//     float persistentError = 0.0f;   // mémorise l'erreur entre itérations
-//     float alpha = 0.3f;                    // 0 = brut, 1 = très filtré
-
-//     int warmupIterations = 50;  
+//     int warmupIterations = 50;
 //     int loopCounter = 0;
+//     // Ajoutez cette variable paramètre au début de la fonction (ou en constante)
+//     int rampUpDuration = 80; // Durée de l'accélération en nombre de boucles (approx 0.5 à 1 sec selon votre loop)
 
+//     // *** CONFIGURATION PID (UNE SEULE FOIS AVANT LA BOUCLE) ***
+    
+//     // 1. Cap PID
+//     CapPID.SetMode(AUTOMATIC);
+//     CapPID.SetOutputLimits(-30, 30); 
+//     CapPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
+
+//     // 2. Speed PID
+//     SpeedPID.SetMode(AUTOMATIC);
+//     // Ici on applique la limite de 85 pour empêcher l'effondrement à la fin
+//     SpeedPID.SetOutputLimits(MIN_MOTOR_PWM, 255); 
+//     SpeedPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
+
+    
+    
+//     //----------------------------------------------------------------------
+    
 //     while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
 
-//         long leftTicks  = encoderLeft.getTicks();
+//         long leftTicks = encoderLeft.getTicks();
 //         long rightTicks = encoderRight.getTicks();
 
-//         // --- erreur instantanée ---
+//         // --- 1. CONTRÔLE DE VITESSE ---
+//         float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+//         float slowFactor = constrain(distanceRemaining / slowDownTicks, minSlowFactor, 1.0f); 
+        
+//         SpeedSetpoint = (float)speed * slowFactor * TICKS_PER_PWM_UNIT; 
+//         SpeedInput = getAverageSpeedTicks(); 
+        
+//         SpeedPID.Compute(); 
+//         int basePWM = (int)SpeedOutput; // Le PWM dynamique (min 85)
+        
+//         // --- 2. CONTRÔLE DE CAP ---
 //         float error = leftTicks - rightTicks;
-
-//         // --- calcul erreur persistante (filtrée) ---
-//         persistentError = alpha * persistentError + (1.0f - alpha) * error;
-
-//         // --- intégration + anti-windup ---
-//         if (abs(persistentError) <= deadzone) {
-//             // dans la deadzone, ne pas intégrer
-//         } else {
-//             integral += persistentError * dt;
+//         persistentError = ( persistentError) +  error;
         
-//         }
-        
-        
-//         if (integral > integralMax) integral = integralMax;
-//         if (integral < -integralMax) integral = -integralMax;
+//         CapInput = error; 
+//         CapPID.Compute(); 
+//         float correction = CapOutput; 
 
-        
-
-//         // --- correction PI (avec erreur persistante) ---
-//         float correction = Kp * persistentError + Ki * integral;
-//         // --- correction PI (avec erreur persistante) ---
-//         // float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
-
-// // // // // ajuster Kp
-// //         float Kp_mod = Kp * constrain(distanceRemaining / 50.0f, 0.1f, 1.0f);
-
-// // // // ajuster Ki
-// //         float Ki_mod = Ki * constrain(distanceRemaining / 50.0f, 0.05f, 1.0f);
-//         // float factor = distanceRemaining < 80 ? distanceRemaining / 80.0f : 1.0f;
-//         // factor = constrain(factor, 0.3f, 1.0f);
-
-//         // float Kp_mod = Kp * factor;
-//         // float Ki_mod = Ki * factor;
-
-
-//         // float correction = Kp_mod * persistentError + Ki_mod * integral;
-
+//         // --- 3. APPLICATION ---
 //         int leftSpeed = 0;
 //         int rightSpeed = 0;
 
-//         // --- warm-up ---
 //         if (loopCounter < warmupIterations) {
-            
-
-//             motorLeft->setSpeed(0);
-//             motorRight->setSpeed(0);
-//             motorLeft->run(RELEASE);
-//             motorRight->run(RELEASE);
-
-//             Serial.print("[Warm-up] Err: "); Serial.print(error);
-//             Serial.print(" | PersErr: "); Serial.print(persistentError);
-//             Serial.print(" | I: "); Serial.println(integral);
-
+//              // Warm-up (laisser les moteurs à 0 ou accélération douce si vous en avez une)
+//              motorLeft->setSpeed(0);
+//              motorRight->setSpeed(0);
 //         } else {
+//             // --- FEEDFORWARD (FF) ---
+//             // Votre réglage final : on booste la gauche de +4
+            
+//             // --- CALCUL DE LA RAMPE ---
+//             int stepsSinceStart = loopCounter - warmupIterations;
+//             float rampFactor = (float)stepsSinceStart / (float)rampUpDuration;
+//             rampFactor = constrain(rampFactor, 0.0f, 1.0f); 
 
-//             // --- PI normal après warm-up ---
-//             if (persistentError > 0.0f) {
-//                 leftSpeed  = constrain(speed - (correction), 90, 255);
-//                 rightSpeed = constrain(speed + (correction/2), 90, 255);
-//             } else {
-//                 leftSpeed  = constrain(speed - (correction/2), 90, 255);
-//                 rightSpeed = constrain(speed + (correction/2), 90, 255);
-//             }
-//             //float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
-//             //float slowFactor = constrain(distanceRemaining / 50.0, 0.1, 1.0); // ralentit les 50 derniers ticks
-//             //leftSpeed  = constrain(slowFactor*leftSpeed, 70, 255);   // vitesse minimale de 80
-//             //rightSpeed = constrain(slowFactor*rightSpeed, 70, 255); // vitesse minimale de 80
+//             // --- FEEDFORWARD (FF) ---
+//             // Vos réglages validés (FF sur droite)
+//             int offsetFF = 4; 
+//             int targetBaseRight = basePWM  ; 
+//             int targetBaseLeft  = basePWM + offsetFF;
 
+//             // --- CORRECTION "PIÉDESTAL" (CRUCIAL) ---
+//             // On ne part pas de 0. On part de MIN_MOTOR_PWM (85).
+//             // Formule : Vitesse = Min + (Cible - Min) * Rampe
+            
+//             int currentBaseLeft = MIN_MOTOR_PWM + (int)((targetBaseLeft - MIN_MOTOR_PWM) * rampFactor);
+//             int currentBaseRight = MIN_MOTOR_PWM + (int)((targetBaseRight - MIN_MOTOR_PWM) * rampFactor);
+
+//             // --- ATTÉNUATION DU PID PENDANT LA RAMPE ---
+//             // Astuce : Si on est en train d'accélérer, on réduit la violence du PID
+//             // pour éviter qu'il ne sur-réagisse aux petits frottements de départ.
+//             float rampDamping = 1.0f; // 50% de force PID pendant la rampe
+//             float effectiveCorrection = correction * rampDamping;
+
+//             // --- APPLICATION PID ---
+//             // Note : On utilise dynamicMinPWM = MIN_MOTOR_PWM car on est déjà au-dessus
+//             leftSpeed  = constrain(currentBaseLeft - (int)effectiveCorrection, MIN_MOTOR_PWM, 255);
+//             rightSpeed = constrain(currentBaseRight + (int)effectiveCorrection, MIN_MOTOR_PWM, 255);
+            
+//             // ... envoi aux moteurs ...
+            
 //             motorLeft->setSpeed(leftSpeed);
 //             motorRight->setSpeed(rightSpeed);
 //             motorLeft->run(forwardDir ? FORWARD : BACKWARD);
 //             motorRight->run(forwardDir ? FORWARD : BACKWARD);
 
-//             Serial.print("Err: "); Serial.print(error);
+//             // Logs
+//             Serial.print("ErrCap: "); Serial.print(error);
+//             // Serial.print(" | encoderL: "); Serial.print(leftTicks);
+//             // Serial.print(" | encoderR: "); Serial.print(rightTicks);
 //             Serial.print(" | PersErr: "); Serial.print(persistentError);
-//             Serial.print(" | I: "); Serial.print(integral);
-//             Serial.print(" | Corr: "); Serial.print(correction);
+//             Serial.print(" | CorrCap: "); Serial.print(correction);
+//             Serial.print(" | BasePWM: "); Serial.print(basePWM);
 //             Serial.print(" | L: "); Serial.print(leftSpeed);
 //             Serial.print(" | R: "); Serial.println(rightSpeed);
-//             Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
-            
-//             // Serial.print(" | Kp_mod: "); Serial.print(Kp_mod);  
-//             // Serial.print(" | Ki_mod: "); Serial.println(Ki_mod);
+//             Serial.print(" | Dist: "); Serial.println(getDistanceTraveled());
 //         }
+//         delay(MOVEMENT_LOOP_DELAY);
 
 //         loopCounter++;
 //         updateEncoderTimestamps();
-//         delay(MOVEMENT_LOOP_DELAY);
-
-        
-        
 //     }
 
 //     stop();
+// }
+void Movement::moveDistance(float cm, int speed) {
+    resetEncoders();
+    long targetTicks = cmToTicks(cm);
+
+    bool forwardDir = (cm > 0);
+    // if (!forwardDir) targetTicks = -targetTicks;
+
+    // --- PI PARAMETERS ---
+    float Kp = 0.5f; // plus fort que ton 0.4
+    float Ki = 0.6f; // plus agressif
+    //kp =0.4
+    //ki=float Ki = 0.05f;
+    float integral = 0.0;
+    float integralMax = 300.0f; 
+    float deadzone = 2.0f;
+    float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
+
+    // --- erreur persistante (filtrée) ---
+    float persistentError = 0.0f;   // mémorise l'erreur entre itérations
+    float alpha = 0.3f;                    // 0 = brut, 1 = très filtré
+
+    int warmupIterations = 50;  
+    int loopCounter = 0;
+
+    while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
+
+        long leftTicks  = encoderLeft.getTicks();
+        long rightTicks = encoderRight.getTicks();
+
+        // --- erreur instantanée ---
+        float error = leftTicks - rightTicks;
+
+        // --- calcul erreur persistante (filtrée) ---
+        persistentError =  persistentError +  error;
+
+        // --- intégration + anti-windup ---
+        if (abs(persistentError) <= deadzone) {
+            // dans la deadzone, ne pas intégrer
+        } else {
+            integral += persistentError * dt;
+        
+        }
+        
+        
+        if (integral > integralMax) integral = integralMax;
+        if (integral < -integralMax) integral = -integralMax;
+
+        
+
+        // --- correction PI (avec erreur persistante) ---
+        float correction = Kp * persistentError + Ki * integral;
+        // --- correction PI (avec erreur persistante) ---
+        // float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+
+// // // // ajuster Kp
+//         float Kp_mod = Kp * constrain(distanceRemaining / 50.0f, 0.1f, 1.0f);
+
+// // // ajuster Ki
+//         float Ki_mod = Ki * constrain(distanceRemaining / 50.0f, 0.05f, 1.0f);
+        // float factor = distanceRemaining < 80 ? distanceRemaining / 80.0f : 1.0f;
+        // factor = constrain(factor, 0.3f, 1.0f);
+
+        // float Kp_mod = Kp * factor;
+        // float Ki_mod = Ki * factor;
+
+
+        // float correction = Kp_mod * persistentError + Ki_mod * integral;
+
+        int leftSpeed = 0;
+        int rightSpeed = 0;
+
+        // --- warm-up ---
+        if (loopCounter < warmupIterations) {
+            
+
+            motorLeft->setSpeed(0);
+            motorRight->setSpeed(0);
+            motorLeft->run(RELEASE);
+            motorRight->run(RELEASE);
+
+            Serial.print("[Warm-up] Err: "); Serial.print(error);
+            Serial.print(" | PersErr: "); Serial.print(persistentError);
+            Serial.print(" | I: "); Serial.println(integral);
+
+        } else {
+
+            // --- PI normal après warm-up ---
+            if (persistentError > 0.0f) {
+                leftSpeed  = constrain(speed - (correction), 90, 255);
+                rightSpeed = constrain(speed + (correction/2), 90, 255);
+            } else {
+                leftSpeed  = constrain(speed - (correction/2), 90, 255);
+                rightSpeed = constrain(speed + (correction/2), 90, 255);
+            }
+            //float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+            //float slowFactor = constrain(distanceRemaining / 50.0, 0.1, 1.0); // ralentit les 50 derniers ticks
+            //leftSpeed  = constrain(slowFactor*leftSpeed, 70, 255);   // vitesse minimale de 80
+            //rightSpeed = constrain(slowFactor*rightSpeed, 70, 255); // vitesse minimale de 80
+
+            motorLeft->setSpeed(leftSpeed);
+            motorRight->setSpeed(rightSpeed);
+            motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+            motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+            Serial.print("Err: "); Serial.print(error);
+            Serial.print(" | PersErr: "); Serial.print(persistentError);
+            Serial.print(" | I: "); Serial.print(integral);
+            Serial.print(" | Corr: "); Serial.print(correction);
+            Serial.print(" | L: "); Serial.print(leftSpeed);
+            Serial.print(" | R: "); Serial.println(rightSpeed);
+            Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
+            
+            // Serial.print(" | Kp_mod: "); Serial.print(Kp_mod);  
+            // Serial.print(" | Ki_mod: "); Serial.println(Ki_mod);
+        }
+
+        loopCounter++;
+        updateEncoderTimestamps();
+        delay(MOVEMENT_LOOP_DELAY);
+
+        
+        
+    }
+
+    stop();
     
 
-// }
+}
 // void Movement::moveDistance(float cm, int speed) {
 //     resetEncoders();
 //     long targetTicks = cmToTicks(cm);
