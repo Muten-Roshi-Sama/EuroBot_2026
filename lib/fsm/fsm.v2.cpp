@@ -27,10 +27,10 @@ void fsm2_step(fsm2_context_t *ctx, uint32_t now_ms) {
             }
             break;
         case FSM2_IDLE:
-            ctx->state = FSM2_LOST;
+            ctx->state = FSM2_TASK;
             ctx->last_tick_ms = now_ms;
             break;
-        case FSM2_LOST:
+        case FSM2_TASK:
             if (ctx->ok_event) {
                 ctx->state = FSM2_IDLE;
                 ctx->ok_event = false;
@@ -50,7 +50,7 @@ void fsm2_step(fsm2_context_t *ctx, uint32_t now_ms) {
             break;
         case FSM2_DO_ISR:
             if (now_ms - ctx->last_tick_ms > 10) {
-                ctx->state = FSM2_LOST;
+                ctx->state = FSM2_TASK;
                 ctx->last_tick_ms = now_ms;
             }
             break;

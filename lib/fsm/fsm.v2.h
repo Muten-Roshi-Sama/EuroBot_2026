@@ -7,7 +7,7 @@
 typedef enum {
     FSM2_INIT,
     FSM2_IDLE,
-    FSM2_LOST,
+    FSM2_TASK,
     FSM2_UPDATE_ISR,
     FSM2_DO_ISR,
     FSM2_STOP
