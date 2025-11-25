@@ -9,7 +9,9 @@ enum class FsmAction {
 	TURN_AROUND,
 	END,
 	EMERGENCY_STOP,
-    CALIBRATE_ENCODERS
+    CALIBRATE_ENCODERS, 
+    CHECK_OBSTACLE,
+    AVOID_OBSTACLE
 };
 
 struct FsmContext {
