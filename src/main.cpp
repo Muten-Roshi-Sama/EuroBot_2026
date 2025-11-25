@@ -16,6 +16,7 @@
 #include "settings.h"
 
 
+
 static FsmContext gFsm; 
 
 void setup() {
@@ -23,10 +24,12 @@ void setup() {
   while (!Serial) {}
   Serial.println("Setup.");
   
-  // Init
+  // Init ?
   init();
 
-  fsmInit(gFsm);
+  
+
+  fsmInit(gFsm);  // ! ALL init functions  ====>  HERE  <=======
 }
 
 

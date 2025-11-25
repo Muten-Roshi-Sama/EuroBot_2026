@@ -10,6 +10,11 @@
  * Tous les paramètres physiques et pins sont définis ici
  */
 
+// =========== Emergency Button ===========
+#define EMERGENCY_PIN 7
+
+
+
 
 // ============ Movement =============
 

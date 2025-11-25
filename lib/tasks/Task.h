@@ -3,6 +3,16 @@
 
 // Will have derived Tasks (MoveTask, GrabTask,...)
 
+/*
+  Each Action (move, grab, detect,...) is implemented in a Task to be non-blocking.
+  Must have :
+
+    1. start() : to start the task
+    2. update() : part of the task that is run every 100ms
+    3. handleInterrupt() : if ISR arises, save important values
+    4. cancel() : cancel your task + cleanup needed values
+
+*/
 
 // Task result for ISR handling decisions
 enum class TaskInterruptAction {
@@ -27,8 +37,7 @@ public:
   // Called frequently from main loop (fast, non-blocking)
   virtual void update(Movement &mv) = 0;
 
-  // Called every 100 ms by TaskManager::updateISR() for periodic checks
-  virtual void updateISR(Movement &mv) { (void)mv; } // optional
+
 
   // Called when an ISR event occurs (called by TaskManager::doISR())
   // Return a TaskInterruptAction to instruct manager what to do
@@ -42,6 +51,9 @@ public:
     cancelled = true;
     finished = true;
   }
+
+  // Optional : Called every 100 ms by TaskManager::updateISR() for periodic checks
+  virtual void updateISR(Movement &mv) { (void)mv; } // optional
 
   bool isStarted() const { return started; }
   bool isFinished() const { return finished; }
