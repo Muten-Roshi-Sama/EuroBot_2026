@@ -1,3 +1,5 @@
+"""Mini app, pour tester que je recois bien les logs via le protocole JSON over TCP."""
+
 import tkinter as tk
 from tkinter import simpledialog,scrolledtext
 import socket

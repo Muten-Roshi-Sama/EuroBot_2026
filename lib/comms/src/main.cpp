@@ -1,3 +1,4 @@
+//pour tester que je recois bien les logs via le protocole
 #include <Arduino.h>
 #include "protocol.h"
 #include <ArduinoJson.h>

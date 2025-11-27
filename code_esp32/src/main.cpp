@@ -1,3 +1,4 @@
+// code de l'esp32 pour faire le pont UART <-> WiFi
 #include <Arduino.h>
 #include "protocol_esp32.h"
 
