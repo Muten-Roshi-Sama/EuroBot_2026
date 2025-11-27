@@ -11,7 +11,7 @@ const char* ssid = "PCDEFÉLIX 4208";
 const char* password = "E9]3445n";
 
 // ------------ CONFIG TCP --------------
-const char* server_ip   = "192.168.68.104";
+const char* server_ip   = "10.49.106.33";
 const uint16_t server_port = 8080;
 
 // ------------ OBJETS ------------------
@@ -25,16 +25,34 @@ void begin_wifi_and_uart(HardwareSerial& uart, int rx, int tx, unsigned long bau
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+  Serial.print("[WIFI] Connexion à ");
+  Serial.println(ssid);
+  unsigned long startAttemptTime = millis();
+  const unsigned long wifiTimeout = 15000 ; // 15 secondes max
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < wifiTimeout) {
+    Serial.print(".");
+    delay(1000); // Allongé pour lisibilité
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("\n[WIFI] Connecté ! IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\n[WIFI][ERREUR] Connexion impossible !");
   }
 }
 
 void bridge_uart_wifi_loop() {
+  static unsigned long lastPing = 0;
+  bool sentSomething = false;
+  const unsigned long interval = 2000; // 2 secondes pour ping et reconnexion
+
   if (!client.connected()) {
     client.stop();
-    if (!client.connect(server_ip, server_port)) {
-      delay(1000);
+    if (client.connect(server_ip, server_port)) {
+      Serial.println("[TCP] Reconnecté au serveur !");
+    } else {
+      Serial.println("[TCP][ERREUR] Connexion serveur impossible, nouvelle tentative dans 2s.");
+      delay(interval);
       return;
     }
   }
@@ -44,8 +62,15 @@ void bridge_uart_wifi_loop() {
     uartStr.trim();
     if (uartStr.length() > 0) {
       client.print(uartStr + "\n");
+      sentSomething = true;
     }
   }
+
+    // Envoi d'un ping toutes les 2 secondes si rien n'a été envoyé
+    if (!sentSomething && millis() - lastPing > interval) {
+      client.print("{\"ping\":1}\n");
+      lastPing = millis();
+    }
 
   if (client.available() && uart_ptr) {
     String jsonStr = client.readStringUntil('\n');

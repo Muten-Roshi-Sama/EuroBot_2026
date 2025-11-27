@@ -42,14 +42,17 @@ class ServerGUI:
         with clients_lock:
             menu = self.client_menu['menu']
             menu.delete(0, 'end')
+            client_list = [f"{a[0]}:{a[1]}" for a in clients.keys()]
             for addr in clients.keys():
                 menu.add_command(label=f"{addr[0]}:{addr[1]}", command=lambda a=addr: self.client_var.set(f"{a[0]}:{a[1]}"))
-            if clients:
-                if not self.client_var.get() or self.client_var.get() not in [f"{a[0]}:{a[1]}" for a in clients.keys()]:
-                    first = next(iter(clients.keys()))
-                    self.client_var.set(f"{first[0]}:{first[1]}")
+            if client_list:
+                if not self.client_var.get() or self.client_var.get() not in client_list:
+                    first = client_list[0]
+                    self.client_var.set(first)
+                self.log(f"[INFO] Clients connectés : {', '.join(client_list)}")
             else:
                 self.client_var.set("")
+                self.log("[ALERTE] Aucun ESP32 connecté !")
         self.root.after(1000, self.update_clients_menu)
 
     def send_command(self):
@@ -72,7 +75,7 @@ class ServerGUI:
         self.log(f"[!] Aucun client connecté à l'adresse {ip_port}")
 
 def handle_client(conn, addr, gui):
-    gui.log(f"[+] Connecté par {addr}")
+    gui.log(f"[+] ESP32 connecté : {addr[0]}:{addr[1]}")
     with clients_lock:
         clients[addr] = conn
     buffer = ""
@@ -80,7 +83,7 @@ def handle_client(conn, addr, gui):
         while True:
             data = conn.recv(1024)
             if not data:
-                gui.log(f'[-] Déconnecté de {addr}.')
+                gui.log(f'[-] ESP32 déconnecté : {addr[0]}:{addr[1]}')
                 gui.log(f'[ALERTE] ESP32 déconnecté !')
                 break
             buffer += data.decode(errors='ignore')

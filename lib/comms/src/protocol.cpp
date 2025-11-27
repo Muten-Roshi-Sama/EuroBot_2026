@@ -12,16 +12,12 @@ void log(const char* msg); // Forward declaration for use in check_button
 
 // Envoie un log JSON à chaque appui sur le bouton (active LOW)
 void check_button(uint8_t button_pin) {
-  static uint8_t lastState[20] = {HIGH}; // supporte jusqu'à 20 boutons
+  static bool lastState = HIGH;
   bool currentState = digitalRead(button_pin);
-  if (lastState[button_pin] == HIGH && currentState == LOW) {
-    StaticJsonDocument<32> doc;
-    char key[12];
-    snprintf(key, sizeof(key), "button%d", button_pin);
-    doc[key] = "pressed";
-    send(doc, Serial);
+  if (lastState == HIGH && currentState == LOW) {
+  log("Button pressed");
   }
-  lastState[button_pin] = currentState;
+  lastState = currentState;
 }
 
 // Initialisation du port série (par défaut Serial)
