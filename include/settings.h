@@ -1,6 +1,8 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#pragma once
+
 /**
  * SETTINGS.H
  * 
@@ -8,10 +10,16 @@
  * Tous les paramètres physiques et pins sont définis ici
  */
 
+// =========== Emergency Button ===========
+#define EMERGENCY_PIN 7
 
+// =========== Start Button ===========
+#define CONTACT_PIN 12  //A adapter selon le câblage
+
+// ============ Movement =============
 
 #define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
-#define WHEEL_BASE 10.7f // Distance entre les centres des deux roues en centimètres (10cm)
+#define WHEEL_BASE 10.8f // Distance entre les centres des deux roues en centimètres (10cm)
 #define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
 
@@ -23,7 +31,7 @@
 // PARAMÈTRES DE VITESSE
 
 
-#define DEFAULT_SPEED 100   // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
+#define DEFAULT_SPEED 120  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
 #define MIN_SPEED 80
 #define MAX_SPEED 255
 
@@ -53,7 +61,7 @@
 // ============================================
 
 // Délai dans les boucles bloquantes (ms)
-#define MOVEMENT_LOOP_DELAY 10
+#define MOVEMENT_LOOP_DELAY 0.01f
 
 // Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2
@@ -69,3 +77,7 @@
 #define DEBUG_ENCODERS 1
 
 #endif // SETTINGS_H
+
+// =========== LiDAR ===========
+// Pin pour XSHUT ou INT du capteur VL53L0X (optionnel, selon câblage)
+#define LIDAR_PIN 4  // par exemple Arduino Uno pin 4

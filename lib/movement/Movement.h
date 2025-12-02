@@ -34,13 +34,14 @@ public:
     // Temps pour calculer l’intervalle entre ticks
     unsigned long lastUpdateTime;
     
-    // Fonctions internes pour conversions et gestion encodeurs
-    float ticksToCm(long ticks);       // Convertit ticks → cm
-    long cmToTicks(float cm);          // Convertit cm → ticks
-    float ticksToDegrees(long ticks);  // Convertit ticks → rotation robot en degrés
-    long degreesToTicks(float degrees);// Convertit rotation en degrés → ticks
-    void resetEncoders();              // Remise à zéro des encodeurs
-    void updateEncoderTimestamps();    // Mise à jour timestamp pour calcul vitesse
+    // Fonctions internes
+    float ticksToCm(long ticks);
+    float ticksToRotations(long ticksRight, long ticksLeft);
+    long cmToTicks(float cm);
+    float ticksToDegrees(long ticks);
+    long degreesToTicks(float degrees);
+    void resetEncoders();
+    void updateEncoderTimestamps();
     
 public:
     // Constructeur
@@ -78,11 +79,12 @@ public:
     long getRightTicks();
     float getDistanceTraveled(); // Distance moyenne parcourue
     
-    // Getters pour vitesse
-    float getLeftRPM();
-    float getRightRPM();
-    float getLeftRevolutions();
-    float getRightRevolutions();
+    // Fonctions de vitesse (utilise les objets Encoder)
+    float getLeftRPM();          // Vitesse roue gauche en RPM
+    float getRightRPM();         // Vitesse roue droite en RPM
+    float getLeftRevolutions();  // Nombre de tours roue gauche
+    float getRightRevolutions(); // Nombre de tours roue droite
+    float getAverageSpeedTicks();     // Vitesse moyenne en RPM
     
     // Accès direct aux objets encodeurs
     Encoder* getLeftEncoder();

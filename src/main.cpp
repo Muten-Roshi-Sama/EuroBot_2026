@@ -1,10 +1,4 @@
 
-// // v1.0
-// #include <Arduino.h>
-// #include "FSM.h"
-// #include <Adafruit_MotorShield.h>
-// #include <Encoder.h>
-
 
 // static FsmContext gFsm; 
 
@@ -27,12 +21,19 @@
 // }
 
 
-#include <Arduino.h>
-#include "capteur_lidar.h"
+// v0.1 wiring FSM minimal usage
 
-// void setup() {
-//   Serial.begin(9600);
-//   Serial.println("Initialisation du capteur LiDAR...");
+
+
+// v1.0
+#include <Arduino.h>
+#include "FSM.h"
+#include "settings.h"
+#include "../util/Debug.h"
+
+FsmContext ctx;
+// #include <Adafruit_MotorShield.h>
+// #include <Encoder.h>
 
 //   if (!initLidar()) {
 //     Serial.println("ERREUR: Capteur non detecte!");
@@ -42,10 +43,7 @@
 //     }
 //   }
 
-//   Serial.println("Capteur initialise!");
-//   Serial.println("\nDistance | Etat");
-//   Serial.println("---------|------");
-// }
+static FsmContext gFsm; 
 
 // void loop() {
 //   int distance = lireDistance();
@@ -57,30 +55,25 @@
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("Initialisation du capteur LiDAR...");
+  while (!Serial) {}
+  Serial.println("Setup.");
+  
+  // Init ?
+  init();
 
-  if (!initLidar()) {
-    Serial.println("ERREUR: Capteur non detecte!");
-    Serial.println("Verifiez les connexions I2C");
-    while (1) { delay(1000); }
-  }
+  // DEBUG prints
+  debugInit(9600,    // comment DBG_ to deactivate its related prints
+    DBG_FSM | 
+    DBG_TASKMANAGER |
+    DBG_MOVEMENT |
+    DBG_SENSORS |
+    DBG_COMMS |
+    DBG_ENCODER
+  );
 
-  Serial.println("Capteur initialise!");
-  Serial.println("Robot test : avancer / stop selon distance\n");
+  fsmInit(gFsm);  //! ALL init functions  ====>  HERE  <=======
 }
 
 void loop() {
-  int distance = lireDistance();
-
-  Serial.print("Distance : ");
-  Serial.print(distance);
-  Serial.print(" mm → ");
-
-  if (distance < 150) { 
-    Serial.println("⚠️ OBSTACLE — STOP");
-  } else {
-    Serial.println("OK — avancer");
-  }
-
-  delay(300);
+  fsmStep(ctx);
 }

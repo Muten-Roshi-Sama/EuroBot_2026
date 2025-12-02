@@ -1,0 +1,147 @@
+// Pour envoyer les logs, mettre protocol::log("message");
+// Mettre aussi dans setup protocol::init();  
+
+
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include "protocol.h"
+
+namespace protocol {
+
+// Initialisation du port série (par défaut Serial)
+void init(HardwareSerial& serial, unsigned long baudrate) {
+  serial.begin(baudrate);
+}
+
+// Envoie un message JSON générique (clé/valeur)
+bool send(const JsonDocument& doc, HardwareSerial& serial) {
+  serializeJson(doc, serial);
+  serial.println();
+  return true;
+}
+
+// Envoie un événement simple (clé/valeur string)
+bool send_event(const char* key, const char* value, HardwareSerial& serial) {
+  StaticJsonDocument<64> doc;
+  doc[key] = value;
+  return send(doc, serial);
+}
+
+// Envoie un entier (clé/valeur int)
+bool send_int(const char* key, int value, HardwareSerial& serial) {
+  StaticJsonDocument<64> doc;
+  doc[key] = value;
+  return send(doc, serial);
+}
+
+// Tente de lire un message JSON reçu sur le port série donné
+// Retourne true si un message valide a été reçu et parsé
+bool receive(JsonDocument& doc, HardwareSerial& serial) {
+  if (serial.available()) {
+    String jsonStr = serial.readStringUntil('\n');
+    DeserializationError err = deserializeJson(doc, jsonStr);
+    return (err == DeserializationError::Ok);
+  }
+  return false;
+}
+
+// Envoie un log texte au format JSON sur Serial
+void log(const char* msg) {
+  StaticJsonDocument<64> doc;
+  doc["log"] = msg;
+  serializeJson(doc, Serial);
+  Serial.println();
+}
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Envoie un log JSON à chaque appui sur le bouton (active LOW)
+/*void check_button(uint8_t button_pin) {
+  static bool lastState = HIGH;
+  bool currentState = digitalRead(button_pin);
+  if (lastState == HIGH && currentState == LOW) {
+  log("Button pressed");
+  }
+  lastState = currentState;
+}*/
+
+// namespace protocol
+
+// namespace protocol
+
+/*
+// --- Exemple d'ancien code de communication (avant librairie) ---
+
+void loop() {
+    // LED control via UART JSON
+    if (Serial.available()) {
+        String jsonStr = Serial.readStringUntil('\n');
+        StaticJsonDocument<32> doc;
+        if (deserializeJson(doc, jsonStr) == DeserializationError::Ok) {
+            const char* ledCmd = doc["led7"];
+            if (ledCmd) {
+                if (strcmp(ledCmd, "on") == 0) digitalWrite(7, HIGH);
+                else if (strcmp(ledCmd, "off") == 0) digitalWrite(7, LOW);
+            }
+        }
+    }
+    // Button on pin 4: send JSON when pressed
+    static bool lastButton = HIGH;
+    bool button = digitalRead(4);
+    if (lastButton == HIGH && button == LOW) {
+        StaticJsonDocument<32> doc;
+        doc["button4"] = "pressed";
+        serializeJson(doc, Serial);
+        Serial.println();
+    }
+    lastButton = button;
+}
+
+#include <ArduinoJson.h>
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);
+  while (!Serial) ; // Attendre que le port série soit prêt (utile sur Leonardo/Micro)
+}
+
+void loop() {
+  if (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.length() == 0) return;
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, line);
+    if (!error) {
+      // Action sur la LED selon la commande
+      if (doc["cmd"] == "LED_ON") {
+        digitalWrite(LED_BUILTIN, HIGH);
+      } else if (doc["cmd"] == "LED_OFF") {
+        digitalWrite(LED_BUILTIN, LOW);
+      }
+      // Afficher le JSON reçu sur le port série
+      Serial.print("[JSON reçu] : ");
+      serializeJson(doc, Serial);
+      Serial.println();
+    } else {
+      Serial.print("[Erreur JSON] : ");
+      Serial.println(line);
+    }
+  }
+}
+
+
+*/

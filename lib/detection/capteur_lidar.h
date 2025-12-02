@@ -2,19 +2,18 @@
 #define CAPTEUR_LIDAR_H
 
 #include <Arduino.h>
-#include <VL53L0X.h>
 
-class LidarManager {
-public:
-    LidarManager(uint8_t xshutPin, uint8_t address);
+// Initialise le capteur LiDAR (VL53L0X)
+bool initLidar();
 
-    bool init();
-    uint16_t readDistance();
+// Lit la distance en millimètres (non bloquant)
+// Retourne :
+//   - distance en mm
+//   - -1 si timeout
+//   - -2 si hors portée
+int lireDistance();
 
-private:
-    VL53L0X sensor;
-    uint8_t xshutPin;
-    uint8_t address;
-};
+// Affiche le statut en fonction de la distance
+void afficherEtatObstacle(int distance);
 
 #endif
