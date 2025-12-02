@@ -1,6 +1,6 @@
 #pragma once
 #include "Task.h"
-#include "Movement.h" // Important pour connaître la classe Movement
+#include "Movement.h"
 
 class MoveTask : public Task {
 public:
@@ -17,19 +17,21 @@ public:
     void cancel(Movement &mv) override;
 
 private:
-  MoveTaskMode mode;
-  float value;       // cm when MOVE_DISTANCE, degrees when ROTATE_ANGLE
-  long targetTicks;  // absolute target ticks
-  bool paused;
-  unsigned long lastPidLoopMs;
+    MoveTaskMode mode;
+    float value;      
+    long targetTicks; 
 
-  // Runtime control state (non-blocking controller)
-  static int baseSpeed;           // nominal PWM setpoint
-  static int loopCounter;         // number of update() iterations since start
-  static int warmupIterations;    // number of iterations for warm-up / ramp
-  static float Kp;                // proportional gain for differential correction
-  static float Ki;                // optional integral gain (small)
-  static float integralError;     // integral accumulator for correction
-  static int minSpeed;            // minimum motor PWM during motion
-
+    // Variables internes PID
+    float integralError;
+    int loopCounter;
+    unsigned long lastPidLoopMs;
+    
+    // Paramètres qui changent selon le mode (Distance ou Rotation)
+    int baseSpeed;
+    int minSpeed;
+    int maxSpeed; // Ajout pour limiter la rotation (90 dans ton cas)
+    int warmupIterations;
+    float Kp;
+    float Ki;
+    float deadZone; // Ajout pour la rotation (3.5°)
 };
