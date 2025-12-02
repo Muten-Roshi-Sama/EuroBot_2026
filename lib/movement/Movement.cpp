@@ -109,6 +109,7 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
 }
 
 // ============= MOUVEMENTS BASIQUES (NON-BLOQUANTS) =============
+
 void Movement::forward(int speed) {
     motorLeft->setSpeed(speed);
     motorRight->setSpeed(speed);
@@ -252,6 +253,466 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
     return output;
 }
 
+
+void Movement::moveDistance(float cm, int speed) {
+    resetEncoders();
+    long targetTicks = cmToTicks(cm);
+
+    bool forwardDir = (cm > 0);
+    // if (!forwardDir) targetTicks = -targetTicks;
+
+    // --- PI PARAMETERS ---
+    float Kp = 0.5f; // plus fort que ton 0.4
+    float Ki = 0.6f; // plus agressif
+    //kp =0.4
+    //ki=float Ki = 0.05f;
+    float integral = 0.0;
+    float integralMax = 300.0f; 
+    float deadzone = 2.0f;
+    float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
+
+    // --- erreur persistante (filtrée) ---
+    float persistentError = 0.0f;   // mémorise l'erreur entre itérations
+    float alpha = 0.3f;                    // 0 = brut, 1 = très filtré
+
+    int warmupIterations = 50;  
+    int loopCounter = 0;
+
+    while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
+
+        long leftTicks  = encoderLeft.getTicks();
+        long rightTicks = encoderRight.getTicks();
+
+        // --- erreur instantanée ---
+        float error = leftTicks - rightTicks;
+
+        // --- calcul erreur persistante (filtrée) ---
+        persistentError =  persistentError +  error;
+
+        // --- intégration + anti-windup ---
+        if (abs(persistentError) <= deadzone) {
+            // dans la deadzone, ne pas intégrer
+        } else {
+            integral += persistentError * dt;
+        
+        }
+        
+        
+        if (integral > integralMax) integral = integralMax;
+        if (integral < -integralMax) integral = -integralMax;
+
+        
+
+        // --- correction PI (avec erreur persistante) ---
+        float correction = Kp * persistentError + Ki * integral;
+        // --- correction PI (avec erreur persistante) ---
+        // float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+
+// // // // ajuster Kp
+//         float Kp_mod = Kp * constrain(distanceRemaining / 50.0f, 0.1f, 1.0f);
+
+// // // ajuster Ki
+//         float Ki_mod = Ki * constrain(distanceRemaining / 50.0f, 0.05f, 1.0f);
+        // float factor = distanceRemaining < 80 ? distanceRemaining / 80.0f : 1.0f;
+        // factor = constrain(factor, 0.3f, 1.0f);
+
+        // float Kp_mod = Kp * factor;
+        // float Ki_mod = Ki * factor;
+
+
+        // float correction = Kp_mod * persistentError + Ki_mod * integral;
+
+        int leftSpeed = 0;
+        int rightSpeed = 0;
+
+        // --- warm-up ---
+        if (loopCounter < warmupIterations) {
+            
+
+            motorLeft->setSpeed(0);
+            motorRight->setSpeed(0);
+            motorLeft->run(RELEASE);
+            motorRight->run(RELEASE);
+
+            Serial.print("[Warm-up] Err: "); Serial.print(error);
+            Serial.print(" | PersErr: "); Serial.print(persistentError);
+            Serial.print(" | I: "); Serial.println(integral);
+            
+
+        } else {
+
+            // --- PI normal après warm-up ---
+            if (persistentError > 0.0f) {
+                leftSpeed  = constrain(speed - (correction/2), 90, 255);
+                rightSpeed = constrain(speed + (correction/2), 90, 255);
+            } else {
+                leftSpeed  = constrain(speed - (correction/2), 90, 255);
+                rightSpeed = constrain(speed + (correction/2), 90, 255);
+            }
+            //float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+            //float slowFactor = constrain(distanceRemaining / 50.0, 0.1, 1.0); // ralentit les 50 derniers ticks
+            //leftSpeed  = constrain(slowFactor*leftSpeed, 70, 255);   // vitesse minimale de 80
+            //rightSpeed = constrain(slowFactor*rightSpeed, 70, 255); // vitesse minimale de 80
+
+            motorLeft->setSpeed(leftSpeed);
+            motorRight->setSpeed(rightSpeed);
+            motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+            motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+            Serial.print("Err: "); Serial.print(error);
+            Serial.print(" | PersErr: "); Serial.print(persistentError);
+            Serial.print(" | I: "); Serial.print(integral);
+            Serial.print(" | Corr: "); Serial.print(correction);
+            Serial.print(" | L: "); Serial.print(leftSpeed);
+            Serial.print(" | R: "); Serial.println(rightSpeed);
+            Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
+            
+            // Serial.print(" | Kp_mod: "); Serial.print(Kp_mod);  
+            // Serial.print(" | Ki_mod: "); Serial.println(Ki_mod);
+        }
+
+        loopCounter++;
+        updateEncoderTimestamps();
+        delay(MOVEMENT_LOOP_DELAY);
+
+        
+        
+    }
+
+    stop();
+    
+
+}
+
+
+void Movement::moveDistance(float cm) {
+    moveDistance(cm, defaultSpeed); // Utilise default Kp et Ki
+}
+
+volatile int8_t encoderDirection = 1; // 1 = avant, -1 = arrière
+
+void Movement::rotate(float degrees, int baseSpeed) {
+    resetEncoders();
+    unsigned long lastUpdateTimeAngle = micros();
+
+    // --- Paramètres PID ---
+    float Kp = 1.3f;
+    float Ki = 0.08f; // Gain intégral légèrement augmenté pour réduire erreur statique
+    const float deadZone = 3.5f;  // Zone morte en degrés
+     // Anti-windup plus large pour plus de flexibilité
+
+    // --- Interruption encodeurs (une seule fois) ---
+    
+    
+    attachInterrupt(digitalPinToInterrupt(encoderPinRight), encoderRightISRWrapper, RISING);
+    attachInterrupt(digitalPinToInterrupt(encoderPinLeft),  encoderLeftISRWrapper, RISING);
+    Serial.println("=== Début rotation PID ===");
+
+    
+    
+
+    while (true) {
+        //float currentAngle = ticksToDegrees(ticksToRotations(encoderRight.getTicks()*encoderDirection, encoderLeft.getTicks()*encoderDirection));
+        long avgTicks = (abs(encoderRight.getTicks()) + abs(encoderLeft.getTicks())) / 2;
+        float currentAngle = ticksToDegrees(avgTicks);
+        
+        
+        // PID amélioré (avec dérivée légère et anti-windup)
+        float pidOutput = PIDControlAngle(lastUpdateTimeAngle, degrees, currentAngle, Kp, Ki);
+        
+        int speed = constrain(fabs(pidOutput), 50.0f, 90.0f);
+          
+
+        float error = degrees - currentAngle;
+        
+        
+
+        // --- Normalisation de l’erreur entre -180 et +180 ---
+       
+        
+
+        // --- Zone morte ---
+        
+
+        Serial.print("Target: "); Serial.print(degrees);
+        Serial.print(" | Angle: "); Serial.print(currentAngle);
+        Serial.print(" | PID: "); Serial.print(pidOutput);
+        Serial.print(" | Error: "); Serial.println(error);
+        Serial.print(" | Speed: "); Serial.println(speed);
+        
+        
+        if (fabs(error) <= deadZone ) {
+            break;  // 150 ms de stabilité avant arrêt
+        }
+        
+
+        // --- Choix de la direction ---
+        if (error > 0) {
+            
+            
+            encoderDirection = 1;
+            
+            motorLeft->setSpeed(speed);
+            motorRight->setSpeed(speed);
+            motorLeft->run(FORWARD);
+            motorRight->run(BACKWARD);
+            
+            
+        } else {
+            
+            encoderDirection = -1;
+            
+            motorLeft->setSpeed(speed);
+            motorRight->setSpeed(speed);
+            motorLeft->run(BACKWARD);
+            motorRight->run(FORWARD);
+            
+            
+        }
+        
+
+        // --- Debug ---
+        Serial.print("Target: "); Serial.print(degrees);
+        Serial.print(" | Angle: "); Serial.print(currentAngle);
+        Serial.print(" | PID: "); Serial.print(pidOutput);
+        Serial.print(" | Error: "); Serial.println(error);
+        
+        if (fabs(error) <= deadZone ) {
+             break;  // 150 ms de stabilité avant arrêt
+        }
+        delay(MOVEMENT_LOOP_DELAY);
+
+        updateEncoderTimestamps();
+        
+    }
+
+    stop();
+    Serial.println("=== Rotation terminée ===");
+}
+// void Movement::rotate(float degrees, int speed) {
+//     resetEncoders();
+//     long targetTicks = degreesToTicks(degrees);
+//     Serial.print(targetTicks);
+//     Serial.print("\n ");
+
+
+//     if (degrees > 0) {
+//         rotateRight(speed); // Rotation dans le sens horaire
+//     } else {
+//         rotateLeft(speed); // Rotation dans le sens anti-horaire
+//         targetTicks = -targetTicks;
+//     }
+
+//     // Boucle bloquante jusqu'à atteindre l'angle
+//     while ( abs(encoderRight.getTicks()) <= targetTicks -10) {
+//         // abs(encoderLeft.getTicks()) <= targetTicks || le probleme tant une des 2 conditions est vraie on continue probleme avec decrementation de getLEft + abs cette condition est tjrs fausse ou autre probleme c est condition ne sont jmais vrai au meme 
+//         //moment
+//         updateEncoderTimestamps();
+//         Serial.print(encoderRight.getTicks());
+//         Serial.print("\n ");
+//         Serial.print(targetTicks);
+//         Serial.print("\n ");
+
+
+//         //Serial.print(encoderRight.getTicks());
+//         delay(MOVEMENT_LOOP_DELAY);
+//     }
+
+//     stop();
+
+//     #if DEBUG_MOVEMENT
+//     Serial.print("Rotation effectuee: ");
+//     Serial.print(degrees);
+//     Serial.println(" degres");
+//     #endif
+// }
+
+void Movement::rotate(float degrees) {
+    rotate(degrees, defaultSpeed);
+}
+
+// ============= FONCTIONS DE CONVERSION =============
+
+float Movement::ticksToCm(long ticks) {
+    // Distance = (ticks / resolution) * circonférence
+    return ((float)ticks / encoderResolution) * wheelCircumference;
+}
+
+long Movement::cmToTicks(float cm) {
+    // Ticks = (distance / circonférence) * resolution
+    return (long)((cm / wheelCircumference) * encoderResolution);
+}
+
+float Movement::ticksToDegrees(long ticks) {
+    // Pour une rotation sur place:
+    // Arc parcouru par une roue = (wheelBase * PI * angle) / 360
+    // Distance parcourue = ticksToCm(ticks)
+    float arcLength = ticksToCm(ticks);
+    return (arcLength * 360.0) / (PI * wheelBase);
+}
+float Movement::ticksToRotations(long ticksRight, long ticksLeft) {
+    // Calcul du nombre de rotations basé sur la moyenne des ticks des deux roues
+    long avgTicks = (ticksRight + ticksLeft) / 2;
+    return (float)avgTicks;
+}
+
+long Movement::degreesToTicks(float degrees) {
+    // Arc que doit parcourir une roue pour tourner de X degrés
+    float arcLength = (PI * wheelBase * abs(degrees)) / 360.0;
+    return cmToTicks(arcLength);
+}
+
+void Movement::resetEncoders() {
+    encoderLeft.reset();
+    encoderRight.reset();
+    lastUpdateTime = micros();
+}
+
+void Movement::updateEncoderTimestamps() {
+    unsigned long now = micros();
+    unsigned long interval = now - lastUpdateTime;
+    
+    // Mise à jour des timestamps pour calcul de vitesse
+    encoderLeft.setTimestamp(now);
+    encoderLeft.setTickInterval(interval);
+    
+    encoderRight.setTimestamp(now);
+    encoderRight.setTickInterval(interval);
+    
+    lastUpdateTime = now;
+}
+
+// ============= GETTERS =============
+
+long Movement::getLeftTicks() {
+    return encoderLeft.getTicks();
+}
+
+long Movement::getRightTicks() {
+    return encoderRight.getTicks();
+}
+
+float Movement::getDistanceTraveled() {
+    // Moyenne des deux roues
+    long avgTicks = (encoderLeft.getTicks() + encoderRight.getTicks()) / 2;
+    return ticksToCm(avgTicks);
+}
+
+float Movement::getLeftRPM() {
+    updateEncoderTimestamps();
+    return encoderLeft.getRPM();
+}
+
+float Movement::getRightRPM() {
+    updateEncoderTimestamps();
+    return encoderRight.getRPM();
+}
+
+float Movement::getLeftRevolutions() {
+    return encoderLeft.getRevolutions();
+}
+
+float Movement::getRightRevolutions() {
+    return encoderRight.getRevolutions();
+}
+
+Encoder* Movement::getLeftEncoder() {
+    return &encoderLeft;
+}
+
+Encoder* Movement::getRightEncoder() {
+    return &encoderRight;
+}
+
+// ============= CALLBACKS D'INTERRUPTION =============
+
+void Movement::leftEncoderISR() {
+    if (instance != nullptr) {
+        instance->encoderLeft.addTick();
+    }
+}
+
+void Movement::rightEncoderISR() {
+    if (instance != nullptr) {
+        instance->encoderRight.addTick();
+    }
+}
+void Movement::minleftEncoderISR()
+{
+    if (instance != nullptr) {
+        instance->encoderLeft.subtractTick();  // ✅
+    }
+}
+
+void Movement::minrightEncoderISR()
+{
+    if (instance != nullptr) {
+        instance->encoderRight.subtractTick(); // ✅
+    }
+}
+void Movement::encoderLeftISRWrapper() {
+    if (instance != nullptr) {
+        if (encoderDirection > 0)
+            instance->encoderLeft.addTick();
+        else
+            instance->encoderLeft.subtractTick();
+    }
+}
+
+void Movement::encoderRightISRWrapper() {
+    if (instance != nullptr) {
+        if (encoderDirection > 0)
+            instance->encoderRight.addTick();
+        else
+            instance->encoderRight.subtractTick();
+    }
+}
+static long lastLeftTicks = 0;
+static long lastRightTicks = 0;
+const float DT_MS = MOVEMENT_LOOP_DELAY; // Temps de boucle en ms
+
+float Movement::getAverageSpeedTicks() {
+    long currentLeftTicks = encoderLeft.getTicks();
+    long currentRightTicks = encoderRight.getTicks();
+
+    // Calcul du déplacement (delta) depuis la dernière itération
+    long deltaLeft = abs(currentLeftTicks - lastLeftTicks);
+    long deltaRight = abs(currentRightTicks - lastRightTicks);
+
+    // Mettre à jour l'état
+    lastLeftTicks = currentLeftTicks;
+    lastRightTicks = currentRightTicks;
+
+    // Vitesse moyenne en Ticks/ms
+    float averageSpeed = (float)(deltaLeft + deltaRight) / 2.0f;
+    
+    // Normalisation par le temps (pour obtenir la vitesse réelle si le dt n'est pas constant, mais ici dt est constant)
+    // float speedPerMS = averageSpeed / DT_MS; 
+    
+    // Si votre PID travaille en Ticks/Loop, retournez simplement la moyenne du delta
+    return averageSpeed; 
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//=========================================================   CODE DE SECOUR   =========================================================//
 // ============= MOUVEMENTS AVEC DISTANCE (BLOQUANTS) =============
 
 // void Movement::moveDistance(float cm, int speed) {
@@ -585,135 +1046,6 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
 
 //     stop();
 // }
-void Movement::moveDistance(float cm, int speed) {
-    resetEncoders();
-    long targetTicks = cmToTicks(cm);
-
-    bool forwardDir = (cm > 0);
-    // if (!forwardDir) targetTicks = -targetTicks;
-
-    // --- PI PARAMETERS ---
-    float Kp = 0.5f; // plus fort que ton 0.4
-    float Ki = 0.6f; // plus agressif
-    //kp =0.4
-    //ki=float Ki = 0.05f;
-    float integral = 0.0;
-    float integralMax = 300.0f; 
-    float deadzone = 2.0f;
-    float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
-
-    // --- erreur persistante (filtrée) ---
-    float persistentError = 0.0f;   // mémorise l'erreur entre itérations
-    float alpha = 0.3f;                    // 0 = brut, 1 = très filtré
-
-    int warmupIterations = 50;  
-    int loopCounter = 0;
-
-    while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
-
-        long leftTicks  = encoderLeft.getTicks();
-        long rightTicks = encoderRight.getTicks();
-
-        // --- erreur instantanée ---
-        float error = leftTicks - rightTicks;
-
-        // --- calcul erreur persistante (filtrée) ---
-        persistentError =  persistentError +  error;
-
-        // --- intégration + anti-windup ---
-        if (abs(persistentError) <= deadzone) {
-            // dans la deadzone, ne pas intégrer
-        } else {
-            integral += persistentError * dt;
-        
-        }
-        
-        
-        if (integral > integralMax) integral = integralMax;
-        if (integral < -integralMax) integral = -integralMax;
-
-        
-
-        // --- correction PI (avec erreur persistante) ---
-        float correction = Kp * persistentError + Ki * integral;
-        // --- correction PI (avec erreur persistante) ---
-        // float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
-
-// // // // ajuster Kp
-//         float Kp_mod = Kp * constrain(distanceRemaining / 50.0f, 0.1f, 1.0f);
-
-// // // ajuster Ki
-//         float Ki_mod = Ki * constrain(distanceRemaining / 50.0f, 0.05f, 1.0f);
-        // float factor = distanceRemaining < 80 ? distanceRemaining / 80.0f : 1.0f;
-        // factor = constrain(factor, 0.3f, 1.0f);
-
-        // float Kp_mod = Kp * factor;
-        // float Ki_mod = Ki * factor;
-
-
-        // float correction = Kp_mod * persistentError + Ki_mod * integral;
-
-        int leftSpeed = 0;
-        int rightSpeed = 0;
-
-        // --- warm-up ---
-        if (loopCounter < warmupIterations) {
-            
-
-            motorLeft->setSpeed(0);
-            motorRight->setSpeed(0);
-            motorLeft->run(RELEASE);
-            motorRight->run(RELEASE);
-
-            Serial.print("[Warm-up] Err: "); Serial.print(error);
-            Serial.print(" | PersErr: "); Serial.print(persistentError);
-            Serial.print(" | I: "); Serial.println(integral);
-            
-
-        } else {
-
-            // --- PI normal après warm-up ---
-            if (persistentError > 0.0f) {
-                leftSpeed  = constrain(speed - (correction/2), 90, 255);
-                rightSpeed = constrain(speed + (correction/2), 90, 255);
-            } else {
-                leftSpeed  = constrain(speed - (correction/2), 90, 255);
-                rightSpeed = constrain(speed + (correction/2), 90, 255);
-            }
-            //float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
-            //float slowFactor = constrain(distanceRemaining / 50.0, 0.1, 1.0); // ralentit les 50 derniers ticks
-            //leftSpeed  = constrain(slowFactor*leftSpeed, 70, 255);   // vitesse minimale de 80
-            //rightSpeed = constrain(slowFactor*rightSpeed, 70, 255); // vitesse minimale de 80
-
-            motorLeft->setSpeed(leftSpeed);
-            motorRight->setSpeed(rightSpeed);
-            motorLeft->run(forwardDir ? FORWARD : BACKWARD);
-            motorRight->run(forwardDir ? FORWARD : BACKWARD);
-
-            Serial.print("Err: "); Serial.print(error);
-            Serial.print(" | PersErr: "); Serial.print(persistentError);
-            Serial.print(" | I: "); Serial.print(integral);
-            Serial.print(" | Corr: "); Serial.print(correction);
-            Serial.print(" | L: "); Serial.print(leftSpeed);
-            Serial.print(" | R: "); Serial.println(rightSpeed);
-            Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
-            
-            // Serial.print(" | Kp_mod: "); Serial.print(Kp_mod);  
-            // Serial.print(" | Ki_mod: "); Serial.println(Ki_mod);
-        }
-
-        loopCounter++;
-        updateEncoderTimestamps();
-        delay(MOVEMENT_LOOP_DELAY);
-
-        
-        
-    }
-
-    stop();
-    
-
-}
 // void Movement::moveDistance(float cm, int speed) {
 //     resetEncoders();
 //     long targetTicks = cmToTicks(cm);
@@ -929,313 +1261,223 @@ void Movement::moveDistance(float cm, int speed) {
 
 
 
-void Movement::moveDistance(float cm) {
-    moveDistance(cm, defaultSpeed); // Utilise default Kp et Ki
-}
 
-volatile int8_t encoderDirection = 1; // 1 = avant, -1 = arrière
-
-void Movement::rotate(float degrees, int baseSpeed) {
-    resetEncoders();
-    unsigned long lastUpdateTimeAngle = micros();
-
-    // --- Paramètres PID ---
-    float Kp = 1.3f;
-    float Ki = 0.08f; // Gain intégral légèrement augmenté pour réduire erreur statique
-    const float deadZone = 3.5f;  // Zone morte en degrés
-     // Anti-windup plus large pour plus de flexibilité
-
-    // --- Interruption encodeurs (une seule fois) ---
-    
-    
-    attachInterrupt(digitalPinToInterrupt(encoderPinRight), encoderRightISRWrapper, RISING);
-    attachInterrupt(digitalPinToInterrupt(encoderPinLeft),  encoderLeftISRWrapper, RISING);
-    Serial.println("=== Début rotation PID ===");
-
-    
-    
-
-    while (true) {
-        //float currentAngle = ticksToDegrees(ticksToRotations(encoderRight.getTicks()*encoderDirection, encoderLeft.getTicks()*encoderDirection));
-        long avgTicks = (abs(encoderRight.getTicks()) + abs(encoderLeft.getTicks())) / 2;
-        float currentAngle = ticksToDegrees(avgTicks);
-        
-        
-        // PID amélioré (avec dérivée légère et anti-windup)
-        float pidOutput = PIDControlAngle(lastUpdateTimeAngle, degrees, currentAngle, Kp, Ki);
-        
-        int speed = constrain(fabs(pidOutput), 50.0f, 90.0f);
-          
-
-        float error = degrees - currentAngle;
-        
-        
-
-        // --- Normalisation de l’erreur entre -180 et +180 ---
-       
-        
-
-        // --- Zone morte ---
-        
-
-        Serial.print("Target: "); Serial.print(degrees);
-        Serial.print(" | Angle: "); Serial.print(currentAngle);
-        Serial.print(" | PID: "); Serial.print(pidOutput);
-        Serial.print(" | Error: "); Serial.println(error);
-        Serial.print(" | Speed: "); Serial.println(speed);
-        
-        
-        if (fabs(error) <= deadZone ) {
-            break;  // 150 ms de stabilité avant arrêt
-        }
-        
-
-        // --- Choix de la direction ---
-        if (error > 0) {
-            
-            
-            encoderDirection = 1;
-            
-            motorLeft->setSpeed(speed);
-            motorRight->setSpeed(speed);
-            motorLeft->run(FORWARD);
-            motorRight->run(BACKWARD);
-            
-            
-        } else {
-            
-            encoderDirection = -1;
-            
-            motorLeft->setSpeed(speed);
-            motorRight->setSpeed(speed);
-            motorLeft->run(BACKWARD);
-            motorRight->run(FORWARD);
-            
-            
-        }
-        
-
-        // --- Debug ---
-        Serial.print("Target: "); Serial.print(degrees);
-        Serial.print(" | Angle: "); Serial.print(currentAngle);
-        Serial.print(" | PID: "); Serial.print(pidOutput);
-        Serial.print(" | Error: "); Serial.println(error);
-        
-        if (fabs(error) <= deadZone ) {
-             break;  // 150 ms de stabilité avant arrêt
-        }
-        delay(MOVEMENT_LOOP_DELAY);
-
-        updateEncoderTimestamps();
-        
-    }
-
-    stop();
-    Serial.println("=== Rotation terminée ===");
-}
-// void Movement::rotate(float degrees, int speed) {
+//=========================================================   SUITE CODE DE SECOUR   =========================================================//
+// void Movement::moveDistance(float cm, int speed) {
 //     resetEncoders();
-//     long targetTicks = degreesToTicks(degrees);
-//     Serial.print(targetTicks);
-//     Serial.print("\n ");
+//     long targetTicks = cmToTicks(cm);
 
+//     bool forwardDir = (cm > 0);
+//     if (!forwardDir) targetTicks = -targetTicks;
 
-//     if (degrees > 0) {
-//         rotateRight(speed); // Rotation dans le sens horaire
-//     } else {
-//         rotateLeft(speed); // Rotation dans le sens anti-horaire
-//         targetTicks = -targetTicks;
-//     }
+//     // --- PI PARAMETERS ---
+//     float Kp = 0.5f;
+//     float Ki = 0.02f;
+//     float integral = 0.0;
+//     float integralMax = 300.0f; 
+//     float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
+//     int currentSpeed = 90;
 
-//     // Boucle bloquante jusqu'à atteindre l'angle
-//     while ( abs(encoderRight.getTicks()) <= targetTicks -10) {
-//         // abs(encoderLeft.getTicks()) <= targetTicks || le probleme tant une des 2 conditions est vraie on continue probleme avec decrementation de getLEft + abs cette condition est tjrs fausse ou autre probleme c est condition ne sont jmais vrai au meme 
-//         //moment
+//     // --- erreur persistante (filtrée) ---
+//     static float persistentError = 0.0f;   // mémorise l'erreur entre itérations
+//     float alpha = 0.2f;                    // 0 = brut, 1 = très filtré
+
+//     int warmupIterations = 50;  
+//     int loopCounter = 0;
+
+//     while (abs(encoderLeft.getTicks()) < abs(targetTicks) &&
+//            abs(encoderRight.getTicks()) < abs(targetTicks)) {
+            
+
+//         long leftTicks  = encoderLeft.getTicks();
+//         long rightTicks = encoderRight.getTicks();
+
+//         // --- erreur instantanée ---
+//         float error = leftTicks - rightTicks;
+
+//         // --- calcul erreur persistante (filtrée) ---
+//         persistentError = alpha * persistentError + (1.0f - alpha) * error;
+
+//         // --- intégration + anti-windup ---
+//         integral += persistentError * dt;
+//         if (integral > integralMax) integral = integralMax;
+//         if (integral < -integralMax) integral = -integralMax;
+
+//         // --- correction PI (avec erreur persistante) ---
+//         float correction = Kp * persistentError + Ki * integral;
+
+//         int leftSpeed = 0;
+//         int rightSpeed = 0;
+
+//         // --- warm-up ---
+//         if (loopCounter < warmupIterations) {
+
+//             while(loopCounter < warmupIterations){
+//                 motorLeft->setSpeed(0);
+//                 motorRight->setSpeed(0);
+//                 motorLeft->run(RELEASE);
+//                 motorRight->run(RELEASE);
+
+//                 Serial.print("[Warm-up] Err: "); Serial.print(error);
+//                 Serial.print(" | PersErr: "); Serial.print(persistentError);
+//                 Serial.print(" | I: "); Serial.println(integral);
+//                 delay(MOVEMENT_LOOP_DELAY);
+//                 loopCounter++;
+//             }
+
+            
+
+//         } else {
+//             if (currentSpeed < speed)
+//             {
+//                 currentSpeed += 10;
+//                 if (currentSpeed > speed) currentSpeed = speed;
+//             }
+
+//             // --- PI normal après warm-up ---
+//             if (persistentError > 0.0f) {
+                
+//                 leftSpeed  = constrain(currentSpeed - correction, 80, 255);
+//                 rightSpeed = currentSpeed;
+                
+//             } else {
+//                 leftSpeed  = currentSpeed;
+//                 rightSpeed = constrain(currentSpeed + correction, 80, 255);
+//             }
+
+//             motorLeft->setSpeed(leftSpeed);
+//             motorRight->setSpeed(rightSpeed);
+//             motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+//             motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+//             Serial.print("Err: "); Serial.print(error);
+//             Serial.print(" | PersErr: "); Serial.print(persistentError);
+//             Serial.print(" | I: "); Serial.print(integral);
+//             Serial.print(" | Corr: "); Serial.print(correction);
+//             Serial.print(" | L: "); Serial.print(leftSpeed);
+//             Serial.print(" | R: "); Serial.println(rightSpeed);
+//             Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
+//             Serial.print(" | curentSpeed: "); Serial.println(currentSpeed);
+//         }
+
+//         loopCounter++;
 //         updateEncoderTimestamps();
-//         Serial.print(encoderRight.getTicks());
-//         Serial.print("\n ");
-//         Serial.print(targetTicks);
-//         Serial.print("\n ");
-
-
-//         //Serial.print(encoderRight.getTicks());
 //         delay(MOVEMENT_LOOP_DELAY);
 //     }
 
 //     stop();
-
-//     #if DEBUG_MOVEMENT
-//     Serial.print("Rotation effectuee: ");
-//     Serial.print(degrees);
-//     Serial.println(" degres");
-//     #endif
 // }
 
-void Movement::rotate(float degrees) {
-    rotate(degrees, defaultSpeed);
-}
 
-// ============= FONCTIONS DE CONVERSION =============
 
-float Movement::ticksToCm(long ticks) {
-    // Distance = (ticks / resolution) * circonférence
-    return ((float)ticks / encoderResolution) * wheelCircumference;
-}
 
-long Movement::cmToTicks(float cm) {
-    // Ticks = (distance / circonférence) * resolution
-    return (long)((cm / wheelCircumference) * encoderResolution);
-}
+// void Movement::moveDistance(float cm, int speed) {
+//     resetEncoders();
+//     long targetTicks = cmToTicks(cm);
 
-float Movement::ticksToDegrees(long ticks) {
-    // Pour une rotation sur place:
-    // Arc parcouru par une roue = (wheelBase * PI * angle) / 360
-    // Distance parcourue = ticksToCm(ticks)
-    float arcLength = ticksToCm(ticks);
-    return (arcLength * 360.0) / (PI * wheelBase);
-}
-float Movement::ticksToRotations(long ticksRight, long ticksLeft) {
-    // Calcul du nombre de rotations basé sur la moyenne des ticks des deux roues
-    long avgTicks = (ticksRight + ticksLeft) / 2;
-    return (float)avgTicks;
-}
+//     if (cm > 0) {
+//         forward(speed);
+//     } else {
+//         backward(speed);
+//         targetTicks = -targetTicks; // Valeur absolue pour la comparaison
+//     }
 
-long Movement::degreesToTicks(float degrees) {
-    // Arc que doit parcourir une roue pour tourner de X degrés
-    float arcLength = (PI * wheelBase * abs(degrees)) / 360.0;
-    return cmToTicks(arcLength);
-}
+//     // Boucle bloquante jusqu'à atteindre la distance
+//     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
+        
+//         long leftTicks = encoderLeft.getTicks();
+//         long rightTicks = encoderRight.getTicks();
 
-void Movement::resetEncoders() {
-    encoderLeft.reset();
-    encoderRight.reset();
-    lastUpdateTime = micros();
-}
+//         // Erreur entre les roues
+//         long error = leftTicks - rightTicks;
+//         Serial.print("Error: ");
+//         Serial.println(error);
+//         Serial.print("Left Ticks: ");
+//         Serial.println(leftTicks);
+//         Serial.print("Right Ticks: ");
+//         Serial.println(rightTicks);
 
-void Movement::updateEncoderTimestamps() {
-    unsigned long now = micros();
-    unsigned long interval = now - lastUpdateTime;
+//         // PID simple pour corriger l'écart
+//         float Kp_wheel = 0.6f; // à ajuster
+//         int correction = Kp_wheel * error;
+//         if (abs(error) <= 1) correction = 0;
+
+//         int leftSpeed  = constrain(speed - correction, 0, 255);
+//         int rightSpeed = constrain(speed + correction, 0, 255);
+        
+
+//         motorLeft->setSpeed(leftSpeed);
+//         motorRight->setSpeed(rightSpeed);
+//         motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
+//         motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
+
+//         updateEncoderTimestamps();
+//         delay(MOVEMENT_LOOP_DELAY);
+//     }
     
-    // Mise à jour des timestamps pour calcul de vitesse
-    encoderLeft.setTimestamp(now);
-    encoderLeft.setTickInterval(interval);
-    
-    encoderRight.setTimestamp(now);
-    encoderRight.setTickInterval(interval);
-    
-    lastUpdateTime = now;
-}
 
-// ============= GETTERS =============
+//     stop();
 
-long Movement::getLeftTicks() {
-    return encoderLeft.getTicks();
-}
+//     #if DEBUG_MOVEMENT
+//     Serial.print("Distance parcourue: ");
+//     Serial.print(getDistanceTraveled());
+//     Serial.println(" cm");
+//     #endif
+//     // resetEncoders();
+//     // unsigned long lastUpdateTimeDist = micros();
 
-long Movement::getRightTicks() {
-    return encoderRight.getTicks();
-}
+//     // float targetDistance = abs(cm);
+//     // float Kp = 4.0;  // à ajuster selon ton robot
+//     // float Ki = 0.5;   // à ajuster aussi (souvent plus petit)
 
-float Movement::getDistanceTraveled() {
-    // Moyenne des deux roues
-    long avgTicks = (encoderLeft.getTicks() + encoderRight.getTicks()) / 2;
-    return ticksToCm(avgTicks);
-}
+//     // while (true) {
+//     //     // Distance parcourue actuelle
+//     //     float currentDistance = getDistanceTraveled();
 
-float Movement::getLeftRPM() {
-    updateEncoderTimestamps();
-    return encoderLeft.getRPM();
-}
+//     //     // Erreur = cible - actuelle
+//     //     float error = targetDistance - currentDistance;
 
-float Movement::getRightRPM() {
-    updateEncoderTimestamps();
-    return encoderRight.getRPM();
-}
+//     //     // Condition d’arrêt : proche de la cible
+//     //     if (fabs(error) <= 1.00f) break;
 
-float Movement::getLeftRevolutions() {
-    return encoderLeft.getRevolutions();
-}
+//     //     // PID pour obtenir la consigne de vitesse
+//     //     float pidOutput = PIDControlDistance(lastUpdateTimeDist, targetDistance, currentDistance, Kp, Ki);
 
-float Movement::getRightRevolutions() {
-    return encoderRight.getRevolutions();
-}
+//     //     // La direction dépend du signe de l’erreur :
+//     //     // Si erreur > 0 → aller vers l’avant
+//     //     // Si erreur < 0 → reculer pour corriger
+//     //     int direction = (error >= 0) ? FORWARD : BACKWARD;
 
-Encoder* Movement::getLeftEncoder() {
-    return &encoderLeft;
-}
+//     //     // Vitesse moteur = amplitude du PID, limitée et plancher minimal
+//     //     int motorSpeed = constrain(fabs(pidOutput), 0, 255);
+       
 
-Encoder* Movement::getRightEncoder() {
-    return &encoderRight;
-}
+//     //     // Appliquer la consigne aux deux moteurs
+//     //     motorLeft->setSpeed(motorSpeed);
+//     //     motorRight->setSpeed(motorSpeed);
+//     //     motorLeft->run(direction);
+//     //     motorRight->run(direction);
 
-// ============= CALLBACKS D'INTERRUPTION =============
+//     //     // Debug (facultatif)
+//     //     Serial.print("Erreur: "); Serial.print(error);
+//     //     Serial.print(" | PID: "); Serial.print(pidOutput);
+//     //     Serial.print(" | Speed: "); Serial.println(motorSpeed);
 
-void Movement::leftEncoderISR() {
-    if (instance != nullptr) {
-        instance->encoderLeft.addTick();
-    }
-}
+//     //     updateEncoderTimestamps();
+//     //     delay(MOVEMENT_LOOP_DELAY);
+//     // }
 
-void Movement::rightEncoderISR() {
-    if (instance != nullptr) {
-        instance->encoderRight.addTick();
-    }
-}
-void Movement::minleftEncoderISR()
-{
-    if (instance != nullptr) {
-        instance->encoderLeft.subtractTick();  // ✅
-    }
-}
+//     // stop();
 
-void Movement::minrightEncoderISR()
-{
-    if (instance != nullptr) {
-        instance->encoderRight.subtractTick(); // ✅
-    }
-}
-void Movement::encoderLeftISRWrapper() {
-    if (instance != nullptr) {
-        if (encoderDirection > 0)
-            instance->encoderLeft.addTick();
-        else
-            instance->encoderLeft.subtractTick();
-    }
-}
+//     // #if DEBUG_MOVEMENT
+//     // Serial.print("Distance parcourue: ");
+//     // Serial.print(getDistanceTraveled());
+//     // Serial.println(" cm");
+//     // #endif
+// }
 
-void Movement::encoderRightISRWrapper() {
-    if (instance != nullptr) {
-        if (encoderDirection > 0)
-            instance->encoderRight.addTick();
-        else
-            instance->encoderRight.subtractTick();
-    }
-}
-static long lastLeftTicks = 0;
-static long lastRightTicks = 0;
-const float DT_MS = MOVEMENT_LOOP_DELAY; // Temps de boucle en ms
 
-float Movement::getAverageSpeedTicks() {
-    long currentLeftTicks = encoderLeft.getTicks();
-    long currentRightTicks = encoderRight.getTicks();
 
-    // Calcul du déplacement (delta) depuis la dernière itération
-    long deltaLeft = abs(currentLeftTicks - lastLeftTicks);
-    long deltaRight = abs(currentRightTicks - lastRightTicks);
-
-    // Mettre à jour l'état
-    lastLeftTicks = currentLeftTicks;
-    lastRightTicks = currentRightTicks;
-
-    // Vitesse moyenne en Ticks/ms
-    float averageSpeed = (float)(deltaLeft + deltaRight) / 2.0f;
-    
-    // Normalisation par le temps (pour obtenir la vitesse réelle si le dt n'est pas constant, mais ici dt est constant)
-    // float speedPerMS = averageSpeed / DT_MS; 
-    
-    // Si votre PID travaille en Ticks/Loop, retournez simplement la moyenne du delta
-    return averageSpeed; 
-}
 
 
 

@@ -99,6 +99,25 @@ public:
     float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
     static void encoderLeftISRWrapper();
     static void encoderRightISRWrapper();
+    void setRawSpeeds(int leftSpeed, int rightSpeed) {
+    // Gestion moteur Gauche
+    if (leftSpeed == 0) {
+        motorLeft->setSpeed(0);
+        motorLeft->run(RELEASE);
+    } else {
+        motorLeft->setSpeed(abs(leftSpeed));
+        motorLeft->run(leftSpeed > 0 ? FORWARD : BACKWARD);
+    }
+
+    // Gestion moteur Droit
+    if (rightSpeed == 0) {
+        motorRight->setSpeed(0);
+        motorRight->run(RELEASE);
+    } else {
+        motorRight->setSpeed(abs(rightSpeed));
+        motorRight->run(rightSpeed > 0 ? FORWARD : BACKWARD);
+    }
+}
     
     
     

@@ -64,7 +64,7 @@ void fsmStep(FsmContext &ctx) {
         // create TaskManager
         taskManager = new TaskManager(&movement);
         // Add task
-        taskManager->addTask(new MoveTask(50.0f, DEFAULT_SPEED, 0));   // move 50 cm
+        taskManager->addTask(new MoveTask(MoveTask::MoveTaskMode::MOVE_DISTANCE, 50.0f, DEFAULT_SPEED)); // move 50 cm
         // taskManager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
         // taskManager.addTask()
 
