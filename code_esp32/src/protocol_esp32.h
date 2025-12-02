@@ -5,8 +5,10 @@
 
 namespace protocol_esp32 {
 
+
 void begin_wifi_and_uart(HardwareSerial& uart, int rx, int tx, unsigned long baud);
 void bridge_uart_wifi_loop();
+void ensure_wifi_connected();
 
 } // namespace protocol_esp32
 

@@ -1,4 +1,3 @@
-
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <ArduinoJson.h>
@@ -41,54 +40,128 @@ void begin_wifi_and_uart(HardwareSerial& uart, int rx, int tx, unsigned long bau
   }
 }
 
-void bridge_uart_wifi_loop() {
-  static unsigned long lastPing = 0;
-  bool sentSomething = false;
-  const unsigned long interval = 2000; // 2 secondes pour ping et reconnexion
+// --- Generalized JSON mapping system for WiFi->UART bridge ---
+struct JsonMapRule {
+    const char* inKey;     // received "command" value
+    const char* outKey;    // output JSON key to send to Arduino
+    const char* outValue;  // output JSON value
+};
 
-  if (!client.connected()) {
-    client.stop();
-    if (client.connect(server_ip, server_port)) {
-      Serial.println("[TCP] Reconnecté au serveur !");
-    } else {
-      Serial.println("[TCP][ERREUR] Connexion serveur impossible, nouvelle tentative dans 2s.");
-      delay(interval);
+// Static mapping table: add new rules here
+static const JsonMapRule jsonMapRules[] = {
+    {"led2:on",  "led7", "on"},
+    {"led2:off", "led7", "off"},
+    {"pump:start", "pump", "on"},
+    {"pump:stop",  "pump", "off"},
+    // Add more rules as needed
+};
+static const size_t jsonMapRuleCount = sizeof(jsonMapRules) / sizeof(JsonMapRule);
+
+// Applies mapping: if found, sends mapped JSON to UART and returns true
+bool applyJsonMapping(const char* cmd, HardwareSerial& uart) {
+    for (size_t i = 0; i < jsonMapRuleCount; ++i) {
+        if (strcmp(cmd, jsonMapRules[i].inKey) == 0) {
+            StaticJsonDocument<64> outDoc;
+            outDoc[jsonMapRules[i].outKey] = jsonMapRules[i].outValue;
+            serializeJson(outDoc, uart);
+            uart.println();
+            return true;
+        }
+    }
+    return false;
+}
+
+// Main bridge loop: WiFi <-> UART, with generalized JSON mapping
+void bridge_uart_wifi_loop() {
+    static unsigned long lastPing = 0;
+    bool sentSomething = false;
+    const unsigned long interval = 2000; // 2s for ping and reconnect
+
+
+    // --- Non-blocking WiFi auto-reconnect ---
+    ensure_wifi_connected();
+    if (WiFi.status() != WL_CONNECTED) {
+      // WiFi non connecté, on ne tente rien d'autre
       return;
     }
-  }
 
-  if (uart_ptr && uart_ptr->available()) {
-    String uartStr = uart_ptr->readStringUntil('\n');
-    uartStr.trim();
-    if (uartStr.length() > 0) {
-      client.print(uartStr + "\n");
-      sentSomething = true;
-    }
-  }
-
-    // Envoi d'un ping toutes les 2 secondes si rien n'a été envoyé
-    if (!sentSomething && millis() - lastPing > interval) {
-      client.print("{\"ping\":1}\n");
-      lastPing = millis();
-    }
-
-  if (client.available() && uart_ptr) {
-    String jsonStr = client.readStringUntil('\n');
-    StaticJsonDocument<128> doc;
-    if (deserializeJson(doc, jsonStr) == DeserializationError::Ok) {
-      const char* cmd = doc["command"];
-      if (cmd && strcmp(cmd, "led2:on") == 0) {
-        StaticJsonDocument<32> outDoc;
-        outDoc["led7"] = "on";
-        serializeJson(outDoc, *uart_ptr);
-        uart_ptr->println();
-      } else if (cmd && strcmp(cmd, "led2:off") == 0) {
-        StaticJsonDocument<32> outDoc;
-        outDoc["led7"] = "off";
-        serializeJson(outDoc, *uart_ptr);
-        uart_ptr->println();
+    // --- TCP auto-reconnect logic (only if WiFi is up) ---
+    if (!client.connected()) {
+      client.stop();
+      if (client.connect(server_ip, server_port)) {
+        Serial.println("[TCP] Reconnecté au serveur !");
+      } else {
+        // Pas de delay bloquant, on attend le prochain tour de boucle
+        static unsigned long lastTcpLog = 0;
+        unsigned long now = millis();
+        if (now - lastTcpLog > interval) {
+          Serial.println("[TCP][ERREUR] Connexion serveur impossible, nouvelle tentative...");
+          lastTcpLog = now;
+        }
+        return;
       }
     }
+
+    // --- UART -> WiFi relay ---
+    if (uart_ptr && uart_ptr->available()) {
+        String uartStr = uart_ptr->readStringUntil('\n');
+        uartStr.trim();
+        if (uartStr.length() > 0) {
+            client.print(uartStr + "\n");
+            sentSomething = true;
+        }
+    }
+
+    // --- WiFi keep-alive ping ---
+    if (!sentSomething && millis() - lastPing > interval) {
+        client.print("{\"ping\":1}\n");
+        lastPing = millis();
+    }
+
+    // --- WiFi -> UART generalized JSON mapping ---
+    if (client.available() && uart_ptr) {
+        String jsonStr = client.readStringUntil('\n');
+        StaticJsonDocument<128> doc;
+        DeserializationError err = deserializeJson(doc, jsonStr);
+        if (err == DeserializationError::Ok) {
+            const char* cmd = doc["command"];
+            if (cmd) {
+                if (!applyJsonMapping(cmd, *uart_ptr)) {
+                    Serial.print("[MAP][ERREUR] Commande inconnue: ");
+                    Serial.println(cmd);
+                }
+            } else {
+                Serial.println("[MAP][ERREUR] Champ 'command' manquant dans le JSON reçu.");
+            }
+        } else {
+            Serial.print("[MAP][ERREUR] JSON WiFi invalide: ");
+            Serial.println(jsonStr);
+        }
+    }
+}
+
+// --- Non-blocking WiFi reconnection helper ---
+void ensure_wifi_connected() {
+  static unsigned long lastAttempt = 0;
+  static bool wasConnected = false;
+  const unsigned long retryInterval = 5000; // 5 seconds
+
+  wl_status_t status = WiFi.status();
+  if (status == WL_CONNECTED) {
+    if (!wasConnected) {
+      Serial.print("[WIFI] Reconnecté ! IP: ");
+      Serial.println(WiFi.localIP());
+      wasConnected = true;
+    }
+    return;
+  }
+  wasConnected = false;
+  unsigned long now = millis();
+  if (now - lastAttempt >= retryInterval) {
+    Serial.println("[WIFI] Déconnecté, tentative de reconnexion...");
+    WiFi.disconnect();
+    WiFi.begin(ssid, password);
+    lastAttempt = now;
   }
 }
 
