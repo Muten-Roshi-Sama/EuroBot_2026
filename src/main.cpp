@@ -28,7 +28,7 @@ void setup() {
   init();
 
   // DEBUG prints
-  debugInit(115200,    // comment to deactivate
+  debugInit(115200,    // comment DBG_ to deactivate its related prints
     DBG_FSM | 
     DBG_TASKMANAGER |
     DBG_MOVEMENT |
@@ -37,7 +37,7 @@ void setup() {
     DBG_ENCODER
   );
 
-  fsmInit(gFsm);  // ! ALL init functions  ====>  HERE  <=======
+  fsmInit(gFsm);  //! ALL init functions  ====>  HERE  <=======
 }
 
 

@@ -79,7 +79,6 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
 }
 
 // ============= MOUVEMENTS BASIQUES (NON-BLOQUANTS) =============
-
 void Movement::forward(int speed) {
     motorLeft->setSpeed(speed);
     motorRight->setSpeed(speed);
