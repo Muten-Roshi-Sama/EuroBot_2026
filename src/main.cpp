@@ -1,111 +1,86 @@
+
+// // v1.0
+// #include <Arduino.h>
+// #include "FSM.h"
+// #include <Adafruit_MotorShield.h>
+// #include <Encoder.h>
+
+
+// static FsmContext gFsm; 
+
+
+
+// void setup() {
+//   Serial.begin(9600);
+//   while (!Serial) {}
+//   Serial.println("Setup.");
+  
+//   fsmInit(gFsm);
+//     delay(2000);
+// }
+
+
+
+// void loop(){
+
+//   fsmStep(gFsm);
+// }
+
+
 #include <Arduino.h>
-#include <Wire.h>
-#include <VL53L0X.h>
+#include "capteur_lidar.h"
 
-// Nombre de capteurs
-constexpr uint8_t N_LIDARS = 3;
+// void setup() {
+//   Serial.begin(9600);
+//   Serial.println("Initialisation du capteur LiDAR...");
 
-// XSHUT pins pour chaque capteur (D2, D3, D4)
-const uint8_t xshutPins[N_LIDARS] = {2, 3, 4};
+//   if (!initLidar()) {
+//     Serial.println("ERREUR: Capteur non detecte!");
+//     Serial.println("Verifiez les connexions I2C");
+//     while (1) {
+//       delay(1000);
+//     }
+//   }
 
-// Adresses I2C assignées (après réinitialisation)
-const uint8_t lidarAddresses[N_LIDARS] = {0x30, 0x31, 0x32};
+//   Serial.println("Capteur initialise!");
+//   Serial.println("\nDistance | Etat");
+//   Serial.println("---------|------");
+// }
 
-VL53L0X sensors[N_LIDARS];
-bool sensorAlive[N_LIDARS] = {false, false, false};
+// void loop() {
+//   int distance = lireDistance();
+//   afficherEtatObstacle(distance);
 
-void tcaDelaySmall() {
-  // petit délai pour la stabilisation I2C après changement XSHUT
-  delay(50);
-}
+//   delay(500);
+// }
+
 
 void setup() {
-  Serial.begin(115200);
-  delay(800); // laisse le temps au moniteur série de se connecter
-  Serial.println("=== Setup démarré ===");
-  Wire.begin();
+  Serial.begin(9600);
+  Serial.println("Initialisation du capteur LiDAR...");
 
-  // Mettre tous les XSHUT LOW pour forcer reset
-  for (uint8_t i = 0; i < N_LIDARS; ++i) {
-    pinMode(xshutPins[i], OUTPUT);
-    digitalWrite(xshutPins[i], LOW);
-  }
-  delay(50);
-
-  // Initialiser chaque capteur un par un
-  for (uint8_t i = 0; i < N_LIDARS; ++i) {
-    Serial.print("Activation capteur ");
-    Serial.println(i);
-
-    // Activer uniquement ce capteur
-    digitalWrite(xshutPins[i], HIGH);
-    tcaDelaySmall();
-
-    // Tentative d'init
-    if (!sensors[i].init()) {
-      Serial.print("⚠ Erreur init capteur ");
-      Serial.println(i);
-      sensorAlive[i] = false;
-      // Laisser XSHUT HIGH (ou LOW selon ton choix) ; ici on laisse HIGH pour tester plus tard
-    } else {
-      // Changer l'adresse par défaut 0x29 -> nouvelle adresse
-      sensors[i].setAddress(lidarAddresses[i]);
-      sensorAlive[i] = true;
-      Serial.print("Capteur ");
-      Serial.print(i);
-      Serial.print(" initialisé -> adresse 0x");
-      Serial.println(lidarAddresses[i], HEX);
-
-      // Optionnel : réglages supplémentaires
-      sensors[i].setTimeout(500);
-      // Démarrer en mode continu pour lecture rapide
-      sensors[i].startContinuous();
-    }
-
-    // Laisser le temps au bus et au capteur
-    delay(50);
+  if (!initLidar()) {
+    Serial.println("ERREUR: Capteur non detecte!");
+    Serial.println("Verifiez les connexions I2C");
+    while (1) { delay(1000); }
   }
 
-  // Afficher résumé
-  Serial.println("=== Initialisation terminée ===");
-  for (uint8_t i = 0; i < N_LIDARS; ++i) {
-    Serial.print("Capteur ");
-    Serial.print(i);
-    Serial.print(" : ");
-    Serial.println(sensorAlive[i] ? "OK" : "KO");
-  }
-  Serial.println("-------------------------------");
+  Serial.println("Capteur initialise!");
+  Serial.println("Robot test : avancer / stop selon distance\n");
 }
 
 void loop() {
-  // Lire chaque capteur si vivant
-  for (uint8_t i = 0; i < N_LIDARS; ++i) {
-    if (!sensorAlive[i]) {
-      Serial.print("Capteur ");
-      Serial.print(i);
-      Serial.println(" non initialisé -> skip");
-      continue;
-    }
+  int distance = lireDistance();
 
-    // Lecture continue (retourne millimètres)
-    uint16_t dist = sensors[i].readRangeContinuousMillimeters();
+  Serial.print("Distance : ");
+  Serial.print(distance);
+  Serial.print(" mm → ");
 
-    if (sensors[i].timeoutOccurred()) {
-      Serial.print("⚠ Timeout capteur ");
-      Serial.println(i);
-    } else {
-      Serial.print("Lidar ");
-      Serial.print(i);
-      Serial.print(" (0x");
-      Serial.print(lidarAddresses[i], HEX);
-      Serial.print(") = ");
-      Serial.print(dist);
-      Serial.println(" mm");
-    }
-    // petit gap entre lectures pour le bus
-    delay(30);
+  if (distance < 150) { 
+    Serial.println("⚠️ OBSTACLE — STOP");
+  } else {
+    Serial.println("OK — avancer");
   }
 
-  Serial.println("-------------------------------");
-  delay(1000);
+  delay(300);
 }
