@@ -1,28 +1,12 @@
-// Protocole UART générique pour Arduino <-> ESP32 (ou autre)
-// Cette librairie gère l'envoi et la réception de messages JSON bien formés sur n'importe quel port série
-// Usage : voir exemple en bas de fichier
+// Pour envoyer les logs, mettre protocol::log("message");
+// Mettre aussi dans setup protocol::init();  
+
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include "protocol.h"
 
 namespace protocol {
-
-void log(const char* msg); // Forward declaration for use in check_button
-
-// Envoie un log JSON à chaque appui sur le bouton (active LOW)
-void check_button(uint8_t button_pin) {
-  static uint8_t lastState[20] = {HIGH}; // supporte jusqu'à 20 boutons
-  bool currentState = digitalRead(button_pin);
-  if (lastState[button_pin] == HIGH && currentState == LOW) {
-    StaticJsonDocument<32> doc;
-    char key[12];
-    snprintf(key, sizeof(key), "button%d", button_pin);
-    doc[key] = "pressed";
-    send(doc, Serial);
-  }
-  lastState[button_pin] = currentState;
-}
 
 // Initialisation du port série (par défaut Serial)
 void init(HardwareSerial& serial, unsigned long baudrate) {
@@ -69,7 +53,32 @@ void log(const char* msg) {
   Serial.println();
 }
 
-} // namespace protocol
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Envoie un log JSON à chaque appui sur le bouton (active LOW)
+/*void check_button(uint8_t button_pin) {
+  static bool lastState = HIGH;
+  bool currentState = digitalRead(button_pin);
+  if (lastState == HIGH && currentState == LOW) {
+  log("Button pressed");
+  }
+  lastState = currentState;
+}*/
+
+// namespace protocol
 
 // namespace protocol
 

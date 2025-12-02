@@ -9,7 +9,7 @@
 #include "../movement/Movement.h"
 #include "../tasks/MoveTask.h"
 #include "../util/Debug.h"
-
+#include "../drivers/Demarage/Demarage.h"
 
 
 // Instance du système de mouvement
@@ -27,7 +27,8 @@ void fsmInit(FsmContext &ctx) {
 
   // DEBUG prints
   debugInit(115200, DBG_FSM | DBG_TASKMANAGER);
-
+  // Start button
+  demarage_init(CONTACT_PIN);
   // Emergency Button
   emergencyBtn.begin();
   pinMode(EMERGENCY_PIN, INPUT_PULLUP);
@@ -85,8 +86,10 @@ void fsmStep(FsmContext &ctx) {
         //TODO: ADD "if" starting rope pulled.
 
         // start 100sec timer
-
-        ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
+        demarage_update();
+        if (demarage_is_ready()) {
+          ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
+        }
       } 
       break;
     }

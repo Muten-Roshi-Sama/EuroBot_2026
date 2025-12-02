@@ -12,7 +12,7 @@ void demarage_init(uint8_t pin) {
 void demarage_update() {
     if (contact_pin == 255 || ready) return;
     int state = digitalRead(contact_pin);
-    // Si le contact magnétique est retiré (passage LOW -> HIGH)
+    
     if (state == LOW) {
         ready = true;
     }
