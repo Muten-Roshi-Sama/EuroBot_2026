@@ -44,6 +44,7 @@ static void markStateStart(FsmContext &ctx) {
 }
 
 void fsmChangeAction(FsmContext &ctx, FsmAction next) {
+    debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
   ctx.currentAction = next;
   markStateStart(ctx);
 }
@@ -69,13 +70,13 @@ void fsmStep(FsmContext &ctx) {
 
         // Ajout des tâches (Allocation dynamique avec 'new' -> PARFAIT)
         //taskManager->addTask(new MoveTask(50.0f, DEFAULT_SPEED, 0)); 
-        //movement.moveDistance(100.0f, 100); // Test initial
+        movement.moveDistance(100.0f, 100); // Test initial
         delay(1000);
         
-        debugPrintf(DBG_FSM, "Init termine, passage en IDLE");
+        // debugPrintf(DBG_FSM, "Init termine, passage en IDLE");
         
         // On passe à l'état suivant
-        fsmChangeAction(ctx, FsmAction::IDLE);
+        fsmChangeAction(ctx, FsmAction::INIT);
         break;
     }
 
@@ -83,7 +84,7 @@ void fsmStep(FsmContext &ctx) {
     case FsmAction::IDLE: {
         // Si le manager existe et qu'il n'est PAS vide (tâches en attente)
         if (taskManager && !taskManager->isIdle()) {
-            debugPrintf(DBG_FSM, "Taches detectees -> Go TASK");
+            // debugPrintf(DBG_FSM, "Taches detectees -> Go TASK");
             
             // CORRECTION IMPORTANTE : On va vers l'état TASK
             fsmChangeAction(ctx, FsmAction::TASK);
