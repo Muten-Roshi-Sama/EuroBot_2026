@@ -105,12 +105,7 @@ void fsmStep(FsmContext &ctx) {
       // Check for Interruptions every 100ms (inside taskManager)
       // if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;
 
-            // Si tout est fini, on retourne en IDLE pour attendre les prochains ordres
-            if (taskManager->isIdle()) {
-                debugPrintf(DBG_FSM, "Toutes taches finies -> Retour IDLE");
-                movement.stop(); // Sécurité
-                fsmChangeAction(ctx, FsmAction::IDLE);
-            }
+            
         
         break;
           }

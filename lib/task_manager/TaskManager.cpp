@@ -66,6 +66,7 @@ void TaskManager::tick() {
 
   // cleanup finished
   if (active && active->isFinished()) {
+    debugPrintf(DBG_TASKMANAGER, "tick: active finished -> deleting task ptr=%p", (void*)active);
     delete active; // if allocated on heap; otherwise return to pool
     active = nullptr;
   }
@@ -75,7 +76,7 @@ void TaskManager::tick() {
   if (now - lastISRupdateMs >= 100) {
     lastISRupdateMs = now;
     updateISR();
-    debugPrintf(DBG_TASKMANAGER, "ISR_Update");
+    // debugPrintf(DBG_TASKMANAGER, "ISR_Update");
   }
 }
 

@@ -99,12 +99,12 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     
     
     #if DEBUG_MOVEMENT
-    Serial.println("=== Configuration du robot ===");
-    Serial.print("Diametre roues: "); Serial.print(wheelDiameter); Serial.println(" cm");
-    Serial.print("Distance entre roues: "); Serial.print(wheelBase); Serial.println(" cm");
-    Serial.print("Resolution encodeur: "); Serial.print(encoderResolution); Serial.println(" ticks/tour");
-    Serial.print("Circonference roue: "); Serial.print(wheelCircumference); Serial.println(" cm");
-    Serial.println("==============================");
+    // Serial.println("=== Configuration du robot ===");
+    // Serial.print("Diametre roues: "); Serial.print(wheelDiameter); Serial.println(" cm");
+    // Serial.print("Distance entre roues: "); Serial.print(wheelBase); Serial.println(" cm");
+    // Serial.print("Resolution encodeur: "); Serial.print(encoderResolution); Serial.println(" ticks/tour");
+    // Serial.print("Circonference roue: "); Serial.print(wheelCircumference); Serial.println(" cm");
+    // Serial.println("==============================");
     #endif
 }
 

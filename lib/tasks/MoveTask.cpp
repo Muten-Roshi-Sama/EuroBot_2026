@@ -2,8 +2,24 @@
 #include "settings.h"
 #include "isr_flags.h"
 
+// Libs
+#include "../util/Debug.h"
+
+
+// debugPrintf(DBG_MOVEMENT, "", );
+
+
 // Helper: absolute long
 static inline long labs_long(long v) { return v < 0 ? -v : v; }
+int MoveTask::baseSpeed = 0;
+int MoveTask::loopCounter = 0;
+int MoveTask::warmupIterations = 30;
+float MoveTask::Kp = 0.8f;
+float MoveTask::Ki = 0.0f;
+float MoveTask::integralError = 0.0f;
+int MoveTask::minSpeed = 80;
+
+
 
 void MoveTask::start(Movement &mv) {
     started = true;
@@ -12,113 +28,156 @@ void MoveTask::start(Movement &mv) {
     finished = false;
     cancelled = false;
 
-    // 1. Reset
-    mv.resetEncoders();
+  // initialize controller / runtime state
+  mv.resetEncoders();
 
-    // 2. Calcul des cibles
-    if (mode == MoveTaskMode::MOVE_DISTANCE) {
-        targetTicks = labs_long(mv.cmToTicks(value));
-    } else { // ROTATE
-        targetTicks = labs_long(mv.degreesToTicks(value));
+  baseSpeed = getSpeed() ? getSpeed() : mv.defaultSpeed;
+  loopCounter = 0;
+  warmupIterations = 30; // ~3s at 100ms tick (adjustable)
+  Kp = 0.8f;
+  Ki = 0.0f;
+  integralError = 0.0f;
+  minSpeed = 110; // safety minimum PWM to avoid stalling
+
+  // Log task start (short, single line)
+  int value_x10 = (int)(value * 10.0f + 0.5f);
+  debugPrintf(DBG_MOVEMENT, "MoveTask::start %s val=%d/10cm tgt=%ld bs=%d",
+    (mode == MoveTaskMode::MOVE_DISTANCE) ? "DIST" : "ROT",
+    value_x10, (long)0, baseSpeed); // targetTicks updated below
+
+  // Log motor pointers so we can confirm Movement initialized properly
+  if (mv.motorLeft == nullptr || mv.motorRight == nullptr) {
+    debugPrintf(DBG_MOVEMENT, "MoveTask::start WARNING motors null L=%p R=%p", (void*)mv.motorLeft, (void*)mv.motorRight);
+  } else {
+    debugPrintf(DBG_MOVEMENT, "MoveTask::start motors L=%p R=%p minSpeed=%d", (void*)mv.motorLeft, (void*)mv.motorRight, minSpeed);
+  }
+
+
+  // MOVE
+  if (mode == MoveTaskMode::MOVE_DISTANCE) {
+    targetTicks = labs_long(mv.cmToTicks(value));
+    debugPrintf(DBG_MOVEMENT, "MoveTask targetTicks=%ld (%.1f cm)", targetTicks, value);
+    // start gently
+    if (value >= 0.0f) {
+      mv.forward(minSpeed);
+    } else {
+      mv.backward(minSpeed);
     }
 
-    // 3. Init PID
-    persistentError = 0.0f;
-    integral = 0.0f;
-    loopCounter = 0;
-    lastPidLoopMs = millis(); 
+    // ROTATE_ANGLE
+  } else if (mode == MoveTaskMode::ROTATE_ANGLE) { 
+    targetTicks = labs_long(mv.degreesToTicks(value));
+    // for rotation, we start both motors at minSpeed in correct directions
+    if (value >= 0.0f) {
+      mv.rotateRight(minSpeed);
+    } else {
+      mv.rotateLeft(minSpeed);
+    }
+  }
+
+
+
 }
 
 void MoveTask::update(Movement &mv) {
     if (cancelled || finished || paused) return;
 
-    // Timeout global
-    if (timeoutMs && (millis() - startMs) > timeoutMs) {
-        mv.stop();
-        cancelled = true;
-        finished = true;
-        return;
+  // Read encoder ticks atomically
+  long leftTicks, rightTicks;
+  noInterrupts();
+  leftTicks  = mv.getLeftTicks();
+  rightTicks = mv.getRightTicks();
+  interrupts();
+
+  // Progress measurement
+  long progressTicks;
+  if (mode == MoveTaskMode::MOVE_DISTANCE) {
+    progressTicks = max(labs_long(leftTicks), labs_long(rightTicks));
+  } else { // rotation
+    progressTicks = (labs_long(leftTicks) + labs_long(rightTicks)) / 2;
+  }
+
+  // Check finish condition
+  if (progressTicks >= targetTicks) {
+    debugPrintf(DBG_MOVEMENT, "MoveTask progress : prog=%ld / tgt=%ld", progressTicks, targetTicks);
+    mv.stop();
+    finished = true;
+    return;
+  }
+
+  // Timeout handling
+  if (timeoutMs && (millis() - startMs) > timeoutMs) {
+    mv.stop();
+    cancelled = true;
+    finished = true;
+    return;
+  }
+
+  // Controller: correct left/right imbalance using proportional term
+  // error = left - right (positive -> left ahead -> slow left / speed up right)
+  float error = (float)(leftTicks - rightTicks);
+  // integral (very small or disabled)
+  integralError += error * (Ki);
+  // anti-windup clamp
+  if (integralError > 1000) integralError = 1000;
+  if (integralError < -1000) integralError = -1000;
+
+  float correction = Kp * error + integralError;
+  // Convert correction (ticks) to PWM delta (heuristic)
+  // The factor below maps ticks-difference into PWM difference; tune as needed.
+  float corrPWM = correction * 0.3f;
+
+  // Warmup ramp: gradually increase target base PWM from minSpeed to baseSpeed
+  float rampFactor = 1.0f;
+  if (loopCounter < warmupIterations) {
+    rampFactor = (float)loopCounter / (float)warmupIterations;
+    if (rampFactor < 0.05f) rampFactor = 0.05f;
+  }
+
+  int targetBase = minSpeed + (int)((baseSpeed - minSpeed) * rampFactor);
+
+  // Compute left/right speed depending on motion mode
+  int leftPWM = targetBase;
+  int rightPWM = targetBase;
+
+  if (mode == MoveTaskMode::MOVE_DISTANCE) {
+    leftPWM = (int)constrain((float)targetBase - corrPWM, (float)minSpeed, 255.0f);
+    rightPWM = (int)constrain((float)targetBase + corrPWM, (float)minSpeed, 255.0f);
+    // apply speeds preserving direction (forward/backward determined by start)
+    // we assume previously set directions via mv.forward()/mv.backward()
+    if (value >= 0.0f) {
+      mv.motorLeft->setSpeed(leftPWM);
+      mv.motorRight->setSpeed(rightPWM);
+      mv.motorLeft->run(FORWARD);
+      mv.motorRight->run(FORWARD);
+    } else {
+      mv.motorLeft->setSpeed(leftPWM);
+      mv.motorRight->setSpeed(rightPWM);
+      mv.motorLeft->run(BACKWARD);
+      mv.motorRight->run(BACKWARD);
     }
-
-    // --- GESTION DU TEMPS (NON-BLOQUANT) ---
-    // On exécute la logique PID seulement toutes les X ms (ex: 10ms)
-    // C'est ce qui remplace ton delay(MOVEMENT_LOOP_DELAY)
-    if (millis() - lastPidLoopMs < MOVEMENT_LOOP_DELAY) {
-        return; 
+  } else { // ROTATE_ANGLE
+    // For rotation, one wheel forward, one backward. Correction sign flips accordingly.
+    // leftPWM and rightPWM are magnitudes; directions depend on desired rotation sign.
+    float corrRot = corrPWM;
+    int magLeft = (int)constrain((float)targetBase + corrRot, (float)minSpeed, 255.0f);
+    int magRight = (int)constrain((float)targetBase - corrRot, (float)minSpeed, 255.0f);
+    if (value >= 0.0f) {
+      // rotate right: left forward, right backward
+      mv.motorLeft->setSpeed(magLeft);
+      mv.motorRight->setSpeed(magRight);
+      mv.motorLeft->run(FORWARD);
+      mv.motorRight->run(BACKWARD);
+    } else {
+      // rotate left: left backward, right forward
+      mv.motorLeft->setSpeed(magLeft);
+      mv.motorRight->setSpeed(magRight);
+      mv.motorLeft->run(BACKWARD);
+      mv.motorRight->run(FORWARD);
     }
-    lastPidLoopMs = millis(); // Reset du timer PID
+  }
 
-    // --- LOGIQUE PI (Ton code adapté) ---
-    long leftTicks  = mv.getLeftTicks();
-    long rightTicks = mv.getRightTicks();
-
-    // Vérification de fin
-    if (abs(leftTicks) >= targetTicks || abs(rightTicks) >= targetTicks) {
-        mv.stop();
-        finished = true;
-        return;
-    }
-
-    float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
-    float error = leftTicks - rightTicks;
-    
-    // Erreur persistante
-    persistentError = persistentError + error;
-
-    // Intégration + Anti-windup + Deadzone
-    if (abs(persistentError) > deadzone) {
-        integral += persistentError * dt;
-    }
-
-    if (integral > integralMax) integral = integralMax;
-    if (integral < -integralMax) integral = -integralMax;
-
-    // Correction
-    float correction = Kp * persistentError + Ki * integral;
-
-    // Calcul des vitesses
-    int baseSpeed = getSpeed() ? getSpeed() : mv.defaultSpeed;
-    int leftSpeed = 0;
-    int rightSpeed = 0;
-
-    // --- WARM-UP ---
-    if (loopCounter < warmupIterations) {
-        // Pendant les 50 premiers cycles, on n'envoie rien aux moteurs
-        // mais on laisse le PID "écouter" l'erreur qui s'accumule
-        mv.setRawSpeeds(0, 0); 
-        
-        // Debug optionnel
-        // Serial.print("[Warm-up] Err: "); Serial.println(error);
-    } 
-    else {
-        // --- PID ACTIF ---
-        // Application de la correction
-        // Note: La logique ici suppose que correction positive = gauche trop rapide / droite trop lent
-        // Adapte les signes +/- si ton robot tourne du mauvais côté
-        leftSpeed  = constrain(baseSpeed - (correction/2), 90, 255);
-        rightSpeed = constrain(baseSpeed + (correction/2), 90, 255);
-
-        // Direction globale
-        bool goForward = (value >= 0);
-        
-        // Si on doit reculer, on inverse les vitesses pour setRawSpeeds
-        if (!goForward) {
-            leftSpeed = -leftSpeed;
-            rightSpeed = -rightSpeed;
-        }
-
-        // Envoi aux moteurs via la méthode créée à l'étape 1
-        mv.setRawSpeeds(leftSpeed, rightSpeed);
-
-        // Debug
-        Serial.print("Err: "); Serial.print(error);
-        Serial.print(" | P_Err: "); Serial.print(persistentError);
-        Serial.print(" | L: "); Serial.print(leftSpeed);
-        Serial.print(" | R: "); Serial.println(rightSpeed);
-    }
-
-    loopCounter++;
-    mv.updateEncoderTimestamps();
+  loopCounter++;
 }
 
 TaskInterruptAction MoveTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {
@@ -145,13 +204,23 @@ TaskInterruptAction MoveTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {
 }
 
 void MoveTask::cancel(Movement &mv) {
-    cancelled = true;
-    mv.stop();
-    finished = true;
+  debugPrintf(DBG_MOVEMENT, "MoveTask cancel mode=%s",(mode == MoveTaskMode::MOVE_DISTANCE) ? "DIST" : "ROT");
+  cancelled = true;
+  mv.stop();
+  finished = true;
 }
 
 void MoveTask::resume(Movement &mv) {
-    if (!paused || cancelled || finished) return;
-    paused = false;
-    lastPidLoopMs = millis();
+  if (!paused || cancelled || finished) return;
+  paused = false;
+  uint8_t s = getSpeed() ? getSpeed() : mv.defaultSpeed;
+  if (mode == MoveTaskMode::MOVE_DISTANCE) {
+    if (value >= 0.0f) mv.forward(s); else mv.backward(s);
+  } else {
+    if (value >= 0.0f) mv.rotateRight(s); else mv.rotateLeft(s);
+  }
+  debugPrintf(DBG_MOVEMENT, "MoveTask resume mode=%s bs=%d", (mode == MoveTaskMode::MOVE_DISTANCE) ? "DIST" : "ROT", s);
 }
+
+
+

@@ -17,21 +17,19 @@ public:
     void cancel(Movement &mv) override;
 
 private:
-    MoveTaskMode mode;
-    float value;      // Distance en cm ou Angle en degrés
-    long targetTicks; // Cible convertie en ticks
+  MoveTaskMode mode;
+  float value;       // cm when MOVE_DISTANCE, degrees when ROTATE_ANGLE
+  long targetTicks;  // absolute target ticks
+  bool paused;
+  unsigned long lastPidLoopMs;
 
-    // --- PI CONTROL VARIABLES (Mémoire) ---
-    float persistentError;
-    float integral;
-    int loopCounter;
-    unsigned long lastPidLoopMs; // Timer pour remplacer le delay()
+  // Runtime control state (non-blocking controller)
+  static int baseSpeed;           // nominal PWM setpoint
+  static int loopCounter;         // number of update() iterations since start
+  static int warmupIterations;    // number of iterations for warm-up / ramp
+  static float Kp;                // proportional gain for differential correction
+  static float Ki;                // optional integral gain (small)
+  static float integralError;     // integral accumulator for correction
+  static int minSpeed;            // minimum motor PWM during motion
 
-    // --- PARAMÈTRES PI (Identiques à ta fonction moveDistance) ---
-    // Tu peux les déplacer dans settings.h si tu préfères
-    const float Kp = 0.5f;
-    const float Ki = 0.6f;
-    const float integralMax = 300.0f;
-    const float deadzone = 2.0f;
-    const int warmupIterations = 50;
 };
