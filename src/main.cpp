@@ -10,12 +10,20 @@
 
 
 
+// v1.0
 #include <Arduino.h>
 #include "FSM.h"
 #include "settings.h"
 #include "../util/Debug.h"
 
 FsmContext ctx;
+// #include <Adafruit_MotorShield.h>
+// #include <Encoder.h>
+
+
+static FsmContext gFsm; 
+
+
 
 void setup() {
   Serial.begin(115200);
@@ -41,7 +49,6 @@ void setup() {
 void loop() {
   fsmStep(ctx);
 }
-
 
 
 

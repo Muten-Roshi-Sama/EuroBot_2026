@@ -16,6 +16,7 @@
 Movement movement;
 Button emergencyBtn(EMERGENCY_PIN, true, 2);
 static void markStateStart(FsmContext &ctx);
+void calibrateEncoders();
 
 
 // =================================
@@ -52,8 +53,8 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next) {
 
 
 
+
 void fsmStep(FsmContext &ctx) {
-    // ------------------------------------
     switch (ctx.currentAction) {
 
     // 1. INIT
@@ -75,13 +76,12 @@ void fsmStep(FsmContext &ctx) {
 
       }
 
-      
       ctx.currentAction = FsmAction::IDLE;
       debugPrintf(DBG_FSM, "INIT -> set IDLE (current=%d)", (int)ctx.currentAction);
       break;
     }
 
-    // 2. IDLE
+    // 2. IDLE (Attente de tâches)
     case FsmAction::IDLE: {
       
       if (taskManager && !taskManager->isIdle()) {
@@ -98,36 +98,39 @@ void fsmStep(FsmContext &ctx) {
       break;
     }
 
-    // 3. TASK
+    // 3. TASK (Exécution)
     case FsmAction::TASK: {
       if(taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
 
       // Check for Interruptions every 100ms (inside taskManager)
       // if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;
 
-    }
+            // Si tout est fini, on retourne en IDLE pour attendre les prochains ordres
+            if (taskManager->isIdle()) {
+                debugPrintf(DBG_FSM, "Toutes taches finies -> Retour IDLE");
+                movement.stop(); // Sécurité
+                fsmChangeAction(ctx, FsmAction::IDLE);
+            }
+        
+        break;
+          }
 
-    
-    // ===========================
+    // ARRET D'URGENCE
     case FsmAction::EMERGENCY_STOP: {
         movement.stop();
-    break;
-    }
-
-    case FsmAction::TIMER_END: {
-        movement.stop();
-    break;
+        if (taskManager) taskManager->cancelAll(); // On vide la file
+        break;
     }
 
     default: {
-      // Safety: reset to INIT on unknown action
         fsmChangeAction(ctx, FsmAction::INIT);
-      break;
+        break;
     }
-  
-  
+
   }
 }
+
+
 
 
 
