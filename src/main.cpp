@@ -16,17 +16,14 @@
 #include "settings.h"
 #include "../util/Debug.h"
 
+
+
 FsmContext ctx;
-// #include <Adafruit_MotorShield.h>
-// #include <Encoder.h>
-
-
 static FsmContext gFsm; 
 
 
-
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   while (!Serial) {}
   Serial.println("Setup.");
   
@@ -34,7 +31,7 @@ void setup() {
   init();
 
   // DEBUG prints
-  debugInit(115200,    // comment DBG_ to deactivate its related prints
+  debugInit(9600,    // comment DBG_ to deactivate its related prints
     DBG_FSM | 
     DBG_TASKMANAGER |
     DBG_MOVEMENT |
