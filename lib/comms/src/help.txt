@@ -1,0 +1,30 @@
+//pour tester que je recois bien les logs via le protocole
+#include <Arduino.h>
+#include "protocol.h"
+#include <ArduinoJson.h>
+
+void setup() {
+    protocol::init();
+    pinMode(7, OUTPUT);
+    pinMode(4, INPUT_PULLUP);
+    protocol::log("Test de la librairie protocol: setup OK");
+}
+
+void loop() {
+    // Test bouton : envoie un log JSON à chaque appui
+    protocol::check_button(4); // Not implemented in protocol library
+    protocol::check_button(3); 
+
+    // Test réception JSON : allume/éteint la LED selon la commande reçue
+    StaticJsonDocument<64> doc;
+    if (protocol::receive(doc)) {
+        if (doc["led7"] == "on") {
+            digitalWrite(7, HIGH);
+            protocol::log("LED ON");
+        } else if (doc["led7"] == "off") {
+            digitalWrite(7, LOW);
+            protocol::log("LED OFF");
+        }
+    }
+    delay(10);
+}

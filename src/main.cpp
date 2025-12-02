@@ -1,4 +1,3 @@
-// v0.0
 
 
 //  TODO :
@@ -16,8 +15,7 @@
 #include "settings.h"
 #include "../util/Debug.h"
 
-
-static FsmContext gFsm; 
+FsmContext ctx;
 
 void setup() {
   Serial.begin(115200);
@@ -40,10 +38,10 @@ void setup() {
   fsmInit(gFsm);  //! ALL init functions  ====>  HERE  <=======
 }
 
-
-
-void loop(){
-
-  fsmStep(gFsm);
+void loop() {
+  fsmStep(ctx);
 }
+
+
+
 

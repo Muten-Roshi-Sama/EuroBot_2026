@@ -13,8 +13,8 @@
 // =========== Emergency Button ===========
 #define EMERGENCY_PIN 7
 
-
-
+// =========== Start Button ===========
+#define CONTACT_PIN 12  //A adapter selon le câblage
 
 // ============ Movement =============
 

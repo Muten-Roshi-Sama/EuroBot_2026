@@ -9,7 +9,7 @@
 #include "../movement/Movement.h"
 #include "../tasks/MoveTask.h"
 #include "../util/Debug.h"
-
+#include "../drivers/Demarage/Demarage.h"
 
 
 // Instance du système de mouvement
@@ -85,12 +85,15 @@ void fsmStep(FsmContext &ctx) {
     case FsmAction::IDLE: {
       
       if (taskManager && !taskManager->isIdle()) {
-        //TODO: ADD "if" starting rope pulled.
+        // demarage_update();
+        // if(demarage_is_ready()){
+          // start 100sec timer
 
-        // start 100sec timer
+          ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
+          debugPrintf(DBG_FSM, "IDLE -> set TASK (current=%d)", (int)ctx.currentAction);
+        // }
 
-        ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
-        debugPrintf(DBG_FSM, "IDLE -> set TASK (current=%d)", (int)ctx.currentAction);
+        
       } 
       break;
     }
