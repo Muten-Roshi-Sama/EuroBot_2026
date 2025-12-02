@@ -11,6 +11,7 @@
 #define DBG_COMMS         (1<<4)
 #define DBG_ENCODER       (1<<5)
 
+
 // Global debug mask (0 = none). You can set this at runtime.
 extern uint8_t debugMask;
 

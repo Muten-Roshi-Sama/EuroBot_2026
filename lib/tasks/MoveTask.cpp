@@ -42,14 +42,13 @@ void MoveTask::start(Movement &mv) {
 
     } else {
         // --- Paramètres pour ROTATION (Cible Position) ---
-        // Tes valeurs : Kp=1.3, Ki=0.08, Speed 50-90
         Kp = 1.3f; 
         Ki = 0.08f;
         warmupIterations = 0; // Pas de warmup pour la rotation (réactivité immédiate)
         baseSpeed = 0; // Non utilisé, le PID décide de tout
-        minSpeed = 50;  // Ta contrainte min
-        maxSpeed = 90;  // Ta contrainte max
-        deadZone = 3.5f; // Ta zone morte
+        minSpeed = 50;  
+        maxSpeed = 90;  
+        deadZone = 3.5f;
 
         // Note: pour la rotation, targetTicks ne sert qu'à vérifier grossièrement
         // ou on garde 'value' (degrés) comme cible principale.
