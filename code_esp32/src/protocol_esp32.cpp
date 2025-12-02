@@ -53,8 +53,18 @@ static const JsonMapRule jsonMapRules[] = {
     {"led2:off", "led7", "off"},
     {"pump:start", "pump", "on"},
     {"pump:stop",  "pump", "off"},
-    // Add more rules as needed
+    {"move:forward",   "move", "forward"},
+    {"move:backward",  "move", "backward"},
+    {"move:stop",      "move", "stop"},
+    {"move:left",      "move", "left"},
+    {"move:right",     "move", "right"},
+    {"rotate:left",    "rotate", "left"},
+    {"rotate:right",   "rotate", "right"},
+    {"turn:leftsoft",  "turn", "leftsoft"},
+    {"turn:rightsoft", "turn", "rightsoft"},
+    // Ajoute d'autres mappings selon les besoins
 };
+
 static const size_t jsonMapRuleCount = sizeof(jsonMapRules) / sizeof(JsonMapRule);
 
 // Applies mapping: if found, sends mapped JSON to UART and returns true
