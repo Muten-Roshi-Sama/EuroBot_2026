@@ -1,37 +1,37 @@
 #pragma once
 #include "Task.h"
-#include "../movement/Movement.h"
-
-enum class MoveTaskMode {
-  MOVE_DISTANCE,
-  ROTATE_ANGLE
-};
+#include "Movement.h"
 
 class MoveTask : public Task {
 public:
-  // Move distance in cm
-  MoveTask(float valueCm, uint8_t speed = 0, unsigned long timeoutMs = 0)
-    : Task(speed, timeoutMs), mode(MoveTaskMode::MOVE_DISTANCE),
-      value(valueCm), targetTicks(0), paused(false) {}
+    enum class MoveTaskMode { MOVE_DISTANCE, ROTATE_ANGLE };
 
-  // Rotate degrees (positive = clockwise/right)
-  MoveTask(float degrees, uint8_t speed, unsigned long timeoutMs, bool rotateTag)
-    : Task(speed, timeoutMs), mode(MoveTaskMode::ROTATE_ANGLE),
-      value(degrees), targetTicks(0), paused(false) {}
+    MoveTask(MoveTaskMode mode, float value, uint8_t speed = 0, unsigned long timeoutMs = 0)
+        : Task(speed, timeoutMs), mode(mode), value(value) {}
 
-  // Task interface
-  void start(Movement &mv) override;
-  void update(Movement &mv) override;
-  void updateISR(Movement &mv) override {}
-  TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
-  void cancel(Movement &mv) override;
-
-  // Optional helper to resume after pause
-  void resume(Movement &mv);
+    void start(Movement &mv) override;
+    void update(Movement &mv) override;
+    TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
+    
+    void resume(Movement &mv);
+    void cancel(Movement &mv) override;
 
 private:
-  MoveTaskMode mode;
-  float value;       // cm when MOVE_DISTANCE, degrees when ROTATE_ANGLE
-  long targetTicks;  // absolute target ticks
-  bool paused;
+    MoveTaskMode mode;
+    float value;      
+    long targetTicks; 
+
+    // Variables internes PID
+    float integralError;
+    int loopCounter;
+    unsigned long lastPidLoopMs;
+    
+    // Paramètres qui changent selon le mode (Distance ou Rotation)
+    int baseSpeed;
+    int minSpeed;
+    int maxSpeed; // Ajout pour limiter la rotation (90 dans ton cas)
+    int warmupIterations;
+    float Kp;
+    float Ki;
+    float deadZone; // Ajout pour la rotation (3.5°)
 };

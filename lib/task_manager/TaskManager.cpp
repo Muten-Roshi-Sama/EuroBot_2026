@@ -25,19 +25,20 @@ void TaskManager::addTask(Task* t) {
   queue[tail] = t;
   tail = (tail + 1) % MAX_TASKS;
   count++;
-  debugPrintf(DBG_TASKMANAGER, "AddTask");
+  debugPrintf(DBG_TASKMANAGER, "[TaskManager.cpp] : AddTask ptr=0x%08lX", (unsigned long)t);
 }
 
 void TaskManager::tick() {
   /*
-    1. check ISR -> manage ISR if needed.
-    2. If no tasks active, start next task
-    3. if active (unfinished) task -> continue (update) for 100ms
-    4. clean-up finished tasks
-    5. update ISR timer to run every 100ms
+    Loop logic :
+      1. check ISR -> check if ISR flag is up and manage it.
+      2. If no tasks active, start next task.
+      3. if a task is active (unfinished) task -> continue (update) this task for 100ms.
+      4. clean-up finished tasks.
+      5. update ISR timer to run every 100ms.
 
     Notes :
-      - response latency = time until next tick() plus time to execute doISR().
+      - response latency = time to next tick() + time to execute doISR().
 
     TODO :
       - make 100ms into a variable at taskManager instantiation.
@@ -58,13 +59,14 @@ void TaskManager::tick() {
     if (active) active->start(*mv);   // call next task
   }
 
-  // 3. run active update (non-blocking)
+  // 3. run active task update (non-blocking)
   if (active && !active->isFinished()) {
     active->update(*mv);
   }
 
   // cleanup finished
   if (active && active->isFinished()) {
+    debugPrintf(DBG_TASKMANAGER, "tick: active finished -> deleting task ptr=%p", (void*)active);
     delete active; // if allocated on heap; otherwise return to pool
     active = nullptr;
   }
@@ -74,6 +76,7 @@ void TaskManager::tick() {
   if (now - lastISRupdateMs >= 100) {
     lastISRupdateMs = now;
     updateISR();
+    // debugPrintf(DBG_TASKMANAGER, "ISR_Update");
   }
 }
 

@@ -11,6 +11,7 @@
 #define DBG_COMMS         (1<<4)
 #define DBG_ENCODER       (1<<5)
 
+
 // Global debug mask (0 = none). You can set this at runtime.
 extern uint8_t debugMask;
 
@@ -26,7 +27,9 @@ inline void debugEnable(uint8_t bits) { debugMask |= bits; }
 inline void debugDisable(uint8_t bits) { debugMask &= ~bits; }
 
 // Minimum safe formatted print for AVR
-inline void debugPrintf(uint8_t feature, const char *fmt, ...) {
+inline void debugPrintf(
+  uint8_t feature, 
+  const char *fmt, ...) {
   if (!(debugMask & feature)) return;
   char buf[80]; // keep small
   va_list args;

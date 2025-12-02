@@ -3,7 +3,7 @@
 
 
 #include <Arduino.h>
-#include "../drivers/encoder/Encoder.h"
+#include "Encoder.h"
 #include <Adafruit_MotorShield.h>
 #include "settings.h"
 
@@ -36,6 +36,7 @@ public:
     
     // Fonctions internes
     float ticksToCm(long ticks);
+    float ticksToRotations(long ticksRight, long ticksLeft);
     long cmToTicks(float cm);
     float ticksToDegrees(long ticks);
     long degreesToTicks(float degrees);
@@ -83,6 +84,7 @@ public:
     float getRightRPM();         // Vitesse roue droite en RPM
     float getLeftRevolutions();  // Nombre de tours roue gauche
     float getRightRevolutions(); // Nombre de tours roue droite
+    float getAverageSpeedTicks();     // Vitesse moyenne en RPM
     
     // Accès direct aux objets encodeurs (pour fonctionnalités avancées)
     Encoder* getLeftEncoder();
@@ -97,6 +99,25 @@ public:
     float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
     static void encoderLeftISRWrapper();
     static void encoderRightISRWrapper();
+    void setRawSpeeds(int leftSpeed, int rightSpeed) {
+    // Gestion moteur Gauche
+    if (leftSpeed == 0) {
+        motorLeft->setSpeed(0);
+        motorLeft->run(RELEASE);
+    } else {
+        motorLeft->setSpeed(abs(leftSpeed));
+        motorLeft->run(leftSpeed > 0 ? FORWARD : BACKWARD);
+    }
+
+    // Gestion moteur Droit
+    if (rightSpeed == 0) {
+        motorRight->setSpeed(0);
+        motorRight->run(RELEASE);
+    } else {
+        motorRight->setSpeed(abs(rightSpeed));
+        motorRight->run(rightSpeed > 0 ? FORWARD : BACKWARD);
+    }
+}
     
     
     
