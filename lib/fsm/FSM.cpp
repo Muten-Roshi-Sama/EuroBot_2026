@@ -16,6 +16,7 @@
 Movement movement;
 Button emergencyBtn(EMERGENCY_PIN, true, 2);
 static void markStateStart(FsmContext &ctx);
+void calibrateEncoders();
 
 
 // =================================
@@ -26,7 +27,7 @@ void fsmInit(FsmContext &ctx) {
   // ===========
 
   // DEBUG prints
-  debugInit(115200, DBG_FSM | DBG_TASKMANAGER);
+  debugInit(9600, DBG_FSM | DBG_TASKMANAGER);
 
   // Emergency Button
   emergencyBtn.begin();
@@ -51,76 +52,76 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next) {
 
 
 
+
 void fsmStep(FsmContext &ctx) {
-    // ------------------------------------
     switch (ctx.currentAction) {
 
     // 1. INIT
     case FsmAction::INIT: {
-      // create TaskManager
-      if (!taskManager) taskManager = new TaskManager(&movement);
+        // Sécurité : On s'assure que le pointeur est vide avant de créer
+        if (taskManager == nullptr) {
+            taskManager = new TaskManager(&movement);
+        }
 
-      // Add task
-      taskManager->addTask(new MoveTask(50.0f, DEFAULT_SPEED, 0));   // move 50 cm
-      taskManager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
-      // taskManager.addTask()
+        // Init Movement
+        movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
+                       ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
 
-      //* Initialize all sensors
-      
-      // Initialisation du système de mouvement avec les paramètres depuis settings.h
-      movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
-                      ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
-
-      // Add if 
-      
-      ctx.currentAction = FsmAction::IDLE;
-      break;
+        // Ajout des tâches (Allocation dynamique avec 'new' -> PARFAIT)
+        //taskManager->addTask(new MoveTask(50.0f, DEFAULT_SPEED, 0)); 
+        //movement.moveDistance(100.0f, 100); // Test initial
+        delay(1000);
+        
+        debugPrintf(DBG_FSM, "Init termine, passage en IDLE");
+        
+        // On passe à l'état suivant
+        fsmChangeAction(ctx, FsmAction::IDLE);
+        break;
     }
 
-    // 2. IDLE
+    // 2. IDLE (Attente de tâches)
     case FsmAction::IDLE: {
-      
-      if (taskManager && !taskManager->isIdle()) {
-        //TODO: ADD "if" starting rope pulled.
-
-        // start 100sec timer
-
-        ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
-      } 
-      break;
+        // Si le manager existe et qu'il n'est PAS vide (tâches en attente)
+        if (taskManager && !taskManager->isIdle()) {
+            debugPrintf(DBG_FSM, "Taches detectees -> Go TASK");
+            
+            // CORRECTION IMPORTANTE : On va vers l'état TASK
+            fsmChangeAction(ctx, FsmAction::TASK);
+        }
+        // Sinon, on reste ici et on attend (on pourrait ajouter un timer ici)
+        break;
     }
 
-    // 3. TASK
+    // 3. TASK (Exécution)
     case FsmAction::TASK: {
-      if(taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
+         // A retirer après calibration
+        if (taskManager) {
+            // C'est ici que la magie opère (Movement, ISR check, delete task)
+            taskManager->tick(); 
 
-      // Check for Interruptions every 100ms
-      if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;
-
+            // Si tout est fini, on retourne en IDLE pour attendre les prochains ordres
+            if (taskManager->isIdle()) {
+                debugPrintf(DBG_FSM, "Toutes taches finies -> Retour IDLE");
+                movement.stop(); // Sécurité
+                fsmChangeAction(ctx, FsmAction::IDLE);
+            }
+        }
+        break;
     }
 
-    
-    // ===========================
+    // ARRET D'URGENCE
     case FsmAction::EMERGENCY_STOP: {
         movement.stop();
-    break;
-    }
-
-    case FsmAction::TIMER_END: {
-        movement.stop();
-    break;
+        if (taskManager) taskManager->cancelAll(); // On vide la file
+        break;
     }
 
     default: {
-      // Safety: reset to INIT on unknown action
         fsmChangeAction(ctx, FsmAction::INIT);
-      break;
+        break;
     }
-  
-  
   }
 }
-
 
 
 
