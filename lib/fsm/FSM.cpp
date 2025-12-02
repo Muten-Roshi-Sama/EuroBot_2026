@@ -28,6 +28,17 @@ void fsmEmergencyStop(FsmContext &ctx) {
     fsmChangeAction(ctx, FsmAction::EMERGENCY_STOP);
 }
 
+void fsmDuringAction(FsmContext &ctx, FsmAction action) {
+    // Lit la distance du capteur LIDAR
+    int d = lireDistance();
+    
+    // Si obstacle détecté à moins de 5 cm
+    if (d >= 0 && d < 5) {
+        movement.stop();  // Arrête immédiatement
+        fsmChangeAction(ctx, FsmAction::AVOID_OBSTACLE);  // Passe en mode évitement
+    }
+}
+
 // ===============================
 // FSM PRINCIPALE
 // ===============================
@@ -85,15 +96,24 @@ void fsmStep(FsmContext &ctx) {
     // MOVE FORWARD
     // ============================
     case FsmAction::MOVE_FORWARD: {
-
         Serial.println("Action : MOVE_FORWARD");
 
-        // Avance de 100 cm
+        // Démarre le mouvement de 100 cm
         movement.moveDistance(100);
+        
+        // Boucle de vérification continue pendant le déplacement
+        while (movement.getDistanceTraveled() < 100) {
+            // Vérifie s'il y a un obstacle pendant le mouvement
+            fsmDuringAction(ctx, FsmAction::CHECK_OBSTACLE);
+            
+            // Si un obstacle a été détecté, arrête le mouvement
+            if (ctx.currentAction == FsmAction::AVOID_OBSTACLE) {
+                break;
+            }
+        }
 
-        // Après avoir avancé → on vérifie la route
+        // Mouvement terminé sans obstacle → vérification finale
         fsmChangeAction(ctx, FsmAction::CHECK_OBSTACLE);
-
         break;
     }
 
@@ -122,31 +142,27 @@ void fsmStep(FsmContext &ctx) {
     // CHECK OBSTACLE (LIDAR)
     // ============================
     case FsmAction::CHECK_OBSTACLE: {
-
+    // Lit la distance du capteur LIDAR
         int d = lireDistance();
 
         Serial.print("Distance LIDAR : ");
         Serial.println(d);
 
-        // Cas erreur
+        // Cas erreur de lecture du capteur
         if (d == -1 || d == -2) {
-            Serial.println("⚠️ LIDAR : mesure invalide, on continue");
-            fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
+            Serial.println("LIDAR : mesure invalide, on continue");
             break;
         }
 
-        // Seuil obstacle
-        if (d < 200) {
-            Serial.println("⚠️ OBSTACLE DETECTE → STOP !");
+        // Détection d'obstacle critique (< 5 cm)
+        if (d < 5) {
+            Serial.println("OBSTACLE < 5cm → ARRÊT !");
             movement.stop();
             fsmChangeAction(ctx, FsmAction::AVOID_OBSTACLE);
-        } else {
-            fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
         }
 
         break;
     }
-
     // ============================
     // AVOID OBSTACLE
     // ============================
