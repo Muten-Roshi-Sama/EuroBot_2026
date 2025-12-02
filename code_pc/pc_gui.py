@@ -55,7 +55,7 @@ class ServerGUI:
             else:
                 self.client_var.set("")
                 self.log("[ALERTE] Aucun ESP32 connecté !")
-        self.root.after(1000, self.update_clients_menu)
+        self.root.after(10000, self.update_clients_menu)
 
     def send_command(self):
         ip_port = self.client_var.get()
