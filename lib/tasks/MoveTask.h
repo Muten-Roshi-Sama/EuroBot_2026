@@ -7,7 +7,23 @@ enum class MoveTaskMode {
   ROTATE_ANGLE
 };
 
+/*
+    Task : must implement at least (start, update, handleInterrupt, resume and cancel).
+
+    1. MoveTask :
+        - distance (+/-)
+        - speed    (1-255)
+
+    2. RotateTask :
+        - degrees  (90°, -140°, ...)
+        - speed 
+
+*/
+
+
+
 class MoveTask : public Task {
+<<<<<<< Updated upstream
 public:
   // Move distance in cm
   MoveTask(float valueCm, uint8_t speed = 0, unsigned long timeoutMs = 0)
@@ -35,3 +51,51 @@ private:
   long targetTicks;  // absolute target ticks
   bool paused;
 };
+=======
+    public:
+        
+        MoveTask(float distanceCm, uint8_t speed = 0, unsigned long timeoutMs = 0)
+            : Task(speed, timeoutMs), distanceCm(distanceCm) {}
+
+        void start(Movement &mv) override;
+        void update(Movement &mv) override;
+        TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
+        
+        void resume(Movement &mv);
+        void cancel(Movement &mv) override;
+
+    private:
+        float distanceCm;     
+        long targetTicks; 
+
+        // PID/internal state
+        float integralError = 0.0f;
+        int loopCounter = 0;
+        unsigned long lastPidLoopMs = 0;
+        
+        // variables
+        int baseSpeed = 0;
+        int minSpeed = 0;
+        int maxSpeed = 255;
+        int warmupIterations;
+        float Kp = 0.0f;
+        float Ki = 0.0f;
+        float deadZone = 0;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>> Stashed changes
