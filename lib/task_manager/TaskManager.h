@@ -26,4 +26,6 @@ private:
   volatile uint8_t pendingIsrFlags; // set from hardware ISRs via requestISR
   volatile bool isrRequested;
   unsigned long lastTickMs;
+  bool obstacleActive = false; // état de l'obstacle
+
 };

@@ -36,6 +36,14 @@ void fsmInit(FsmContext &ctx) {
   // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
 
   // Others
+  // LIDAR :
+  debugPrintf(DBG_FSM, "Initialisation LIDAR...");
+  if (!initLidar()) {
+    debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
+    // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
+  } else {
+    debugPrintf(DBG_FSM, "LIDAR OK");
+  }
 
   //============
 }
@@ -102,18 +110,6 @@ void fsmStep(FsmContext &ctx) {
     // 3. TASK (Exécution)
     case FsmAction::TASK: {
       if(taskManager){ taskManager->tick(); }//! runs tasks and updateISR every 100ms internally
-
-      // -------------------------------
-      // LIDAR : vérification obstacle
-      // -------------------------------
-      int dist = lireDistance();  // lecture non bloquante
-
-      if (dist > 0 && dist <= 50) {   // obstacle ≤ 5 cm
-          debugPrintf(DBG_SENSORS, "Obstacle détecté : %d mm | STOP mouvement", dist);
-
-          movement.stop();            // stop uniquement le mouvement
-          // taskManager reste actif, peut gérer d'autres tâches
-      }
 
       // Check for Interruptions every 100ms (inside taskManager)
       // if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;

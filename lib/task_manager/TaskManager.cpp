@@ -31,14 +31,6 @@ void TaskManager::addTask(Task* t) {
 
 void TaskManager::tick() {
   /*
-    Loop logic :
-      1. check ISR -> check if ISR flag is up and manage it.
-      2. If no tasks active, start next task.
-      3. if a task is active (unfinished) task -> continue (update) this task for 100ms.
-      4. clean-up finished tasks.
-      5. update ISR timer to run every 100ms.
-
-    Notes :
       - response latency = time to next tick() + time to execute doISR().
 
     TODO :
@@ -73,10 +65,10 @@ void TaskManager::tick() {
 
   // periodic updateISR every 100ms
   unsigned long now = millis();
-  if (now - lastISRupdateMs >= 100) {
+  if (now - lastISRupdateMs >= 500) {
     lastISRupdateMs = now;
     updateISR();
-    debugPrintf(DBG_TASKMANAGER, "ISR_Update");
+    // debugPrintf(DBG_TASKMANAGER, "ISR_Update");
   }
 }
 
@@ -97,18 +89,29 @@ void TaskManager::updateISR() {
   // Sensors
   {
     int distance = lireDistance();  // lecture non bloquante
-    if (distance > 0 && distance <= 50) {  // obstacle ≤ 5 cm
-        requestISR(ISR_FLAG_OBSTACLE);
-        debugPrintf(DBG_TASKMANAGER, "ISR: Obstacle detecté à %d mm", distance);
-    } else {
-        requestISR(ISR_FLAG_OBSTACLE_CLEARED); // voie libre
+    // DEBUG : toujours afficher la distance
+    static unsigned long lastLidarDebug = 0;
+    if (millis() - lastLidarDebug > 500) {
+        debugPrintf(DBG_TASKMANAGER, "LIDAR distance = %d mm (obstacleActive=%d)", 
+                    distance, obstacleActive);
+        lastLidarDebug = millis();
     }
-}
-
+    
+    if (distance > 0 && distance <= 50 && !obstacleActive) {
+        requestISR(ISR_FLAG_OBSTACLE);
+        obstacleActive = true;
+        debugPrintf(DBG_TASKMANAGER, "ISR: Obstacle detecté à %d mm", distance);
+    }
+    else if ((distance == 0 || distance > 50) && obstacleActive) {
+        requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+        obstacleActive = false;
+        debugPrintf(DBG_TASKMANAGER, "✓ Obstacle dégagé");
+    }
+  }
   // ==================================
   if (isrRequested) {
     doISR(); // handle any pending ISR first
-    return;
+    //return;
   }
   if (active && !active->isFinished()) {
     active->updateISR(*mv);
@@ -160,10 +163,6 @@ void TaskManager::doISR() {
       // Arrêt immédiat du robot
       if (mv) mv->stop();    
 
-      // Optionnel : si tu veux annuler la task active
-      if (active && !active->isFinished()) {
-          active->cancel(*mv);
-      }
   }
   if (flags & ISR_FLAG_OBSTACLE_CLEARED) {
       debugPrintf(DBG_TASKMANAGER, "Obstacle dégagé, reprise TASK possible");
