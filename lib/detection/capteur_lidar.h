@@ -1,19 +1,16 @@
-#ifndef CAPTEUR_LIDAR_H
-#define CAPTEUR_LIDAR_H
+#pragma once
 
 #include <Arduino.h>
 
-// Initialise le capteur LiDAR (VL53L0X)
+// Pins
+#define LIDAR_PIN 4  // Adapter selon ton câblage XSHUT/INT
+
+// Flags ISR
+#define ISR_FLAG_OBSTACLE         0x02
+#define ISR_FLAG_OBSTACLE_CLEARED 0x04
+
+// Fonctions publiques
 bool initLidar();
-
-// Lit la distance en millimètres (non bloquant)
-// Retourne :
-//   - distance en mm
-//   - -1 si timeout
-//   - -2 si hors portée
 int lireDistance();
-
-// Affiche le statut en fonction de la distance
 void afficherEtatObstacle(int distance);
-
-#endif
+void lidarSetupPin();

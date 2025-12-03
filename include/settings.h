@@ -80,4 +80,4 @@
 
 // =========== LiDAR ===========
 // Pin pour XSHUT ou INT du capteur VL53L0X (optionnel, selon câblage)
-#define LIDAR_PIN 4  // par exemple Arduino Uno pin 4
+#define LIDAR_PIN 4  // Arduino Uno pin 4

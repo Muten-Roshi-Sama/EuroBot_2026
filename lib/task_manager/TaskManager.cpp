@@ -3,6 +3,7 @@
 // Includes
 #include "globals.h"
 #include "isr_flags.h"
+#include "../detection/capteur_lidar.h"
 
 // Libs
 #include "../movement/Movement.h"
@@ -94,8 +95,15 @@ void TaskManager::updateISR() {
   }
 
   // Sensors
-
-
+  {
+    int distance = lireDistance();  // lecture non bloquante
+    if (distance > 0 && distance <= 50) {  // obstacle ≤ 5 cm
+        requestISR(ISR_FLAG_OBSTACLE);
+        debugPrintf(DBG_TASKMANAGER, "ISR: Obstacle detecté à %d mm", distance);
+    } else {
+        requestISR(ISR_FLAG_OBSTACLE_CLEARED); // voie libre
+    }
+}
 
   // ==================================
   if (isrRequested) {
@@ -145,7 +153,21 @@ void TaskManager::doISR() {
     mv->stop();
     // Optionally set global FSM emergency flag here
   }
-  // handle other flags (obstacle etc.) as needed
+  // gestion du flag obstacle
+  if (flags & ISR_FLAG_OBSTACLE) {
+      debugPrintf(DBG_TASKMANAGER, "Obstacle très proche, arrêt du robot");
+      
+      // Arrêt immédiat du robot
+      if (mv) mv->stop();    
+
+      // Optionnel : si tu veux annuler la task active
+      if (active && !active->isFinished()) {
+          active->cancel(*mv);
+      }
+  }
+  if (flags & ISR_FLAG_OBSTACLE_CLEARED) {
+      debugPrintf(DBG_TASKMANAGER, "Obstacle dégagé, reprise TASK possible");
+  }
 }
 
 
