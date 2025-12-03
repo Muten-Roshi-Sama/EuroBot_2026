@@ -2,8 +2,9 @@
 #include "settings.h"
 #include "isr_flags.h"
 #include "../util/Debug.h"
+#include <Arduino.h> 
 
-// Helper: absolute long
+// Helper: absolute long pour les ticks
 static inline long labs_long(long v) { return v < 0 ? -v : v; }
 
 

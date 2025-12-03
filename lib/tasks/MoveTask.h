@@ -28,7 +28,7 @@ class MoveTask : public Task {
         float distanceCm = 0.0f;
         long targetTicks = 0;
 
-        // PID/internal state
+        // PID variables
         float integralError = 0.0f;
         int loopCounter = 0;
         unsigned long lastPidLoopMs = 0;
