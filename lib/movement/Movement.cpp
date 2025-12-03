@@ -420,7 +420,7 @@ void Movement::rotate(float degrees, int baseSpeed) {
         // PID amélioré (avec dérivée légère et anti-windup)
         float pidOutput = PIDControlAngle(lastUpdateTimeAngle, degrees, currentAngle, Kp, Ki);
         
-        int speed = constrain(fabs(pidOutput), 50.0f, 90.0f);
+        int speed = constrain(fabs(pidOutput), 50.0f, 140.0f);
           
 
         float error = degrees - currentAngle;

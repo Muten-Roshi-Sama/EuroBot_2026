@@ -48,7 +48,7 @@ void MoveTask::start(Movement &mv) {
         warmupIterations = 0; // Pas de warmup pour la rotation (réactivité immédiate)
         baseSpeed = 0; // Non utilisé, le PID décide de tout
         minSpeed = 50;  // Ta contrainte min
-        maxSpeed = 90;  // Ta contrainte max
+        maxSpeed = 140;  // Ta contrainte max
         deadZone = 3.5f; // Ta zone morte
 
         // Note: pour la rotation, targetTicks ne sert qu'à vérifier grossièrement
