@@ -123,6 +123,8 @@ void MoveTask::update(Movement &mv) {
             mv.motorLeft->setSpeed(leftPWM); mv.motorRight->setSpeed(rightPWM);
             mv.motorLeft->run(BACKWARD);     mv.motorRight->run(BACKWARD);
         }
+        debugPrintf(DBG_MOVEMENT, "Dist: PTicks=%ld Err=%.2f Corr=%.2f L=%d R=%d distance", 
+              progressTicks, error, correction, leftPWM, rightPWM, mv.getDistanceTraveled());
     } 
     // ============================================================
     // LOGIQUE 2 : ROTATION (On vise un angle précis)

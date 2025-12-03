@@ -1480,6 +1480,119 @@ float Movement::getAverageSpeedTicks() {
 
 
 
+// void Movement::moveDistance(float cm, int speed) {
+//     resetEncoders();
+//     long targetTicks = cmToTicks(cm);
+    
+//     // --- PARAMÈTRES PID ---
+//     float Kp = 1.5f;   // Augmenté pour être réactif
+//     float Ki = 0.02f;  // Très faible pour éviter l'instabilité
+//     float Kd = 0.5f; 
+    
+//     float error = 0, lastError = 0;
+//     float integral = 0;
+//     float derivative = 0;
+//     float outputCorrection = 0;
+
+//     // --- VARIABLES GYRO ---
+//     float angle_z = 0; // On utilise l'axe Z (Yaw) pour la direction
+//     long gyro_z_cal = 0;
+//     unsigned long previousTime = micros();
+    
+//     // --- CALIBRATION GYRO ---
+//     // (Je garde ta logique mais simplifiée pour Z uniquement)
+//     Serial.println("Calibrating Gyro...");
+//     for (int i = 0; i < 2000; i++) {
+//         Wire.beginTransmission(0x68);
+//         Wire.write(0x47); // Registre Gyro Z (High byte)
+//         Wire.endTransmission();
+//         Wire.requestFrom(0x68, 2);
+//         while(Wire.available() < 2);
+//         int16_t rawZ = Wire.read() << 8 | Wire.read();
+//         gyro_z_cal += rawZ;
+//         delay(1);
+//     }
+//     gyro_z_cal /= 2000;
+//     Serial.println("Calibration Done.");
+
+//     // Direction initiale
+//     if (cm > 0) {
+//         forward(speed);
+//     } else {
+//         backward(speed);
+//         targetTicks = -targetTicks; 
+//     }
+
+//     // --- BOUCLE PRINCIPALE ---
+//     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
+        
+//         // 1. GESTION DU TEMPS (Delta T)
+//         unsigned long currentTime = micros();
+//         float dt = (currentTime - previousTime) / 1000000.0; // Convertir en secondes
+//         previousTime = currentTime;
+
+//         // 2. LECTURE GYRO Z (Pour la direction gauche/droite)
+//         Wire.beginTransmission(0x68);
+//         Wire.write(0x47);
+//         Wire.endTransmission();
+//         Wire.requestFrom(0x68, 2);
+        
+//         int16_t raw_gyro_z = Wire.read() << 8 | Wire.read();
+        
+//         // Soustraire l'offset de calibration
+//         float gyro_z_dps = (raw_gyro_z - gyro_z_cal) / 65.5; // 65.5 = sensibilité pour 500dps
+        
+//         // Intégration : Angle = Vitesse * Temps
+//         angle_z += gyro_z_dps * dt; 
+
+//         // 3. CALCUL PID
+//         // L'objectif est de garder l'angle à 0 (aller tout droit)
+//         error = 0 - angle_z; // Target est 0
+        
+//         integral += error * dt;
+//         // Anti-Windup (Empêche l'intégrale d'exploser) 
+
+
+
+//         if (integral > 400) integral = 400; 
+//         if (integral < -400) integral = -400;
+
+//         derivative = (error - lastError) / dt;
+        
+//         outputCorrection = (Kp * error) + (Ki * integral) + (Kd * derivative);
+//         lastError = error;
+
+//         // 4. APPLICATION MOTEURS (CONSTRAIN)
+//         // On limite la vitesse pour rester entre 0 et 255
+//         int leftSpeed = constrain(speed - outputCorrection, 0, 255);
+//         int rightSpeed = constrain(speed + outputCorrection, 0, 255);
+
+//         motorLeft->setSpeed(leftSpeed);
+//         motorRight->setSpeed(rightSpeed);
+        
+//         // On doit réaffirmer la direction car setSpeed ne le fait pas toujours
+//         motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
+//         motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
+
+//         // Debug léger (toutes les 100ms seulement pour ne pas ralentir la boucle)
+//         /* static long lastPrint = 0;
+//         if (millis() - lastPrint > 100) {
+//              Serial.print("AngZ: "); Serial.print(angle_z);
+//              Serial.print(" Corr: "); Serial.println(outputCorrection);
+//              lastPrint = millis();
+//         }
+//         */
+        
+//         updateEncoderTimestamps();
+//     }
+    
+//     stop();git le
+// }
+
+
+
+
+
 
 
 
