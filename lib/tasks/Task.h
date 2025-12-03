@@ -26,34 +26,19 @@ class Movement; // forward declare
 
 class Task {
 public:
-<<<<<<< Updated upstream
-=======
 
   // CONSTRUCTOR
->>>>>>> Stashed changes
   Task(uint8_t speed = 0, unsigned long timeoutMs = 0)
     : speed(speed), timeoutMs(timeoutMs), started(false), finished(false), cancelled(false) {}
 
   // Destructor
   virtual ~Task() {}
 
-<<<<<<< Updated upstream
-  // Called once when the task is started
-=======
   // Methods to implement in subclasses
->>>>>>> Stashed changes
   virtual void start(Movement &mv) = 0;
 
   // Called frequently from main loop (fast, non-blocking)
   virtual void update(Movement &mv) = 0;
-<<<<<<< Updated upstream
-
-
-
-  // Called when an ISR event occurs (called by TaskManager::doISR())
-  // Return a TaskInterruptAction to instruct manager what to do
-=======
->>>>>>> Stashed changes
   virtual TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) {
     (void)mv; (void)isrFlags;
     return TaskInterruptAction::PAUSE;
@@ -65,14 +50,9 @@ public:
     finished = true;
   }
 
-<<<<<<< Updated upstream
-  // Optional : Called every 100 ms by TaskManager::updateISR() for periodic checks
-  virtual void updateISR(Movement &mv) { (void)mv; } // optional
-=======
   virtual void resume(Movement &mv) { (void)mv; };
 
   virtual void updateISR(Movement &mv) { (void)mv; }
->>>>>>> Stashed changes
 
   // Getters
   bool isStarted() const { return started; }
@@ -88,8 +68,5 @@ protected:
   bool started;
   bool finished;
   bool cancelled;
-<<<<<<< Updated upstream
-=======
   bool paused;
->>>>>>> Stashed changes
 };
