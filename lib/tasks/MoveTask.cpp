@@ -70,22 +70,30 @@ void MoveTask::update(Movement &mv) {
     if (mode == MoveTaskMode::MOVE_DISTANCE) {
         long progressTicks = max(labs_long(leftTicks), labs_long(rightTicks));
         
+        // Fin ?
         if (progressTicks >= targetTicks) {
-            mv.stop(); finished = true; return;
+            mv.stop();
+            finished = true;
+            return;
         }
 
+        // Erreur de synchronisation (Gauche - Droite)
         float error = (float)(leftTicks - rightTicks);
-        integralError += error * Ki; 
+        
+        // PID simple
+        integralError += error * Ki; // Ki est 0.0 ici par défaut
         float correction = Kp * error + integralError;
-        float corrPWM = correction; 
+        float corrPWM = correction * 1.0f; 
 
+        // Ramp-up
         float rampFactor = 1.0f;
-        if (loopCounter < warmupIterations) {
-            rampFactor = (float)loopCounter / (float)warmupIterations;
-            if (rampFactor < 0.05f) rampFactor = 0.05f;
-        }
+        // if (loopCounter < warmupIterations) {
+        //     rampFactor = (float)loopCounter / (float)warmupIterations;
+        //     if (rampFactor < 0.05f) rampFactor = 0.05f;
+        // }
         int targetBase = minSpeed + (int)((baseSpeed - minSpeed) * rampFactor);
 
+        // Application moteurs
         int leftPWM = (int)constrain((float)targetBase - corrPWM, (float)minSpeed, 255.0f);
         int rightPWM = (int)constrain((float)targetBase + corrPWM, (float)minSpeed, 255.0f);
 
@@ -96,7 +104,10 @@ void MoveTask::update(Movement &mv) {
             mv.motorLeft->setSpeed(leftPWM); mv.motorRight->setSpeed(rightPWM);
             mv.motorLeft->run(BACKWARD);     mv.motorRight->run(BACKWARD);
         }
+        debugPrintf(DBG_MOVEMENT, "Dist: PTicks=%ld Err=%.2f Corr=%.2f L=%d R=%d distance", 
+              progressTicks, error, correction, leftPWM, rightPWM, mv.getDistanceTraveled());
     } 
+    
     // ================= ROTATION =================
     else { 
         long avgTicks = (labs_long(leftTicks) + labs_long(rightTicks)) / 2;

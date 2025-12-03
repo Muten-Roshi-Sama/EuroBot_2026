@@ -63,9 +63,9 @@ void fsmStep(FsmContext &ctx) {
 
       // Add task
       //taskManager->addTask(new Manager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
-      taskManager -> addTask(new MoveTask(MoveTaskMode::MOVE_DISTANCE, 50.0));
+      //taskManager -> addTask(new MoveTask(MoveTaskMode::MOVE_DISTANCE, 50.0));
       
-      taskManager -> addTask(new MoveTask(MoveTaskMode::MOVE_DISTANCE, 50.0));
+      taskManager -> addTask(new MoveTask(MoveTaskMode::ROTATE_ANGLE, 50.0));
 
       
       
