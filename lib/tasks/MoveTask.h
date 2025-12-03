@@ -1,86 +1,73 @@
 #pragma once
 #include "Task.h"
-#include "../movement/Movement.h"
-
-enum class MoveTaskMode {
-  MOVE_DISTANCE,
-  ROTATE_ANGLE
-};
+#include "Movement.h"
 
 /*
-    Task : must implement at least (start, update, handleInterrupt, resume and cancel).
+    Two simple concrete tasks:
+    - MoveTask(distanceCm)
+    - RotateTask(angleDeg)
 
-    1. MoveTask :
-        - distance (+/-)
-        - speed    (1-255)
-
-    2. RotateTask :
-        - degrees  (90°, -140°, ...)
-        - speed 
-
+    Each implements:
+    start(), update(), handleInterrupt(), resume(), cancel()
 */
 
 
 
 class MoveTask : public Task {
-<<<<<<< Updated upstream
-public:
-  // Move distance in cm
-  MoveTask(float valueCm, uint8_t speed = 0, unsigned long timeoutMs = 0)
-    : Task(speed, timeoutMs), mode(MoveTaskMode::MOVE_DISTANCE),
-      value(valueCm), targetTicks(0), paused(false) {}
-
-  // Rotate degrees (positive = clockwise/right)
-  MoveTask(float degrees, uint8_t speed, unsigned long timeoutMs, bool rotateTag)
-    : Task(speed, timeoutMs), mode(MoveTaskMode::ROTATE_ANGLE),
-      value(degrees), targetTicks(0), paused(false) {}
-
-  // Task interface
-  void start(Movement &mv) override;
-  void update(Movement &mv) override;
-  void updateISR(Movement &mv) override {}
-  TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
-  void cancel(Movement &mv) override;
-
-  // Optional helper to resume after pause
-  void resume(Movement &mv);
-
-private:
-  MoveTaskMode mode;
-  float value;       // cm when MOVE_DISTANCE, degrees when ROTATE_ANGLE
-  long targetTicks;  // absolute target ticks
-  bool paused;
-};
-=======
     public:
-        
-        MoveTask(float distanceCm, uint8_t speed = 0, unsigned long timeoutMs = 0)
-            : Task(speed, timeoutMs), distanceCm(distanceCm) {}
+        MoveTask(float distanceCm_, uint8_t speed = 0, unsigned long timeoutMs = 0)
+            : Task(speed, timeoutMs), distanceCm(distanceCm_) {}
 
-        void start(Movement &mv) override;
-        void update(Movement &mv) override;
-        TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
-        
-        void resume(Movement &mv);
-        void cancel(Movement &mv) override;
+    void start(Movement &mv) override;
+    void update(Movement &mv) override;
+    TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
+    void resume(Movement &mv) override;
+    void cancel(Movement &mv) override;
 
     private:
-        float distanceCm;     
-        long targetTicks; 
+        float distanceCm = 0.0f;
+        long targetTicks = 0;
 
         // PID/internal state
         float integralError = 0.0f;
         int loopCounter = 0;
         unsigned long lastPidLoopMs = 0;
-        
-        // variables
+
+        // Tunables / runtime variables
         int baseSpeed = 0;
         int minSpeed = 0;
         int maxSpeed = 255;
-        int warmupIterations;
+        int warmupIterations = 0;
         float Kp = 0.0f;
         float Ki = 0.0f;
-        float deadZone = 0;
+        float deadZone = 0.0f;
+};
+
+class RotateTask : public Task {
+    public:
+        RotateTask(float angleDeg_, uint8_t speed = 0, unsigned long timeoutMs = 0)
+        : Task(speed, timeoutMs), angleDeg(angleDeg_) {}
+
+        void start(Movement &mv) override;
+        void update(Movement &mv) override;
+        TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
+        void resume(Movement &mv) override;
+        void cancel(Movement &mv) override;
+
+    private:
+        float angleDeg = 0.0f;
+
+        // PID/internal state
+        float integralError = 0.0f;
+        int loopCounter = 0;
+        unsigned long lastPidLoopMs = 0;
+
+        // Tunables
+        float Kp = 1.3f;
+        float Ki = 0.08f;
+        int minSpeed = 50;
+        int maxSpeed = 90;
+        float deadZone = 3.5f;
 };
 
 
@@ -88,14 +75,3 @@ private:
 
 
 
-
-
-
-
-
-
-
-
-
-
->>>>>>> Stashed changes

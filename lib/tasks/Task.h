@@ -26,34 +26,21 @@ class Movement; // forward declare
 
 class Task {
 public:
-<<<<<<< Updated upstream
-=======
-
   // CONSTRUCTOR
->>>>>>> Stashed changes
-  Task(uint8_t speed = 0, unsigned long timeoutMs = 0)
-    : speed(speed), timeoutMs(timeoutMs), started(false), finished(false), cancelled(false) {}
+  Task(uint8_t speed_ = 0, unsigned long timeoutMs_ = 0)
+    : speed(speed_), timeoutMs(timeoutMs_), startMs(0),
+      started(false), finished(false), cancelled(false), paused(false) {}
 
   // Destructor
   virtual ~Task() {}
 
-<<<<<<< Updated upstream
-  // Called once when the task is started
-=======
   // Methods to implement in subclasses
->>>>>>> Stashed changes
   virtual void start(Movement &mv) = 0;
 
   // Called frequently from main loop (fast, non-blocking)
   virtual void update(Movement &mv) = 0;
-<<<<<<< Updated upstream
 
-
-
-  // Called when an ISR event occurs (called by TaskManager::doISR())
-  // Return a TaskInterruptAction to instruct manager what to do
-=======
->>>>>>> Stashed changes
+  // Default interrupt handler (override when needed)
   virtual TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) {
     (void)mv; (void)isrFlags;
     return TaskInterruptAction::PAUSE;
@@ -61,35 +48,33 @@ public:
 
   // Immediate cancellation/cleanup
   virtual void cancel(Movement &mv) {
+    (void)mv;
     cancelled = true;
     finished = true;
   }
 
-<<<<<<< Updated upstream
-  // Optional : Called every 100 ms by TaskManager::updateISR() for periodic checks
-  virtual void updateISR(Movement &mv) { (void)mv; } // optional
-=======
-  virtual void resume(Movement &mv) { (void)mv; };
+  // Optional: resume a paused task (override if task supports it)
+  virtual void resume(Movement &mv) { (void)mv; }
 
+  // Optional small ISR-time update hook
   virtual void updateISR(Movement &mv) { (void)mv; }
->>>>>>> Stashed changes
 
   // Getters
   bool isStarted() const { return started; }
   bool isFinished() const { return finished; }
   bool isCancelled() const { return cancelled; }
+  bool isPaused() const { return paused; }
 
   uint8_t getSpeed() const { return speed; }
 
 protected:
-  uint8_t speed;
-  unsigned long timeoutMs;
+  uint8_t speed = 0;
+  unsigned long timeoutMs = 0;
   unsigned long startMs = 0;
-  bool started;
-  bool finished;
-  bool cancelled;
-<<<<<<< Updated upstream
-=======
-  bool paused;
->>>>>>> Stashed changes
+  bool started = false;
+  bool finished = false;
+  bool cancelled = false;
+  bool paused = false;
 };
+
+
