@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include "protocol.cpp"
 
 namespace protocol {
 

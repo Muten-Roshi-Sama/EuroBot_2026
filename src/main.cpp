@@ -8,30 +8,19 @@
 
 // v0.1 wiring FSM minimal usage
 
-
-
 #include <Arduino.h>
-#include "FSM.h"
-#include "settings.h"
+#include <ArduinoJson.h>
+#include "..\lib\comms\protocol.h"
 
-
-FsmContext ctx;
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) {}
-  Serial.println("Setup.");
-  
-  // Init ?
-  init();
-
-  
-
-  fsmInit(gFsm);  // ! ALL init functions  ====>  HERE  <=======
+  protocol::init(Serial, 115200);
 }
 
 void loop() {
-  fsmStep(ctx);
+  protocol::log("Looping...");
+  delay(1000);
 }
 
 
