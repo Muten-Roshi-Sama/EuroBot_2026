@@ -11,6 +11,8 @@
 
 // Fonctions publiques
 bool initLidar();
-int lireDistance();
+int lireDistanceLidar1();
+int lireDistanceLidar2();
+int lireDistanceLidar3();
 void afficherEtatObstacle(int distance);
 void lidarSetupPin();
