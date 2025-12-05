@@ -16,6 +16,7 @@ public:
     void resume(Movement &mv);
     void cancel(Movement &mv) override;
 
+
 private:
     MoveTaskMode mode;
     float value;      
@@ -34,4 +35,21 @@ private:
     float Kp;
     float Ki;
     float deadZone; // Ajout pour la rotation (3.5°)
+    // À ajouter dans ta classe / header
+    enum SubState { STATE_CALIBRATION, STATE_MOVING };
+    SubState subState = STATE_CALIBRATION;
+
+    long gyro_z_cal_sum = 0;
+    int calibration_count = 0;
+    float gyro_z_cal = 0;
+    float angle_z = 0;
+    float integral = 0;
+    float lastError = 0;
+    unsigned long previousTime = 0;
+
+    // Constantes PID (peuvent être static ou #define)
+    const float Kp_gyro = 1.5f;
+    const float Ki_gyro = 0.02f;
+    const float Kd_gyro = 0.5f;
+    const int CALIBRATION_SAMPLES = 50; // Réduit pour ne pas attendre 10 ans, ou garde 2000 si ta boucle est très rapide
 };

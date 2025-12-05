@@ -64,9 +64,8 @@ void fsmStep(FsmContext &ctx) {
         // create TaskManager
         taskManager = new TaskManager(&movement);
         // Add task
-        taskManager->addTask(new MoveTask(MoveTask::MoveTaskMode::MOVE_DISTANCE, 50.0f, DEFAULT_SPEED)); // move 50 cm
-        taskManager->addTask(new MoveTask(MoveTask::MoveTaskMode::MOVE_DISTANCE, 50.0f, DEFAULT_SPEED)); // move 50 cm
-        taskManager->addTask(new MoveTask(MoveTask::MoveTaskMode::MOVE_DISTANCE, 50.0f, DEFAULT_SPEED)); // move 50 cm
+        taskManager->addTask(new MoveTask(MoveTask::MoveTaskMode::MOVE_DISTANCE, 100.0f, DEFAULT_SPEED)); // move 50 cm
+        
         // taskManager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
         // taskManager.addTask()
 
@@ -90,7 +89,7 @@ void fsmStep(FsmContext &ctx) {
         // demarage_update();
         // if(demarage_is_ready()){
           // start 100sec timer
-
+          delay(5000); // wait 5 sec before starting tasks
           ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
           debugPrintf(DBG_FSM, "IDLE -> set TASK (current=%d)", (int)ctx.currentAction);
         // }
@@ -102,6 +101,7 @@ void fsmStep(FsmContext &ctx) {
 
     // 3. TASK (Exécution)
     case FsmAction::TASK: {
+
       if(taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
 
       // Check for Interruptions every 100ms (inside taskManager)

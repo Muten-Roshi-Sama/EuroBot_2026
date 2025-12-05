@@ -2,8 +2,9 @@
 #include "settings.h"
 #include "isr_flags.h"
 #include "../util/Debug.h"
+#include <Arduino.h> 
 
-// Helper: absolute long
+// Helper: absolute long pour les ticks
 static inline long labs_long(long v) { return v < 0 ? -v : v; }
 
 void MoveTask::start(Movement &mv) {
@@ -13,80 +14,60 @@ void MoveTask::start(Movement &mv) {
     finished = false;
     cancelled = false;
 
-    // Reset Hardware
     mv.resetEncoders();
 
-    // Reset PID Memory
     integralError = 0.0f;
     loopCounter = 0;
     lastPidLoopMs = millis();
 
     // --- CONFIGURATION SELON LE MODE ---
     if (mode == MoveTaskMode::MOVE_DISTANCE) {
-        // --- Paramètres pour MOVE DISTANCE (Synchronisation) ---
         Kp = 0.8f; 
         Ki = 0.0f;
         warmupIterations = 30;
         baseSpeed = getSpeed() ? getSpeed() : mv.defaultSpeed;
         minSpeed = 110;
         maxSpeed = 255;
-        deadZone = 0.0f; // Non utilisé en distance pure ici
+        deadZone = 0.0f; 
 
         targetTicks = labs_long(mv.cmToTicks(value));
         
-        // Lancement initial (Warmup gérera la rampe)
-        // On prépare juste la direction, la vitesse sera mise dans update
         if (value >= 0.0f) mv.forward(minSpeed); else mv.backward(minSpeed);
-
-        debugPrintf(DBG_MOVEMENT, "Start DIST: Val=%.1fcm Ticks=%ld Kp=%.2f", value, targetTicks, Kp);
+        debugPrintf(DBG_MOVEMENT, "Start DIST: Val=%.1fcm Ticks=%ld", value, targetTicks);
 
     } else {
-        // --- Paramètres pour ROTATION (Cible Position) ---
-        // Tes valeurs : Kp=1.3, Ki=0.08, Speed 50-90
+        // --- ROTATION ---
         Kp = 1.3f; 
         Ki = 0.08f;
-        warmupIterations = 0; // Pas de warmup pour la rotation (réactivité immédiate)
-        baseSpeed = 0; // Non utilisé, le PID décide de tout
-        minSpeed = 50;  // Ta contrainte min
-        maxSpeed = 140;  // Ta contrainte max
-        deadZone = 3.5f; // Ta zone morte
+        warmupIterations = 0; 
+        baseSpeed = 0; 
+        minSpeed = 70;  
+        maxSpeed = 120;  
+        deadZone = 3.5f; 
 
-        // Note: pour la rotation, targetTicks ne sert qu'à vérifier grossièrement
-        // ou on garde 'value' (degrés) comme cible principale.
-        debugPrintf(DBG_MOVEMENT, "Start ROT: Val=%.1fdeg Kp=%.2f DeadZone=%.1f", value, Kp, deadZone);
+        debugPrintf(DBG_MOVEMENT, "Start ROT: Val=%.1fdeg", value);
     }
 }
 
 void MoveTask::update(Movement &mv) {
     if (cancelled || finished || paused) return;
 
-    // Timeout check
     if (timeoutMs && (millis() - startMs) > timeoutMs) {
-        mv.stop();
-        cancelled = true;
-        finished = true;
-        return;
+        mv.stop(); cancelled = true; finished = true; return;
     }
 
-    // --- Gestion du Temps (Non-bloquant) ---
-    if (millis() - lastPidLoopMs < MOVEMENT_LOOP_DELAY) {
-        return; 
-    }
-    float dt = (millis() - lastPidLoopMs) / 1000.0f; // Delta temps en secondes
+    if (millis() - lastPidLoopMs < MOVEMENT_LOOP_DELAY) return; 
+    float dt = (millis() - lastPidLoopMs) / 1000.0f; 
     lastPidLoopMs = millis(); 
 
-    // Lecture des encodeurs
     long leftTicks, rightTicks;
     noInterrupts();
     leftTicks  = mv.getLeftTicks();
     rightTicks = mv.getRightTicks();
     interrupts();
 
-    // ============================================================
-    // LOGIQUE 1 : MOVE DISTANCE (On garde les roues synchronisées)
-    // ============================================================
+    // ================= DISTANCE =================
     if (mode == MoveTaskMode::MOVE_DISTANCE) {
-        
         long progressTicks = max(labs_long(leftTicks), labs_long(rightTicks));
         
         // Fin ?
@@ -102,14 +83,14 @@ void MoveTask::update(Movement &mv) {
         // PID simple
         integralError += error * Ki; // Ki est 0.0 ici par défaut
         float correction = Kp * error + integralError;
-        float corrPWM = correction * 0.3f; 
+        float corrPWM = correction * 1.0f; 
 
         // Ramp-up
         float rampFactor = 1.0f;
-        if (loopCounter < warmupIterations) {
-            rampFactor = (float)loopCounter / (float)warmupIterations;
-            if (rampFactor < 0.05f) rampFactor = 0.05f;
-        }
+        // if (loopCounter < warmupIterations) {
+        //     rampFactor = (float)loopCounter / (float)warmupIterations;
+        //     if (rampFactor < 0.05f) rampFactor = 0.05f;
+        // }
         int targetBase = minSpeed + (int)((baseSpeed - minSpeed) * rampFactor);
 
         // Application moteurs
@@ -126,55 +107,27 @@ void MoveTask::update(Movement &mv) {
         debugPrintf(DBG_MOVEMENT, "Dist: PTicks=%ld Err=%.2f Corr=%.2f L=%d R=%d distance", 
               progressTicks, error, correction, leftPWM, rightPWM, mv.getDistanceTraveled());
     } 
-    // ============================================================
-    // LOGIQUE 2 : ROTATION (On vise un angle précis)
-    // ============================================================
+    
+    // ================= ROTATION =================
     else { 
-        // 1. Calcul de l'angle actuel
         long avgTicks = (labs_long(leftTicks) + labs_long(rightTicks)) / 2;
-        // On suppose que ta méthode ticksToDegrees est dispo dans mv ou via calcul
         float currentAngle = mv.ticksToDegrees(avgTicks); 
 
-        // 2. Calcul de l'erreur (Cible - Actuel)
-        // 'value' contient l'angle cible absolu (ex: 90 ou -90)
-        // currentAngle est toujours positif car basé sur avgTicks absolus.
-        // On doit comparer la *valeur absolue* demandée à l'angle parcouru.
-        float targetAngleAbs = abs(value);
+        float targetAngleAbs = fabs(value); 
         float error = targetAngleAbs - currentAngle;
 
-        // 3. Vérification Fin (Deadzone)
-        // Si on est assez proche (ex: erreur < 3.5°)
-        if (abs(error) <= deadZone) {
-            mv.stop();
-            finished = true;
-            debugPrintf(DBG_MOVEMENT, "Rot Done. Err=%.2f", error);
-            return;
+        if (fabs(error) <= deadZone) {
+            mv.stop(); finished = true; return;
         }
 
-        // 4. PID sur l'erreur de position
         integralError += error * dt; 
-        
-        // Anti-windup basique
         if (integralError > 50.0f) integralError = 50.0f;
         if (integralError < -50.0f) integralError = -50.0f;
 
-        // Sortie PID
         float pidOutput = (Kp * error) + (Ki * integralError);
+        int speed = (int)constrain(fabs(pidOutput), (float)minSpeed, (float)maxSpeed);
 
-        // 5. Calcul Vitesse (Constrain 50 - 90 comme ta fonction)
-        int speed = (int)constrain(abs(pidOutput), (float)minSpeed, (float)maxSpeed);
-
-        // 6. Direction et Application
-        // Si error > 0, on n'a pas encore atteint la cible -> on continue dans le sens initial
-        // Si error < 0, on a dépassé -> on doit inverser (correction active)
-        
-        bool originalDirectionIsRight = (value >= 0);
-        bool shouldGoOriginalWay = (error > 0); 
-        
-        // Logique XOR : 
-        // Si on veut aller à droite (True) et qu'on doit continuer (True) -> Droite
-        // Si on veut aller à droite (True) mais qu'on a dépassé (False) -> Gauche
-        bool goRight = (originalDirectionIsRight == shouldGoOriginalWay);
+        bool goRight = ((value >= 0) == (error > 0));
 
         if (goRight) {
             mv.motorLeft->setSpeed(speed);  mv.motorRight->setSpeed(speed);
@@ -183,16 +136,11 @@ void MoveTask::update(Movement &mv) {
             mv.motorLeft->setSpeed(speed);  mv.motorRight->setSpeed(speed);
             mv.motorLeft->run(BACKWARD);    mv.motorRight->run(FORWARD);
         }
-        
-        // Debug optionnel
-        // debugPrintf(DBG_MOVEMENT, "ROT: Ang=%.1f Err=%.1f Spd=%d", currentAngle, error, speed);
     }
-
     loopCounter++;
     mv.updateEncoderTimestamps();
 }
 
-// ... handleInterrupt, cancel, resume restent identiques au code précédent ...
 TaskInterruptAction MoveTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {
     if (isrFlags & ISR_FLAG_EMERGENCY) {
         mv.stop(); cancelled = true; finished = true; return TaskInterruptAction::CANCEL;
@@ -206,13 +154,130 @@ TaskInterruptAction MoveTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {
     return TaskInterruptAction::IGNORE;
 }
 
-void MoveTask::cancel(Movement &mv) {
-    cancelled = true; mv.stop(); finished = true;
-}
+void MoveTask::cancel(Movement &mv) { cancelled = true; mv.stop(); finished = true; }
+void MoveTask::resume(Movement &mv) { if (!paused || cancelled || finished) return; paused = false; lastPidLoopMs = millis(); }
 
-void MoveTask::resume(Movement &mv) {
-    if (!paused || cancelled || finished) return;
-    paused = false; lastPidLoopMs = millis();
-}
+// ====================== gyro calibration and movedistance====================
+// if (subState == STATE_CALIBRATION) {
+        
+//         // INITIALISATION UNIQUE (Au tout premier passage)
+//         if (calibration_count == 0) {
+            
+//             // 1. REVEIL DU MPU6050 (INDISPENSABLE !)
+//             Wire.beginTransmission(0x68);
+//             Wire.write(0x6B); // Registre PWR_MGMT_1
+//             Wire.write(0);    // Mettre à 0 pour le réveiller
+//             Wire.endTransmission(true);
+            
+//             // 2. CONFIGURATION SENSIBILITÉ (Optionnel mais mieux)
+//             // Registre 0x1B (Gyro Config) -> 0x08 = 500dps
+//             Wire.beginTransmission(0x68);
+//             Wire.write(0x1B); 
+//             Wire.write(0x08); 
+//             Wire.endTransmission(true);
 
+//             // Reset variables
+//             gyro_z_cal_sum = 0;
+//             angle_z = 0;
+//             integral = 0;
+//             lastError = 0;
+            
+//             debugPrintf(DBG_MOVEMENT, "MPU6050 Waking up...");
+//             delay(50); // Petite pause pour laisser le capteur s'allumer
+//         }
 
+//         // Lecture pour calibration
+//         Wire.beginTransmission(0x68);
+//         Wire.write(0x47); 
+//         Wire.endTransmission();
+//         Wire.requestFrom(0x68, 2);
+        
+//         if (Wire.available() >= 2) {
+//             int16_t rawZ = Wire.read() << 8 | Wire.read();
+//             gyro_z_cal_sum += rawZ;
+//             calibration_count++;
+//         }
+
+//         // FIN DE CALIBRATION
+//         if (calibration_count >= CALIBRATION_SAMPLES) {
+//             gyro_z_cal = (float)gyro_z_cal_sum / (float)CALIBRATION_SAMPLES;
+//             previousTime = micros(); 
+//             subState = STATE_MOVING; 
+            
+//             // Moteurs ON
+//             int startSpeed = 150; 
+//             if (value >= 0) { 
+//                 mv.motorLeft->run(FORWARD); mv.motorRight->run(FORWARD);
+//             } else {
+//                 mv.motorLeft->run(BACKWARD); mv.motorRight->run(BACKWARD);
+//             }
+//             mv.motorLeft->setSpeed(startSpeed);
+//             mv.motorRight->setSpeed(startSpeed);
+            
+//             debugPrintf(DBG_MOVEMENT, "Calibration Done. Offset: %d", (int)gyro_z_cal);
+//         }
+//         return; 
+//     }
+
+//     // --- SOUS-ÉTAT 2 : MOUVEMENT ---
+//     if (subState == STATE_MOVING) {
+        
+//         long currentLeft = abs(leftTicks);
+//         long currentRight = abs(rightTicks);
+        
+//         if (currentLeft >= targetTicks && currentRight >= targetTicks) {
+//             mv.stop();
+//             finished = true;
+//             return;
+//         }
+
+//         unsigned long currentTime = micros();
+//         float dt = (currentTime - previousTime) / 1000000.0;
+//         previousTime = currentTime;
+//         if (dt > 0.1 || dt <= 0.0) dt = 0.001; 
+
+//         // LECTURE GYRO
+//         int16_t raw_gyro_z = 0; // On stocke la valeur brute pour l'afficher
+//         Wire.beginTransmission(0x68);
+//         Wire.write(0x47);
+//         Wire.endTransmission();
+//         Wire.requestFrom(0x68, 2);
+        
+//         if (Wire.available() >= 2) {
+//             raw_gyro_z = Wire.read() << 8 | Wire.read();
+            
+//             // Division par 65.5 car on a configuré 500dps plus haut
+//             float gyro_z_dps = (raw_gyro_z - gyro_z_cal) / 65.5;
+            
+//             // J'ai enlevé la deadzone pour le test, on veut tout voir !
+//             angle_z += gyro_z_dps * dt;
+//         }
+
+//         // PID
+//         float error = 0 - angle_z;
+//         integral += error * dt;
+//         if (integral > 200) integral = 200;
+//         if (integral < -200) integral = -200;
+//         float derivative = (error - lastError) / dt;
+//         lastError = error;
+//         float outputCorrection = (Kp_gyro * error) + (Ki_gyro * integral) + (Kd_gyro * derivative);
+
+//         // MOTEURS
+//         int targetBase = DEFAULT_SPEED; 
+//         int leftSpeed = constrain(targetBase - (int)outputCorrection, 0, 255);
+//         int rightSpeed = constrain(targetBase + (int)outputCorrection, 0, 255);
+
+//         mv.motorLeft->setSpeed(leftSpeed);
+//         mv.motorRight->setSpeed(rightSpeed);
+
+//         // DEBUG CRITIQUE
+//         static long lastPrint = 0;
+//         if (millis() - lastPrint > 100) {
+//             // J'affiche RAW pour voir si le capteur réagit
+//             debugPrintf(DBG_MOVEMENT, "RAW:%d A:%d L:%d R:%d", 
+//                 raw_gyro_z,           // VALEUR BRUTE (Si elle ne bouge pas, capteur HS/Mal branché)
+//                 (int)(angle_z ),  // Angle x10
+//                 leftSpeed, rightSpeed);
+//             lastPrint = millis();
+//         }
+//     }
