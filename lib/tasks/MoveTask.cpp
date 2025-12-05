@@ -41,8 +41,8 @@ void MoveTask::start(Movement &mv) {
         Ki = 0.08f;
         warmupIterations = 0; 
         baseSpeed = 0; 
-        minSpeed = 50;  
-        maxSpeed = 90;  
+        minSpeed = 70;  
+        maxSpeed = 120;  
         deadZone = 3.5f; 
 
         debugPrintf(DBG_MOVEMENT, "Start ROT: Val=%.1fdeg", value);
