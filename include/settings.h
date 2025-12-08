@@ -23,7 +23,7 @@
 // PARAMÈTRES DE VITESSE
 
 
-#define DEFAULT_SPEED 100   // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
+#define DEFAULT_SPEED 80   // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
 #define MIN_SPEED 80
 #define MAX_SPEED 255
 

@@ -1,0 +1,340 @@
+#include "Movement.h"
+#include "Encoder.h"
+
+Movement movement;
+Encoder encoderLeft;
+Encoder encoderRight;
+
+
+void setup() {
+    // Serial.begin(9600);
+
+    // movement.begin(
+    //     6.0,   // diamètre roue
+    //     10.7,  // wheelbase
+    //     70,   // résolution encodeur
+    //     2,     // pin encodeur gauche
+    //     3,     // pin encodeur droit
+    //     100    // vitesse
+    // );
+
+    // delay(1000);
+    // Serial.println("Test mouvement...");
+}
+
+void loop() {
+
+    // // AVANCER DE 20 CM
+    // movement.moveDistance(20);
+    // delay(1000);
+    // movement.rotate(45);
+    // delay(1000);
+    // movement.moveDistance(20);
+ 
+    
+   
+
+    // Serial.print("L=");
+    // Serial.print(encoderLeft.getTicks());
+    // Serial.print("  R=");
+    // Serial.println(encoderRight.getTicks());
+
+
+    // delay(10000);
+
+    // TOURNER DE 90°
+    //movement.rotate(90);
+
+    //delay(10);
+
+    // AVANCER DE 20 CM
+    //movement.moveDistance(20);
+
+    //delay(10); // on arrête le programme
+
+    // movement.stop();
+
+    // Serial.print("Mouvement terminé");
+
+    // while(true);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// void fsmEmergencyStop(FsmContext &ctx) {
+//     fsmChangeAction(ctx, FsmAction::EMERGENCY_STOP);
+// }
+
+// // ===============================
+// // FSM PRINCIPALE
+// // ===============================
+// void fsmStep(FsmContext &ctx) {
+
+//     switch (ctx.currentAction) {
+
+//     // ============================
+//     // INIT
+//     // ============================
+//     case FsmAction::INIT: {
+
+//         Serial.println("=== INIT ===");
+
+//         movement.begin(
+//             WHEEL_DIAMETER,
+//             WHEEL_BASE,
+//             ENCODER_RESOLUTION,
+//             ENCODER_PIN_LEFT,
+//             ENCODER_PIN_RIGHT,
+//             DEFAULT_SPEED
+//         );
+
+//         // --- AJOUT : Init LIDAR ---
+//         // Si le capteur fonctionne pas, on s'arrête d'office dans cette version
+//         Serial.println("Initialisation du LIDAR...");
+//         if (!initLidar()) {
+//             Serial.println("ERREUR : Impossible d'initialiser le LIDAR");
+//             fsmChangeAction(ctx, FsmAction::EMERGENCY_STOP);
+//             break;
+//         }
+//         Serial.println("LIDAR OK");
+
+//         fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
+//         break;
+//     }
+
+//     // ============================
+//     // CALIBRATION
+//     // ============================
+//     case FsmAction::CALIBRATE_ENCODERS: {
+//         calibrateEncoders();
+//         break;
+//     }
+
+//     // ============================
+//     // EMERGENCY STOP
+//     // ============================
+//     case FsmAction::EMERGENCY_STOP: {
+//         movement.stop();
+//         Serial.println("=== EMERGENCY STOP ===");
+//         break;
+//     }
+
+//     // ============================
+//     // MOVE FORWARD : Ici, je vais donner la trajectoire
+//     // ============================
+//     case FsmAction::MOVE_FORWARD: {
+
+//         Serial.println("Action : MOVE_FORWARD");
+
+//         // Premier mouvement : pousser les noisettes sur le plateau
+//         movement.moveDistance(100);
+//         movement.rotate(45);
+//         movement.moveDistance(200);
+
+//         // Second mouvement : faire marche arrière et tourner 
+//         movement.backward(200);
+//         movement.rotate(45);
+
+//         // Troisième mouvement : avancer vers le second bloc de noisettes
+//         movement.moveDistance(400);
+//         movement.rotate(45);
+//         movement.moveDistance(500);
+
+//         // Monter le plateau
+
+//         // Après avoir avancé → on vérifie la route
+//         // fsmChangeAction(ctx, FsmAction::CHECK_OBSTACLE);
+
+//         break;
+//     }
+
+//     // ============================
+//     // MOVE BACKWARD
+//     // ============================
+//     case FsmAction::MOVE_BACKWARD: {
+//         movement.backward();
+//         break;
+//     }
+
+//     // ============================
+//     // ROTATION 180°
+//     // ============================
+//     case FsmAction::TURN_AROUND: {
+
+//         Serial.println("Action : TURN_AROUND");
+
+//         movement.rotate(-180);
+
+//         fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
+//         break;
+//     }
+
+//     // ============================
+//     // CHECK OBSTACLE (LIDAR)
+//     // ============================
+//     case FsmAction::CHECK_OBSTACLE: {
+
+//         int d = lireDistance();
+
+//         Serial.print("Distance LIDAR : ");
+//         Serial.println(d);
+
+//         // Cas erreur
+//         if (d == -1 || d == -2) {
+//             Serial.println("⚠️ LIDAR : mesure invalide, on continue");
+//             fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
+//             break;
+//         }
+
+//         // Seuil obstacle
+//         if (d < 200) {
+//             Serial.println("⚠️ OBSTACLE DETECTE → STOP !");
+//             movement.stop();
+//             fsmChangeAction(ctx, FsmAction::AVOID_OBSTACLE);
+//         } else {
+//             fsmChangeAction(ctx, FsmAction::MOVE_FORWARD);
+//         }
+
+//         break;
+//     }
+
+//     // ============================
+//     // AVOID OBSTACLE
+//     // ============================
+//     case FsmAction::AVOID_OBSTACLE: {
+
+//         Serial.println("=== AVOID_OBSTACLE ===");
+//         movement.stop();
+
+//         // Version simple : on ne bouge pas encore.
+//         // Ensuite tu feras variante :
+//         // - reculer un peu
+//         // - tourner
+//         // - réessayer
+
+//         break;
+//     }
+
+//     // ============================
+//     // END
+//     // ============================
+//     case FsmAction::END: {
+//         Serial.println("=== FIN ===");
+//         movement.stop();
+//         break;
+//     }
+
+//     // ============================
+//     // DEFAULT
+//     // ============================
+//     default: {
+//         fsmChangeAction(ctx, FsmAction::INIT);
+//         break;
+//     }
+//     }
+// }
+
+
+// // ===============================
+// // CALIBRATION COMPLEXE (inchangée)
+// // ===============================
+// void calibrateEncoders() {
+
+//     Serial.println("Configuration actuelle:");
+//     Serial.print("  - Diametre roues: "); Serial.print(WHEEL_DIAMETER); Serial.println(" cm");
+//     Serial.print("  - Distance entre roues: "); Serial.print(WHEEL_BASE); Serial.println(" cm");
+//     Serial.print("  - Resolution encodeur: "); Serial.print(ENCODER_RESOLUTION); Serial.println(" ticks/tour");
+
+
+//     Serial.println("\n\n=== TEST 3: VERIFICATION ROTATION ===");
+//     Serial.println("Le robot va tourner de 180 degres");
+//     Serial.println("Demarrage dans 5 secondes...\n");
+
+//     Serial.println(">>> ROTATION 180 DEGRES <<<");
+
+//     movement.moveDistance(20);
+
+//     Serial.println("\n=== RESULTATS ROTATION ===");
+//     Serial.println("Corrections possibles sur WHEEL_BASE...");
+
+//     Serial.println("\n\n=========================================");
+// }
+
+
+
+
+
+
+
+
+#### Test Switch choix d'équipe ####
+
+#include <Arduino.h>
+#include "switch.h"
+
+// Choisis la pin utilisée par ton interrupteur
+Switch teamSwitch(2);
+
+void setup() {
+    Serial.begin(9600);
+
+    teamSwitch.begin(); // initialise le pin en INPUT_PULLUP
+
+    Serial.println("Switch test ready");
+}
+
+void loop() {
+
+    if (teamSwitch.isOn()) {
+        Serial.println("Switch = ON → équipe A ou stratégie 1");
+    } else {
+        Serial.println("Switch = OFF → équipe B ou stratégie 2");
+    }
+
+    delay(300);
+}
+
+
+
+#### Test Cordon démarrage ####
+
+#include <Arduino.h>
+#include "StartContact.h"
+
+StartContact startContact(3);  // par exemple sur la pin 3
+
+void setup() {
+    Serial.begin(9600);
+    startContact.begin();
+
+    Serial.println("Start Contact test ready");
+}
+
+void loop() {
+
+    if (startContact.isInserted()) {
+        Serial.println("Tirette EN PLACE → robot doit rester à l'arrêt");
+    } else {
+        Serial.println("Tirette RETIREE → robot PEUT démarrer !");
+    }
+
+    delay(300);
+}

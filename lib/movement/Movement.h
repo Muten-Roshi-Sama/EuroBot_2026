@@ -41,6 +41,10 @@ public:
     long degreesToTicks(float degrees);// Convertit rotation en degrés → ticks
     void resetEncoders();              // Remise à zéro des encodeurs
     void updateEncoderTimestamps();    // Mise à jour timestamp pour calcul vitesse
+
+    // ================= MOUVEMENTS PAR PAS ==================
+    void moveDistanceStepped(float totalCm, float stepCm = 20.0f, int speed = -1);
+    
     
 public:
     // Constructeur
@@ -99,6 +103,7 @@ public:
     // PID pour contrôle angle et distance
     float PIDControlAngle(unsigned long& lastUpdateTimeAngle,float targetAngle, float currentAngle, float Kp, float Ki);
     float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
+    
     
     // Instance statique pour ISR
     static Movement* instance;

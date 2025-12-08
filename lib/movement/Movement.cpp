@@ -1,10 +1,12 @@
 #include "Movement.h"
 #include <Arduino.h>
 #include <Adafruit_MotorShield.h>
+#include "EmergencyButton.h"
 
 // Instance statique pour accès aux ISR
 Movement* Movement::instance = nullptr;
 
+extern EmergencyButton emergencyButton ;
 // Constructeur
 Movement::Movement() 
     : AFMS(Adafruit_MotorShield()), 
@@ -58,8 +60,8 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     pinMode(encoderPinRight, INPUT_PULLUP);
     
     // Attachement des interruptions
-    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), leftEncoderISR, RISING);
-    attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, RISING);
+    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), leftEncoderISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, CHANGE);
     
     lastUpdateTime = micros(); // Timestamp initial
     stop(); // Arrêt initial
@@ -184,29 +186,120 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
 }
 
 // ================= MOUVEMENTS AVEC DISTANCE (BLOQUANTS) ==================
+// void Movement::moveDistance(float cm, int speed) {
+//     resetEncoders();
+//     long targetTicks = cmToTicks(cm);
+//     bool forwardDir = (cm > 0);
+//     if (!forwardDir) targetTicks = -targetTicks;
+
+//     float persistentError = 0.0f;
+//     float Kp = 0.3f;                     
+//     float alpha = 0.5f;     
+//     float leftFactor = 1.00;
+//     float rightFactor = 0.97;            
+
+//     // Rampe de démarrage
+//     int currentSpeed = 0;
+//     while (currentSpeed < speed) {
+//         currentSpeed += 5;
+//         motorLeft->setSpeed(currentSpeed);
+//         motorRight->setSpeed(currentSpeed);
+
+//         motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+//         motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+//         delay(10);
+//     }
+
+    
+//     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
+//         long leftTicks = encoderLeft.getTicks();
+//         long rightTicks = encoderRight.getTicks();
+
+//         float currentError = leftTicks - rightTicks;
+
+//         if (abs(currentError) < 1) {
+//             currentError = 0;
+//         }
+
+
+//         persistentError = alpha * persistentError + (1 - alpha) * currentError;
+
+//         float correction = Kp * persistentError;
+
+//         int leftSpeed  = constrain(speed - correction, 60, 255);
+//         int rightSpeed = constrain(speed + correction, 60, 255);
+
+//         motorLeft->setSpeed(leftSpeed);
+//         motorRight->setSpeed(rightSpeed);
+//         motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+//         motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+//         updateEncoderTimestamps();
+//         delay(MOVEMENT_LOOP_DELAY);
+//     }
+
+//     stop();
+// }
+
 void Movement::moveDistance(float cm, int speed) {
     resetEncoders();
     long targetTicks = cmToTicks(cm);
     bool forwardDir = (cm > 0);
     if (!forwardDir) targetTicks = -targetTicks;
 
-    static float persistentError = 0.0f;
-    float Kp = 0.8f;                     
+    float persistentError = 0.0f;
+    float Kp = 0.3f;                     
     float alpha = 0.5f;     
-    float leftFactor = 1.00;
-    float rightFactor = 0.97;            
 
-    while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
-        long leftTicks = encoderLeft.getTicks();
-        long rightTicks = encoderRight.getTicks();
+    // Rampe d'accélération pour éviter les à-coups
+    int currentSpeed = 0;
+    while (currentSpeed < speed) {
+        currentSpeed += 5;
+        motorLeft->setSpeed(currentSpeed);
+        motorRight->setSpeed(currentSpeed);
+        motorLeft->run(forwardDir ? FORWARD : BACKWARD);
+        motorRight->run(forwardDir ? FORWARD : BACKWARD);
+        delay(10);
+    }
 
-        float currentError = leftTicks - rightTicks;
+    // Mesure d'avancement basée sur la roue la plus avancée
+    long maxTicks = 0;
+
+    while (maxTicks < abs(targetTicks)) {
+
+        if(emergencyButton.isPressed()){
+            stop();
+            Serial.println("Arrêt d'urgence !! ");
+            return;
+        }
+
+        long leftTicks  = abs(encoderLeft.getTicks());
+        long rightTicks = abs(encoderRight.getTicks());
+
+        // Détermine la roue la plus avancée
+        maxTicks = max(leftTicks, rightTicks);
+
+        // Erreur relative entre les roues
+        float currentError = (float)leftTicks - (float)rightTicks;
+
+        // Deadzone
+        if (abs(currentError) < 1) {
+            currentError = 0;
+        }
+
+        // Filtrage exponentiel
         persistentError = alpha * persistentError + (1 - alpha) * currentError;
 
+        // Correction progressive
         float correction = Kp * persistentError;
 
-        int leftSpeed  = constrain(speed - correction, 100, 255);
-        int rightSpeed = constrain(speed + correction, 100, 255);
+        int leftSpeed  = constrain(speed - correction, 40, 255);
+        int rightSpeed = constrain(speed + correction, 40, 255);
+
+        // Si une roue a atteint la distance, on la coupe
+        if (leftTicks >= abs(targetTicks))  leftSpeed = 0;
+        if (rightTicks >= abs(targetTicks)) rightSpeed = 0;
 
         motorLeft->setSpeed(leftSpeed);
         motorRight->setSpeed(rightSpeed);
@@ -219,6 +312,7 @@ void Movement::moveDistance(float cm, int speed) {
 
     stop();
 }
+
 
 void Movement::moveDistance(float cm) {
     moveDistance(cm, defaultSpeed);
@@ -379,3 +473,18 @@ void Movement::encoderRightISRWrapper() {
         else instance->encoderRight.subtractTick();
     }
 }
+
+// Faire avancer le robot par pas de 10cm car ça permet de réduire la déviation. Il suffit de passer la distance totale à parcourir et la fonction sera exécutée tant qu'on a pas atteint la distance voulue
+void Movement::moveDistanceStepped(float totalCm, float stepCm, int speed) {
+    if (speed < 0) speed = defaultSpeed;
+
+    float remaining = totalCm;
+    while (abs(remaining) > 0.0f) {
+        float step = (abs(remaining) > stepCm) ? stepCm * (remaining > 0 ? 1 : -1) : remaining;
+        moveDistance(step, speed);
+        remaining -= step;
+    }
+}
+
+
+
