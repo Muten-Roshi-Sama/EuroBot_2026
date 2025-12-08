@@ -48,7 +48,7 @@ private:
     unsigned long previousTime = 0;
 
     // Constantes PID (peuvent être static ou #define)
-    const float Kp_gyro = 1.5f;
+    const float Kp_gyro = 0.8f;
     const float Ki_gyro = 0.02f;
     const float Kd_gyro = 0.5f;
     const int CALIBRATION_SAMPLES = 50; // Réduit pour ne pas attendre 10 ans, ou garde 2000 si ta boucle est très rapide
