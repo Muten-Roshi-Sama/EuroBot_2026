@@ -5,17 +5,17 @@
 
 class Encoder {
 private:
-    volatile int tick = 0;                
-    volatile unsigned long timestamp = 0; 
-    volatile unsigned long tickInterval = 0; 
-    int resolution = 20;
+    volatile long tick = 0;                
+    unsigned long timestamp = 0; 
+    unsigned long tickInterval = 0; 
+    int resolution = 1;
 
 public:
     Encoder();                        
     Encoder(int resolution);          
     void addTick();
     void subtractTick();                 
-    int getTicks();                   
+    long getTicks();                   
     void changeResolution(int newResolution); 
     void setTimestamp(unsigned long time);   
     unsigned long getTimestamp();    

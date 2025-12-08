@@ -37,9 +37,9 @@ class MoveTask : public Task {
         int baseSpeed = 0;
         int minSpeed = 0;
         int maxSpeed = 255;
-        int warmupIterations = 0;
-        float Kp = 0.0f;
-        float Ki = 0.0f;
+        int warmupIterations = 30;
+        float Kp = 1.1f;
+        float Ki = 0.03f;
         float deadZone = 0.0f;
 };
 

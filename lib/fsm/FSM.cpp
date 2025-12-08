@@ -8,6 +8,7 @@
 #include "../drivers/button/Button.h"
 #include "../movement/Movement.h"
 #include "../tasks/MoveTask.h"
+#include "../tasks/GyroMoveTask.h"
 #include "../util/Debug.h"
 
 
@@ -25,8 +26,6 @@ void fsmInit(FsmContext &ctx) {
   markStateStart(ctx);
   // ===========
 
-  // DEBUG prints
-  debugInit(9600, DBG_FSM | DBG_TASKMANAGER);
 
   // Emergency Button
   emergencyBtn.begin();
@@ -45,7 +44,7 @@ static void markStateStart(FsmContext &ctx) {
 void fsmChangeAction(FsmContext &ctx, FsmAction next) {
   ctx.currentAction = next;
   markStateStart(ctx);
-  debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
+  // debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
 }
 
 // =============================
@@ -58,29 +57,34 @@ void fsmStep(FsmContext &ctx) {
 
     // 1. INIT
     case FsmAction::INIT: {
+
+      movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
+                      ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
+      delay(200);
+
+
+
       // create TaskManager
       if (!taskManager) taskManager = new TaskManager(&movement);
 
-      // Add task
-      //taskManager->addTask(new Manager->addTask(new MoveTask(90.0f, DEFAULT_SPEED, 0, true)); // rotate +90 degrees
-      //taskManager -> addTask(new MoveTask(MoveTaskMode::MOVE_DISTANCE, 50.0));
-      
-      taskManager -> addTask(new MoveTask(MoveTaskMode::ROTATE_ANGLE, 50.0));
+      // Add task ONCE
+      static bool tasksEnqueued = false;
+      if (!tasksEnqueued) {
 
-      
-      
-      
-      // taskManager.addTask()
+        taskManager -> addTask(new MoveTask(100.0f, 60, 0)); // move forward 100 cm
+        // taskManager -> addTask(new GyroMoveTask(300.0f, 50, 0)); // move forward 100 cm
+        delay(100);
+        // taskManager -> addTask(new RotateTask(90.0f, DEFAULT_SPEED, 0)); // rotate +90 degrees
 
+        tasksEnqueued = true;
+      }
+      
       //* Initialize all sensors
       
-      // Initialisation du système de mouvement avec les paramètres depuis settings.h
-      movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
-                      ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
 
-      // Add if 
       
       ctx.currentAction = FsmAction::IDLE;
+      debugPrintf(DBG_FSM, "FSM -> Idle");
       break;
     }
 
@@ -93,6 +97,7 @@ void fsmStep(FsmContext &ctx) {
         // start 100sec timer
 
         ctx.currentAction = FsmAction::TASK;  // if tasks queued -> go to TASK state
+        debugPrintf(DBG_FSM, "FSM -> Task");
       } 
       break;
     }
@@ -103,7 +108,7 @@ void fsmStep(FsmContext &ctx) {
 
       // Check for Interruptions every 100ms
       if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;
-
+      break;
     }
 
     
@@ -118,6 +123,12 @@ void fsmStep(FsmContext &ctx) {
     break;
     }
 
+    case FsmAction::motorTest: {
+        runMotorEncoderDiagnostics(movement);
+        // ctx.currentAction = FsmAction::IDLE;  
+        break;
+    }
+
     default: {
       // Safety: reset to INIT on unknown action
         fsmChangeAction(ctx, FsmAction::INIT);
@@ -129,106 +140,66 @@ void fsmStep(FsmContext &ctx) {
 }
 
 
+// Diagnostic test: run both motors forward/backward and print encoder ticks.
+// Put this in a temporary test routine and call it from setup() once.
 
+void runMotorEncoderDiagnostics(Movement &mv) {
+    Serial.println(F("DIAG: reset encoders"));
+    mv.resetEncoders();
+    delay(200);
 
+    Serial.println(F("DIAG: both motors FORWARD @150 for 1500ms"));
+    mv.motorLeft->setSpeed(150);
+    mv.motorRight->setSpeed(150);
+    mv.motorLeft->run(FORWARD);
+    mv.motorRight->run(FORWARD);
+    delay(1500);
+    noInterrupts();
+    long L1 = mv.getLeftTicks();
+    long R1 = mv.getRightTicks();
+    interrupts();
+    Serial.print(F("DIAG: forward -> L=")); Serial.print(L1); Serial.print(F("  R=")); Serial.println(R1);
 
-void calibrateEncoders() {
-    Serial.println("Configuration actuelle:");
-    Serial.print("  - Diametre roues: "); Serial.print(WHEEL_DIAMETER); Serial.println(" cm");
-    Serial.print("  - Distance entre roues: "); Serial.print(WHEEL_BASE); Serial.println(" cm");
-    Serial.print("  - Resolution encodeur: "); Serial.print(ENCODER_RESOLUTION); Serial.println(" ticks/tour");
-    
-    // Serial.println("\n=== TEST 1: MESURE RESOLUTION ENCODEUR ===");
-    // Serial.println("Instructions:");
-    // Serial.println("1. Le robot va avancer pendant 5 secondes");
-    // Serial.println("2. Comptez MANUELLEMENT combien de fois une roue fait un tour COMPLET");
-    // Serial.println("3. Notez le nombre de ticks affiche");
-    // Serial.println("\nDemarrage dans 5 secondes...\n");
-    // delay(5000);
-    
-    // // Test de 5 secondes
-    // Serial.println(">>> DEBUT DU TEST <<<");
-    // movement.forward(150);
-    
-    // for (int i = 0; i < 50; i++) {
-    //     Serial.print("Ticks gauche: ");
-    //     Serial.print(movement.getLeftTicks());
-    //     Serial.print(" | Ticks droite: ");
-    //     Serial.println(movement.getRightTicks());
-    //     delay(100);
-    // }
-    
-    // movement.stop();
-    
-    // long ticksLeft = movement.getLeftTicks();
-    // long ticksRight = movement.getRightTicks();
-    // long avgTicks = (ticksLeft + ticksRight) / 2;
-    
-    // Serial.println("\n>>> FIN DU TEST <<<");
-    // Serial.println("\n=== RESULTATS ===");
-    // Serial.print("Total ticks gauche: "); Serial.println(ticksLeft);
-    // Serial.print("Total ticks droite: "); Serial.println(ticksRight);
-    // Serial.print("Moyenne: "); Serial.println(avgTicks);
-    
-    // Serial.println("\n=== CALCUL DE LA RESOLUTION ===");
-    // Serial.println("Combien de tours COMPLETS avez-vous compte?");
-    // Serial.println("Formule: Resolution = Ticks / Nombre_de_tours");
-    // Serial.println("");
-    // Serial.println("Exemples:");
-    // Serial.print("  Si 1 tour   -> Resolution = "); Serial.print(avgTicks); Serial.println(" ticks/tour");
-    // Serial.print("  Si 2 tours  -> Resolution = "); Serial.print(avgTicks / 2); Serial.println(" ticks/tour");
-    // Serial.print("  Si 3 tours  -> Resolution = "); Serial.print(avgTicks / 3); Serial.println(" ticks/tour");
-    // Serial.print("  Si 4 tours  -> Resolution = "); Serial.print(avgTicks / 4); Serial.println(" ticks/tour");
-    // Serial.print("  Si 5 tours  -> Resolution = "); Serial.print(avgTicks / 5); Serial.println(" ticks/tour");
-    
-    // Serial.println("\n\n=== TEST 2: VERIFICATION DISTANCE ===");
-    // Serial.println("Le robot va maintenant essayer d'avancer de 100 cm");
-    // Serial.println("Mesurez la distance REELLE parcourue avec un metre");
-    // Serial.println("\nDemarrage dans 5 secondes...\n");
-    // delay(5000);
-    
-    // Serial.println(">>> AVANCE DE 100 CM <<<");
-    // movement.moveDistance(100);
-    
-    // Serial.println("\n=== RESULTATS DISTANCE ===");
-    // Serial.print("Distance demandee: 100 cm");
-    // Serial.print("\nQuelle distance REELLE avez-vous mesuree? ___ cm");
-    // Serial.println("\n");
-    // Serial.println("Formule de correction:");
-    // Serial.println("  Nouveau_Diametre = WHEEL_DIAMETER × (Distance_reelle / 100)");
-    // Serial.println("");
-    // Serial.println("Exemples:");
-    // Serial.print("  Si 90 cm  -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 0.90, 2); Serial.println(" cm");
-    // Serial.print("  Si 95 cm  -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 0.95, 2); Serial.println(" cm");
-    // Serial.print("  Si 105 cm -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 1.05, 2); Serial.println(" cm");
-    // Serial.print("  Si 110 cm -> Nouveau diametre = "); Serial.print(WHEEL_DIAMETER * 1.10, 2); Serial.println(" cm");
-    
-    Serial.println("\n\n=== TEST 3: VERIFICATION ROTATION ===");
-    Serial.println("Le robot va tourner de 180 degres (demi-tour)");
-    Serial.println("Verifiez si il tourne exactement 180 degres");
-    Serial.println("\nDemarrage dans 5 secondes...\n");
-    delay(5000);
-    
-    Serial.println(">>> ROTATION 180 DEGRES <<<");
-    movement.rotate(180);
-    
-    Serial.println("\n=== RESULTATS ROTATION ===");
-    Serial.println("Le robot a-t-il tourne exactement 180 degres?");
-    Serial.println("  - Si NON, il tourne TROP     -> Reduire WHEEL_BASE");
-    Serial.println("  - Si NON, il ne tourne PAS ASSEZ -> Augmenter WHEEL_BASE");
-    Serial.println("");
-    Serial.println("Formule de correction:");
-    Serial.println("  Nouveau_WHEEL_BASE = WHEEL_BASE × (Angle_reel / 180)");
-    Serial.println("");
-    Serial.println("Exemples:");
-    Serial.print("  Si 160° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (160.0/180.0), 2); Serial.println(" cm");
-    Serial.print("  Si 170° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (170.0/180.0), 2); Serial.println(" cm");
-    Serial.print("  Si 190° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (190.0/180.0), 2); Serial.println(" cm");
-    Serial.print("  Si 200° -> Nouveau WHEEL_BASE = "); Serial.print(WHEEL_BASE * (200.0/180.0), 2); Serial.println(" cm");
-    
-    Serial.println("\n\n=========================================");
-    // Serial.println("  CALIBRATION TERMINEE");
-    // Serial.println("=========================================");
-    // Serial.println("\nModifiez include/settings.h avec les nouvelles valeurs");
-    // Serial.println("puis recompilez et retestez!");
+    Serial.println(F("DIAG: both motors BACKWARD @150 for 1500ms"));
+    mv.resetEncoders();
+    mv.motorLeft->setSpeed(150);
+    mv.motorRight->setSpeed(150);
+    mv.motorLeft->run(BACKWARD);
+    mv.motorRight->run(BACKWARD);
+    delay(1500);
+    noInterrupts();
+    long L2 = mv.getLeftTicks();
+    long R2 = mv.getRightTicks();
+    interrupts();
+    Serial.print(F("DIAG: backward -> L=")); Serial.print(L2); Serial.print(F("  R=")); Serial.println(R2);
+
+    Serial.println(F("DIAG: left motor only FORWARD @150 for 1000ms"));
+    mv.resetEncoders();
+    mv.motorLeft->setSpeed(150);
+    mv.motorLeft->run(FORWARD);
+    mv.motorRight->run(RELEASE);
+    delay(1000);
+    noInterrupts();
+    long L3 = mv.getLeftTicks();
+    long R3 = mv.getRightTicks();
+    interrupts();
+    Serial.print(F("DIAG: left only -> L=")); Serial.print(L3); Serial.print(F("  R=")); Serial.println(R3);
+
+    Serial.println(F("DIAG: right motor only FORWARD @150 for 1000ms"));
+    mv.resetEncoders();
+    mv.motorLeft->run(RELEASE);
+    mv.motorRight->setSpeed(150);
+    mv.motorRight->run(FORWARD);
+    delay(1000);
+    noInterrupts();
+    long L4 = mv.getLeftTicks();
+    long R4 = mv.getRightTicks();
+    interrupts();
+    Serial.print(F("DIAG: right only -> L=")); Serial.print(L4); Serial.print(F("  R=")); Serial.println(R4);
+
+    mv.stop();
+    Serial.println(F("DIAG: done"));
 }
+
+
+
