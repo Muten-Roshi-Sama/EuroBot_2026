@@ -25,8 +25,8 @@
 
 
 // CONFIGURATION DES PINS 
-#define ENCODER_PIN_LEFT 2   // Arduino Uno: pins 2 et 3 supportent les interruptions
-#define ENCODER_PIN_RIGHT 3
+#define ENCODER_PIN_LEFT 3   // Arduino Uno: pins 2 et 3 supportent les interruptions
+#define ENCODER_PIN_RIGHT 2
 
 // PARAMÈTRES DE VITESSE
 

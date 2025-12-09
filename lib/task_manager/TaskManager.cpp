@@ -11,6 +11,17 @@
 
 // ==========================================
 
+// Diagnostic helpers (place near top of TaskManager.cpp)
+extern "C" char* __brkval;          // avr-libc bookkeeping
+extern "C" char __heap_start;
+static int freeRam() {
+  char stack_dummy = 0;
+  char* heap_end = __brkval ? __brkval : &__heap_start;
+  return (int)&stack_dummy - (int)heap_end;
+}
+
+
+
 // TaskManager* TaskManager::instance = nullptr;
 
 
@@ -21,12 +32,17 @@ TaskManager::TaskManager(Movement* mv)
 }
 
 void TaskManager::addTask(Task* t) {
-  if (count >= MAX_TASKS) return; // full - caller must handle
+  debugPrintf(DBG_TASKMANAGER, "addTask called ptr=%p count=%d head=%d tail=%d free=%d",
+              (void*)t, count, head, tail, freeRam());
+  if (count >= MAX_TASKS) {
+    Serial.println("Task queue full");
+    return;
+  }
   queue[tail] = t;
   tail = (tail + 1) % MAX_TASKS;
   count++;
-  debugPrintf(DBG_TASKMANAGER, "[TaskManager.cpp] : AddTask ptr=0x%08lX", (unsigned long)t);
-}
+  debugPrintf(DBG_TASKMANAGER, "AddTask ptr=%p -> queued (count=%d head=%d tail=%d) free=%d",
+              (void*)t, count, head, tail, freeRam());}
 
 void TaskManager::tick() {
   /*

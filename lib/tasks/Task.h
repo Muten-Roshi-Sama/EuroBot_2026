@@ -26,10 +26,10 @@ class Movement; // forward declare
 
 class Task {
 public:
-
   // CONSTRUCTOR
-  Task(uint8_t speed = 0, unsigned long timeoutMs = 0)
-    : speed(speed), timeoutMs(timeoutMs), started(false), finished(false), cancelled(false) {}
+  Task(uint8_t speed_ = 0, unsigned long timeoutMs_ = 0)
+    : speed(speed_), timeoutMs(timeoutMs_), startMs(0),
+      started(false), finished(false), cancelled(false), paused(false) {}
 
   // Destructor
   virtual ~Task() {}
@@ -39,6 +39,8 @@ public:
 
   // Called frequently from main loop (fast, non-blocking)
   virtual void update(Movement &mv) = 0;
+
+  // Default interrupt handler (override when needed)
   virtual TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) {
     (void)mv; (void)isrFlags;
     return TaskInterruptAction::PAUSE;
@@ -46,27 +48,33 @@ public:
 
   // Immediate cancellation/cleanup
   virtual void cancel(Movement &mv) {
+    (void)mv;
     cancelled = true;
     finished = true;
   }
 
-  virtual void resume(Movement &mv) { (void)mv; };
+  // Optional: resume a paused task (override if task supports it)
+  virtual void resume(Movement &mv) { (void)mv; }
 
+  // Optional small ISR-time update hook
   virtual void updateISR(Movement &mv) { (void)mv; }
 
   // Getters
   bool isStarted() const { return started; }
   bool isFinished() const { return finished; }
   bool isCancelled() const { return cancelled; }
+  bool isPaused() const { return paused; }
 
   uint8_t getSpeed() const { return speed; }
 
 protected:
-  uint8_t speed;
-  unsigned long timeoutMs;
+  uint8_t speed = 0;
+  unsigned long timeoutMs = 0;
   unsigned long startMs = 0;
-  bool started;
-  bool finished;
-  bool cancelled;
-  bool paused;
+  bool started = false;
+  bool finished = false;
+  bool cancelled = false;
+  bool paused = false;
 };
+
+
