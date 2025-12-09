@@ -19,7 +19,7 @@ struct FsmContext {
 	unsigned long stateStartMs;
 };
 
-void fsmInit(FsmContext &ctx);
+void fsmInitializeSystem(FsmContext &ctx);
 
 void fsmStep(FsmContext &ctx);
 

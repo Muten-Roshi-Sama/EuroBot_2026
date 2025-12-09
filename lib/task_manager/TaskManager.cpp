@@ -8,33 +8,34 @@
 #include "../movement/Movement.h"
 #include "../util/Debug.h"
 
-
 // ==========================================
 
 // Diagnostic helpers (place near top of TaskManager.cpp)
-extern "C" char* __brkval;          // avr-libc bookkeeping
+extern "C" char *__brkval; // avr-libc bookkeeping
 extern "C" char __heap_start;
-static int freeRam() {
+static int freeRam()
+{
   char stack_dummy = 0;
-  char* heap_end = __brkval ? __brkval : &__heap_start;
+  char *heap_end = __brkval ? __brkval : &__heap_start;
   return (int)&stack_dummy - (int)heap_end;
 }
 
+// TaskManager* TaskManager::instance = nullptr;   // DECLARED IN /src/GLOBAL.CPP
 
-
-// TaskManager* TaskManager::instance = nullptr;
-
-
-TaskManager::TaskManager(Movement* mv)
-  : mv(mv), head(0), tail(0), count(0), active(nullptr),
-    lastISRupdateMs(0), pendingIsrFlags(0), isrRequested(false), lastTickMs(0) {
-  for (int i = 0; i < MAX_TASKS; ++i) queue[i] = nullptr;
+TaskManager::TaskManager(Movement *mv)
+    : mv(mv), head(0), tail(0), count(0), active(nullptr),
+      lastISRupdateMs(0), pendingIsrFlags(0), isrRequested(false), lastTickMs(0)
+{
+  for (int i = 0; i < MAX_TASKS; ++i)
+    queue[i] = nullptr;
 }
 
-void TaskManager::addTask(Task* t) {
+void TaskManager::addTask(Task *t)
+{
   debugPrintf(DBG_TASKMANAGER, "addTask called ptr=%p count=%d head=%d tail=%d free=%d",
-              (void*)t, count, head, tail, freeRam());
-  if (count >= MAX_TASKS) {
+              (void *)t, count, head, tail, freeRam());
+  if (count >= MAX_TASKS)
+  {
     Serial.println("Task queue full");
     return;
   }
@@ -42,9 +43,11 @@ void TaskManager::addTask(Task* t) {
   tail = (tail + 1) % MAX_TASKS;
   count++;
   debugPrintf(DBG_TASKMANAGER, "AddTask ptr=%p -> queued (count=%d head=%d tail=%d) free=%d",
-              (void*)t, count, head, tail, freeRam());}
+              (void *)t, count, head, tail, freeRam());
+}
 
-void TaskManager::tick() {
+void TaskManager::tick()
+{
   /*
     Loop logic :
       1. check ISR -> check if ISR flag is up and manage it.
@@ -61,71 +64,80 @@ void TaskManager::tick() {
   */
 
   // 1. fast top-level ISR check
-  if (isrRequested) {
+  if (isrRequested)
+  {
     doISR();
   }
 
   // 2. start next if no active
-  if (!active) {
-    if (count == 0) return;
-    active = queue[head];      // fetch the next task from queue
+  if (!active)
+  {
+    if (count == 0)
+      return;
+    active = queue[head]; // fetch the next task from queue
     queue[head] = nullptr;
-    head = (head + 1) % MAX_TASKS;    // ptr management
+    head = (head + 1) % MAX_TASKS; // ptr management
     count--;
-    if (active) active->start(*mv);   // call next task
+    if (active)
+      active->start(*mv); // call next task
   }
 
   // 3. run active task update (non-blocking)
-  if (active && !active->isFinished()) {
+  if (active && !active->isFinished())
+  {
     active->update(*mv);
   }
 
   // cleanup finished
-  if (active && active->isFinished()) {
-    debugPrintf(DBG_TASKMANAGER, "tick: active finished -> deleting task ptr=%p", (void*)active);
+  if (active && active->isFinished())
+  {
+    debugPrintf(DBG_TASKMANAGER, "tick: active finished -> deleting task ptr=%p", (void *)active);
     delete active; // if allocated on heap; otherwise return to pool
     active = nullptr;
   }
 
   // periodic updateISR every 100ms
   unsigned long now = millis();
-  if (now - lastISRupdateMs >= 100) {
+  if (now - lastISRupdateMs >= 100)
+  {
     lastISRupdateMs = now;
     updateISR();
     // debugPrintf(DBG_TASKMANAGER, "ISR_Update");
   }
 }
 
-void TaskManager::updateISR() {
+void TaskManager::updateISR()
+{
   /* Emergency stop checking HERE
     - called from tick() loop every 100ms
   */
 
   // BUTTON
-  {
-    uint8_t btnFlags = emergencyBtn.pollFlags();
-    if (btnFlags) {
-      requestISR(btnFlags);
-      debugPrintf(DBG_TASKMANAGER, "Emergency Button Pressed !");
-    }
-  }
+  // {
+  //   uint8_t btnFlags = emergencyBtn.pollFlags();
+  //   if (btnFlags)
+  //   {
+  //     requestISR(btnFlags);
+  //     debugPrintf(DBG_TASKMANAGER, "Emergency Button Pressed !");
+  //   }
+  // }
 
   // Sensors
 
-
   // ==================================
-  if (isrRequested) {
+  if (isrRequested)
+  {
     doISR(); // handle any pending ISR first
     return;
   }
-  if (active && !active->isFinished()) {
+  if (active && !active->isFinished())
+  {
     active->updateISR(*mv);
   }
 }
 
-
-
-void TaskManager::doISR() {
+void TaskManager::doISR()
+{
   // copy and clear flags atomically
   noInterrupts();
   uint8_t flags = pendingIsrFlags;
@@ -134,29 +146,36 @@ void TaskManager::doISR() {
   interrupts();
 
   // If there is an active task, let it handle first
-  if (active && !active->isFinished()) {
+  if (active && !active->isFinished())
+  {
     TaskInterruptAction act = active->handleInterrupt(*mv, flags);
-    if (act == TaskInterruptAction::CANCEL) {
+    if (act == TaskInterruptAction::CANCEL)
+    {
       active->cancel(*mv);
-      delete active; active = nullptr;
+      delete active;
+      active = nullptr;
       return;
     }
-    if (act == TaskInterruptAction::PAUSE) {
+    if (act == TaskInterruptAction::PAUSE)
+    {
       // keep active in paused state (we use cancel for simplicity)
       // move it to head of queue or leave as paused (implementation choice)
       mv->stop();
       return;
     }
-    if (act == TaskInterruptAction::HANDLE) {
+    if (act == TaskInterruptAction::HANDLE)
+    {
       // active handled it fully, nothing more to do
       return;
     }
   }
 
   // otherwise, do a global ISR handling policy (e.g., emergency)
-  if (flags & ISR_FLAG_EMERGENCY) {
+  if (flags & ISR_FLAG_EMERGENCY)
+  {
     // immediate emergency handling: stop all tasks
-    if (active) active->cancel(*mv);
+    if (active)
+      active->cancel(*mv);
     cancelAll();
     mv->stop();
     // Optionally set global FSM emergency flag here
@@ -164,26 +183,28 @@ void TaskManager::doISR() {
   // handle other flags (obstacle etc.) as needed
 }
 
-
-
-void TaskManager::requestISR(uint8_t flags) {
+void TaskManager::requestISR(uint8_t flags)
+{
   // safe to call from ISR:
   pendingIsrFlags |= flags;
   isrRequested = true;
 }
 
-
-void TaskManager::cancelAll() {
+void TaskManager::cancelAll()
+{
   // cancel active
-  if (active) {
+  if (active)
+  {
     active->cancel(*mv);
     delete active;
     active = nullptr;
   }
   // clear queue
-  while (count > 0) {
-    Task* t = queue[head];
-    if (t) delete t;
+  while (count > 0)
+  {
+    Task *t = queue[head];
+    if (t)
+      delete t;
     queue[head] = nullptr;
     head = (head + 1) % MAX_TASKS;
     count--;
@@ -191,10 +212,9 @@ void TaskManager::cancelAll() {
   head = tail = 0;
 }
 
-bool TaskManager::isIdle() const {
+bool TaskManager::isIdle() const
+{
   return (active == nullptr) && (count == 0);
 }
 
-
-
-Task* TaskManager::currentTask() const { return active; }
+Task *TaskManager::currentTask() const { return active; }

@@ -14,6 +14,20 @@ Functions Encoding and making the robot move.
 
 
 
+### Todo
+
+- lire Gyro
+- add rotateTask
+- improve straightness
+
+- integrate emergency stop + resume
+- integrate start cord
+- integrate mechanism task
+
+- test routines
+
+
+
 // // v1.0
 // #include <Arduino.h>
 // #include "FSM.h"

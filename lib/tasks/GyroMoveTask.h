@@ -39,7 +39,7 @@ private:
     float headingDeg = 0.0f; // integrated heading (deg), signed
 
     // simple PID state
-    float Kp = 2.0f;
+    float Kp = 0.08f;
     float Ki = 0.01f;
     float Kd = 0.05f;
     float integ = 0.0f;

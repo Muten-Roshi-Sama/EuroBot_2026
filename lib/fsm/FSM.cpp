@@ -3,96 +3,94 @@
 #include "settings.h"
 #include "globals.h"
 #include "FSM.h"
-// Libs
+// Tsk and Drivers
 #include "../task_manager/TaskManager.h"
+#include "../drivers/launch_trigger/LaunchTrigger.h"
 #include "../drivers/button/Button.h"
+
+// Movement
 #include "../movement/Movement.h"
 #include "../tasks/MoveTask.h"
 #include "../tasks/GyroMoveTask.h"
+
+// utils
 #include "../util/Debug.h"
 
 
 
-// Instance du système de mouvement
+// Instanciation of internal Globals
 Movement movement;
-Button emergencyBtn(EMERGENCY_PIN, true, 2);
+LaunchTrigger launchTrigger(LAUNCH_TRIGGER_PIN, 3);
+// Button emergencyBtn(EMERGENCY_PIN, false, 2);
 static void markStateStart(FsmContext &ctx);
 
 
-// =================================
+// ========== FSM Init =======================
 
-void fsmInit(FsmContext &ctx) {
+void fsmInitializeSystem(FsmContext &ctx) {
+  // 1. Hardware init
+  launchTrigger.begin();
+  // emergencyBtn.begin();
+  // pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
+
+  // 2. Movement init
+  movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
+  delay(200);
+
+  // 3. Task manager
+  if (!taskManager) taskManager = new TaskManager(&movement);
+
+  // 4. FSM context init
   ctx.currentAction = FsmAction::INIT;
   markStateStart(ctx);
-  // ===========
-
-
-  // Emergency Button
-  emergencyBtn.begin();
-  pinMode(EMERGENCY_PIN, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
-
-  // Others
-
-  //============
+  debugPrintf(DBG_FSM, "FSM -> Init");
 }
 
 static void markStateStart(FsmContext &ctx) {
   ctx.stateStartMs = millis();
 }
-
 void fsmChangeAction(FsmContext &ctx, FsmAction next) {
   ctx.currentAction = next;
   markStateStart(ctx);
   // debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
 }
 
-// =============================
 
 
-
+// =========== FSM ==================
 void fsmStep(FsmContext &ctx) {
     // ------------------------------------
     switch (ctx.currentAction) {
 
-    // 1. INIT
+// 1. INIT
+    // ===========================
     case FsmAction::INIT: {
 
-      movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
-                      ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
-      delay(200);
-
-
-
-      // create TaskManager
-      if (!taskManager) taskManager = new TaskManager(&movement);
-
-      // Add task ONCE
+      // ADD TASKS
       static bool tasksEnqueued = false;
       if (!tasksEnqueued) {
-
-        taskManager -> addTask(new MoveTask(100.0f, 60, 0)); // move forward 100 cm
-        // taskManager -> addTask(new GyroMoveTask(300.0f, 50, 0)); // move forward 100 cm
+        //taskManager -> addTask(new MoveTask(100.0f, 160, 0)); // move forward 100 cm
+        taskManager -> addTask(new GyroMoveTask(300.0f, 160, 0)); // move forward 100 cm
         delay(100);
         // taskManager -> addTask(new RotateTask(90.0f, DEFAULT_SPEED, 0)); // rotate +90 degrees
 
         tasksEnqueued = true;
       }
       
-      //* Initialize all sensors
-      
-
       
       ctx.currentAction = FsmAction::IDLE;
-      debugPrintf(DBG_FSM, "FSM -> Idle");
+      debugPrintf(DBG_FSM, "System Init done -> FSM IDLE (waiting for launch signal)");
       break;
     }
 
-    // 2. IDLE
+// 2. IDLE
+    // ===========================
     case FsmAction::IDLE: {
-      
-      if (taskManager && !taskManager->isIdle()) {
-        //TODO: ADD "if" starting rope pulled.
+      //
+      launchTrigger.update();
+
+      if (launchTrigger.isTriggered()) {
+        // launchTrigger.reset();  // Optionnal ?
 
         // start 100sec timer
 
@@ -102,7 +100,8 @@ void fsmStep(FsmContext &ctx) {
       break;
     }
 
-    // 3. TASK
+// 3. TASK
+    // ===========================
     case FsmAction::TASK: {
       if(taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
 
@@ -111,7 +110,10 @@ void fsmStep(FsmContext &ctx) {
       break;
     }
 
-    
+
+
+
+// 4. EMERGENCY STOP
     // ===========================
     case FsmAction::EMERGENCY_STOP: {
         movement.stop();
