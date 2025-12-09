@@ -24,7 +24,7 @@
 // Instanciation of internal Globals
 Movement movement;
 LaunchTrigger launchTrigger(LAUNCH_TRIGGER_PIN, 3);
-Button emergencyBtn(EMERGENCY_PIN, false, 2);
+// Button emergencyBtn(EMERGENCY_PIN, true, 2);
 static void markStateStart(FsmContext &ctx);
 
 
@@ -32,8 +32,8 @@ static void markStateStart(FsmContext &ctx);
 void fsmInitializeSystem(FsmContext &ctx) {
   // 1. Hardware init
   launchTrigger.begin();
-  emergencyBtn.begin();
-  pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
+  // emergencyBtn.begin();
+  // pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
   // if (!initLidar()) {
   //   debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
   //   // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
@@ -90,12 +90,12 @@ void fsmStep(FsmContext &ctx) {
         // ADD TASKS
         static bool tasksEnqueued = false;
         if (!tasksEnqueued) {
-
+          // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
           // CHANGE TASK BASED ON TEAM
           if (ctx.currentTeam == Team::TEAM_YELLOW) {
-            // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+            taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
           } else {
-            // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+            taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
           }
           tasksEnqueued = true;
         }

@@ -156,8 +156,8 @@ void GyroMoveTask::update(Movement &mv) {
         mv.motorRight->run(BACKWARD);
     }
 
-    debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",
-                dt, headingDeg, err, corrPWM, leftPWM, rightPWM);
+    // debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",
+    //             dt, headingDeg, err, corrPWM, leftPWM, rightPWM);
 }
 
 TaskInterruptAction GyroMoveTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {

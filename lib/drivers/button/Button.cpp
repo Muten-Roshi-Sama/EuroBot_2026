@@ -1,5 +1,6 @@
 #include "Button.h"
 #include "../../include/isr_flags.h"
+#include "../util/Debug.h"
 
 Button::Button(
     uint8_t pin, 
@@ -19,6 +20,7 @@ Button::Button(
 
 void Button::begin() {
   if (pin == 0xFF) return;
+  // pinMode(pin, INPUT); // default to pullup wiring; activeLow parameter accounts for logic
   pinMode(pin, INPUT_PULLUP); // default to pullup wiring; activeLow parameter accounts for logic
   bool raw = digitalRead(pin);
   lastRaw = raw;
@@ -38,6 +40,14 @@ void Button::update() {
     lastRaw = logical;
     stableCounter = 1;
   }
+
+  // Debug on state change
+  static bool lastLogical = false;
+  if (logical != lastLogical) {
+    debugPrintf(DBG_SENSORS, "Button raw=%d logical=%d", raw, logical);
+    lastLogical = logical;
+  }
+
 
   if (stableCounter >= stableCounts) {
     if (debouncedState != logical) {
