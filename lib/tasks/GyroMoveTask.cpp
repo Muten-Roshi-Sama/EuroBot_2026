@@ -55,7 +55,11 @@ int16_t GyroMoveTask::readRawGyroZ() {
     return (int16_t)((hi << 8) | (uint8_t)lo);
 }
 
-// ---------- Task lifecycle ----------
+
+//==================================================
+//                  RotateGyroTask.cpp
+// =================================================
+
 void GyroMoveTask::start(Movement &mv) {
     started = true;
     startMs = millis();
@@ -67,8 +71,6 @@ void GyroMoveTask::start(Movement &mv) {
     // Ensure motors are stopped during gyro calibration
     mv.stop();
     delay(50);
-
-    mv.resetEncoders();
 
     // IMU init + quick calibration (stationary)
     imuBegin();
@@ -108,16 +110,21 @@ void GyroMoveTask::start(Movement &mv) {
 
 void GyroMoveTask::update(Movement &mv) {
     if (cancelled || finished || paused) return;
-
-    // check timeout by duration
-    if (mv.getDistanceTraveled() >= durationMs) {
-
+    if (mv.getDistanceTraveled()>= distance) { 
         mv.stop();
-        
         finished = true;
-        debugPrintf(DBG_MOVEMENT, "GyroMove DONE after %lums", millis() - startMs);
+        debugPrintf(DBG_MOVEMENT, "GyroMove Distance reached", distance);
         return;
     }
+
+    // check timeout by duration
+    if (durationMs > 0 && (millis() - startMs) >= durationMs) {
+        mv.stop();
+        finished = true;
+        debugPrintf(DBG_MOVEMENT, "GyroMove Time OUT", millis() - startMs);
+        return;
+    }
+    
 
     // integrate gyro and compute PID
     unsigned long nowMicros = micros();
@@ -203,7 +210,17 @@ void GyroMoveTask::resume(Movement &mv) {
     debugPrintf(DBG_MOVEMENT, "GyroMove RESUMED");
 }
 
-// ===============RotateGyroTask.cpp=================
+
+
+
+
+
+
+
+
+//==================================================
+//                  RotateGyroTask.cpp
+// =================================================
 RotateGyroTask::RotateGyroTask(float targetAngleDeg, int speed, float tolerance, unsigned long timeoutMs)
     : targetAngle(targetAngleDeg), baseSpeed(speed), toleranceDeg(tolerance), durationMs(timeoutMs) 
 {

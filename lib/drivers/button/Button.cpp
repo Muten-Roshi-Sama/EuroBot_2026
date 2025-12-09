@@ -42,11 +42,12 @@ void Button::update() {
   }
 
   // Debug on state change
-  static bool lastLogical = false;
-  if (logical != lastLogical) {
-    debugPrintf(DBG_SENSORS, "Button raw=%d logical=%d", raw, logical);
-    lastLogical = logical;
-  }
+  // static unsigned long lastPrint = 0;
+  // if (millis() - lastPrint > 500) {
+  //     debugPrintf(DBG_SENSORS, "BTN A3 raw=%d logical=%d debounced=%d counter=%d",
+  //                 raw, logical, debouncedState, stableCounter);
+  //     lastPrint = millis();
+  // }
 
 
   if (stableCounter >= stableCounts) {

@@ -26,6 +26,7 @@ private:
     unsigned long durationMs = 0;
     int baseSpeed = DEFAULT_SPEED;
     bool forward = true;
+    float distance;
 
     // heading control
     float targetHeading = 0.0f;

@@ -105,15 +105,15 @@ void TaskManager::updateISR()
   */
 
   // BUTTON
-  // {
-  //   uint8_t btnFlags = emergencyBtn.pollFlags();
-  //   debugPrintf(DBG_TASKMANAGER, "Emergency btn flags: 0x%02X", btnFlags);  // NEW
+  {
+    uint8_t btnFlags = emergencyBtn.pollFlags();
+    debugPrintf(DBG_TASKMANAGER, "Emergency btn flags: 0x%02X", btnFlags);  // NEW
     
-  //   if (btnFlags) {
-  //     requestISR(btnFlags);
-  //     debugPrintf(DBG_TASKMANAGER, "Emergency Button Pressed!");
-  //   }
-  // }
+    if (btnFlags) {
+      requestISR(btnFlags);
+      debugPrintf(DBG_TASKMANAGER, "Emergency Button Pressed!");
+    }
+  }
 
   // Lecture des 3 LIDARs
   // int distance1 = lireDistanceLidar1();
