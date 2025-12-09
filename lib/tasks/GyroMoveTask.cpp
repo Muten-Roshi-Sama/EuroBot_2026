@@ -247,12 +247,7 @@ void RotateGyroTask::update(Movement &mv) {
     if (cancelled || finished || paused) return;
 
     // --- A. Vérification Timeout ---
-    if (durationMs > 0 && (millis() - startMs) >= durationMs) {
-        mv.stop();
-        finished = true;
-        debugPrintf(DBG_MOVEMENT, "RotateGyro TIMEOUT (Heading=%.2f)", headingDeg);
-        return;
-    }
+    
 
     // --- B. Intégration Gyro ---
     unsigned long nowMicros = micros();
@@ -263,7 +258,7 @@ void RotateGyroTask::update(Movement &mv) {
     int16_t rawGz = readRawGyroZ();
     float gz = ((float)rawGz) / MPU_SENS_250DPS;
     // Soustraction du bias et intégration
-    headingDeg += (gz - gyroBiasDegPerSec) * dt;
+    headingDeg -= (gz - gyroBiasDegPerSec) * dt;
 
     // --- C. Calcul Erreur ---
     float err = targetAngle - headingDeg;
@@ -273,6 +268,12 @@ void RotateGyroTask::update(Movement &mv) {
         mv.stop();
         finished = true;
         debugPrintf(DBG_MOVEMENT, "RotateGyro FINISHED (Final=%.2f)", headingDeg);
+        return;
+    }
+    if (durationMs > 0 && (millis() - startMs) >= durationMs) {
+        mv.stop();
+        finished = true;
+        debugPrintf(DBG_MOVEMENT, "RotateGyro TIMEOUT (Heading=%.2f)", headingDeg);
         return;
     }
 
