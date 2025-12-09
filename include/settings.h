@@ -17,12 +17,7 @@
 
 
 
-
-// ============================================
-// MOTOR SHIELD CONFIGURATION 
-// ============================================
-
-// Numéros des moteurs sur le Motor Shield
+// =========== MOTOR PINS =============
 #define MOTOR_LEFT_ID 1      // Motor 1 = roue gauche
 #define MOTOR_RIGHT_ID 2     // Motor 2 = roue droite
 
@@ -38,15 +33,20 @@
 #define DEFAULT_SPEED 120  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
 #define MIN_SPEED 80
 #define MAX_SPEED 255
-
-// Délai dans les boucles bloquantes (ms)
 #define MOVEMENT_LOOP_DELAY 0.01f
-
-// Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2
 
 
+// =========== STEPPER PINS ===========
+#define STEPPER_M1_PIN1 8
+#define STEPPER_M1_PIN2 10
+#define STEPPER_M1_PIN3 9
+#define STEPPER_M1_PIN4 11
 
+#define STEPPER_M2_PIN1 4
+#define STEPPER_M2_PIN2 6
+#define STEPPER_M2_PIN3 5
+#define STEPPER_M2_PIN4 7
 
 
 

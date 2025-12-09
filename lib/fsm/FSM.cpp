@@ -8,6 +8,10 @@
 #include "../drivers/launch_trigger/LaunchTrigger.h"
 #include "../drivers/button/Button.h"
 
+// Stepper
+#include "../tasks/StepperTask.h"
+#include "../drivers/stepper_controller/StepperController.h"
+
 // Movement
 #include "../movement/Movement.h"
 #include "../tasks/MoveTask.h"
@@ -19,12 +23,20 @@
 // LiDAR
 #include "../detection/capteur_lidar.h"
 
-// Instanciation of internal Globals
+// ==================================
+//      Globals Instanciation
+// ==================================
 Movement movement;
 LaunchTrigger launchTrigger(LAUNCH_TRIGGER_PIN, 3);
 Button emergencyBtn(EMERGENCY_PIN, false, 1);
+
+static StepperController stepperCtrl(STEPPER_M1_PIN1, STEPPER_M1_PIN2, STEPPER_M1_PIN3, STEPPER_M1_PIN4, STEPPER_M2_PIN1, STEPPER_M2_PIN2, STEPPER_M2_PIN3, STEPPER_M2_PIN4);
+
 static constexpr unsigned long MATCH_DURATION_MS = 10000; // adjust (e.g., 90000 for 90s)
 static void markStateStart(FsmContext &ctx);
+
+
+
 
 // ========== FSM Init =======================
 void fsmInitializeSystem(FsmContext &ctx)
@@ -32,7 +44,7 @@ void fsmInitializeSystem(FsmContext &ctx)
   // 1. Hardware init
   launchTrigger.begin();
   emergencyBtn.begin();
-  // pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
+  stepperCtrl.begin();
   // if (!initLidar()) {
   //   debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
   //   // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
@@ -53,15 +65,10 @@ void fsmInitializeSystem(FsmContext &ctx)
   debugPrintf(DBG_FSM, "1");
 
   // 4. Task manager
-  // if (!taskManager) taskManager = new TaskManager(&movement);
   static TaskManager taskManagerInstance(&movement);
   taskManager = &taskManagerInstance;
   delay(200);
   debugPrintf(DBG_FSM, "2");
-
-  // extern char *__brkval;
-  // Serial.print("Free RAM: ");
-  // Serial.println((int)SP - (int)__brkval);
 
   // 5. FSM context init
   ctx.currentAction = FsmAction::INIT;
@@ -102,8 +109,13 @@ void fsmStep(FsmContext &ctx)
       // ADD TASKS
       static bool tasksEnqueued = false;
       if (!tasksEnqueued) {
-        // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
-        // taskManager->addTask(new RotateGyroTask(90.0f, 150, 2.0f, 4000));
+        /* EXAMPLE TASKS :
+                        - GyroMove    : taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+                        - GyroRotate  : taskManager->addTask(new RotateGyroTask(90.0f, 150, 2.0f, 4000));
+
+                        - StepperUp   : taskManager->addTask(new StepperUpTask(&stepperCtrl, 5000));
+                        - StepperDown : taskManager->addTask(new StepperDownTask(&stepperCtrl, 5000));
+        */
 
         // CHANGE TASK BASED ON TEAM
         // if (ctx.currentTeam == Team::TEAM_YELLOW)
@@ -181,13 +193,7 @@ void fsmStep(FsmContext &ctx)
       break;
     }
 
-
-
-
     if (taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
-
-
-
 
     // Check for Interruptions every 100ms
     // if (taskManager && taskManager->isIdle())
