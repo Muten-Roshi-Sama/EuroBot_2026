@@ -13,7 +13,7 @@
 // =========== ACTUATORS PINS ===========
 #define LAUNCH_TRIGGER_PIN A0
 #define EMERGENCY_PIN A4
-
+#define TEAM_SWITCH_PIN A5
 
 
 
@@ -50,7 +50,7 @@
 
 
 
-#endif // SETTINGS_H
+
 
 // =========== LiDAR ===========
 #define LIDAR1_PIN 8   // pin XSHUT du LIDAR1
@@ -61,3 +61,6 @@
 #define LIDAR1_THRESHOLD 80
 #define LIDAR2_THRESHOLD 80
 #define LIDAR3_THRESHOLD 100
+
+
+#endif // SETTINGS_H

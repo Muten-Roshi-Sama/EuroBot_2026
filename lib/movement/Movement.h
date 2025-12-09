@@ -2,7 +2,7 @@
 #define MOVEMENT_H
 
 #include <Arduino.h>
-#include "Encoder.h"
+#include "../drivers/encoder/Encoder.h"
 #include <Adafruit_MotorShield.h>
 #include "settings.h"
 
@@ -49,7 +49,7 @@ public:
     
     // Initialisation avec paramètres du robot
     void begin(float wheelDiameterCm, float wheelBaseCm, int encResolution, 
-               int encPinLeft, int encPinRight, int defSpeed = 150);
+            int encPinLeft, int encPinRight, int defSpeed = 150);
     
     // Mouvements basiques (non-bloquants)
     void forward(int speed);

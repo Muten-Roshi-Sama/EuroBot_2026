@@ -115,39 +115,39 @@ void TaskManager::updateISR()
   }
 
   // Lecture des 3 LIDARs
-  int distance1 = lireDistanceLidar1();
-  int distance2 = lireDistanceLidar2();
-  int distance3 = lireDistanceLidar3();
+  // int distance1 = lireDistanceLidar1();
+  // int distance2 = lireDistanceLidar2();
+  // int distance3 = lireDistanceLidar3();
 
   // Affichage condensé sur une seule ligne
-  debugPrintf(DBG_TASKMANAGER, "L1:%dmm L2:%dmm L3:%dmm", distance1, distance2, distance3);
+  // debugPrintf(DBG_TASKMANAGER, "L1:%dmm L2:%dmm L3:%dmm", distance1, distance2, distance3);
 
-  // Gestion ISR LIDAR1 (seuil 80mm)
-  if (distance1 > 0 && distance1 <= LIDAR1_THRESHOLD) {
-    requestISR(ISR_FLAG_OBSTACLE);
-    debugPrintf(DBG_TASKMANAGER, "LIDAR1 OBSTACLE!");
-  }
-  else if (distance1 > LIDAR1_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
-    requestISR(ISR_FLAG_OBSTACLE_CLEARED);
-  }
+  // // Gestion ISR LIDAR1 (seuil 80mm)
+  // if (distance1 > 0 && distance1 <= LIDAR1_THRESHOLD) {
+  //   requestISR(ISR_FLAG_OBSTACLE);
+  //   debugPrintf(DBG_TASKMANAGER, "LIDAR1 OBSTACLE!");
+  // }
+  // else if (distance1 > LIDAR1_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
+  //   requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+  // }
 
-  // Gestion ISR LIDAR2 (seuil 80mm)
-  if (distance2 > 0 && distance2 <= LIDAR2_THRESHOLD) {
-    requestISR(ISR_FLAG_OBSTACLE);
-    debugPrintf(DBG_TASKMANAGER, "LIDAR2 OBSTACLE!");
-  }
-  else if (distance2 > LIDAR2_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
-    requestISR(ISR_FLAG_OBSTACLE_CLEARED);
-  }
+  // // Gestion ISR LIDAR2 (seuil 80mm)
+  // if (distance2 > 0 && distance2 <= LIDAR2_THRESHOLD) {
+  //   requestISR(ISR_FLAG_OBSTACLE);
+  //   debugPrintf(DBG_TASKMANAGER, "LIDAR2 OBSTACLE!");
+  // }
+  // else if (distance2 > LIDAR2_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
+  //   requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+  // }
 
-  // Gestion ISR LIDAR3 (seuil 100mm)
-  if (distance3 > 0 && distance3 <= LIDAR3_THRESHOLD) {
-    requestISR(ISR_FLAG_OBSTACLE);
-    debugPrintf(DBG_TASKMANAGER, "LIDAR3 OBSTACLE!");
-  }
-  else if (distance3 > LIDAR3_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
-    requestISR(ISR_FLAG_OBSTACLE_CLEARED);
-  }
+  // // Gestion ISR LIDAR3 (seuil 100mm)
+  // if (distance3 > 0 && distance3 <= LIDAR3_THRESHOLD) {
+  //   requestISR(ISR_FLAG_OBSTACLE);
+  //   debugPrintf(DBG_TASKMANAGER, "LIDAR3 OBSTACLE!");
+  // }
+  // else if (distance3 > LIDAR3_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
+  //   requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+  // }
 
   // ==================================
   if (isrRequested) {

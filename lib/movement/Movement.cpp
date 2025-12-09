@@ -54,14 +54,9 @@ Movement::Movement()
 
 // Initialisation complète avec paramètres physiques et pins
 void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution, 
-<<<<<<< HEAD
                         int encPinLeft, int encPinRight, int defSpeed) {
                             
     // Sauvegarde des paramètres
-=======
-                     int encPinLeft, int encPinRight, int defSpeed) 
-{
->>>>>>> feature/detection
     wheelDiameter = wheelDiameterCm;
     wheelBase = wheelBaseCm;
     encoderResolution = encResolution;
@@ -104,16 +99,15 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     // setup gyro and accelerometer
     
     
-    #if DEBUG_MOVEMENT
-    Serial.println("=== Configuration du robot ===");
-    Serial.print("Diametre roues: "); Serial.print(wheelDiameter); Serial.println(" cm");
-    Serial.print("Distance entre roues: "); Serial.print(wheelBase); Serial.println(" cm");
-    Serial.print("Resolution encodeur: "); Serial.print(encoderResolution); Serial.println(" ticks/tour");
-    Serial.print("Circonference roue: "); Serial.print(wheelCircumference); Serial.println(" cm");
-    Serial.println("==============================");
-    #endif
+    // #if DEBUG_MOVEMENT
+    // Serial.println("=== Configuration du robot ===");
+    // Serial.print("Diametre roues: "); Serial.print(wheelDiameter); Serial.println(" cm");
+    // Serial.print("Distance entre roues: "); Serial.print(wheelBase); Serial.println(" cm");
+    // Serial.print("Resolution encodeur: "); Serial.print(encoderResolution); Serial.println(" ticks/tour");
+    // Serial.print("Circonference roue: "); Serial.print(wheelCircumference); Serial.println(" cm");
+    // Serial.println("==============================");
+    // #endif
 }
-
 // ============= MOUVEMENTS BASIQUES (NON-BLOQUANTS) =============
 void Movement::forward(int speed) {
     motorLeft->setSpeed(speed);
@@ -374,11 +368,6 @@ void Movement::moveDistance(float cm, int speed) {
 
 
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> feature/detection
 void Movement::moveDistance(float cm) {
     moveDistance(cm, defaultSpeed);
 }

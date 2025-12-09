@@ -29,27 +29,36 @@ static void markStateStart(FsmContext &ctx);
 
 
 // ========== FSM Init =======================
-
 void fsmInitializeSystem(FsmContext &ctx) {
   // 1. Hardware init
   launchTrigger.begin();
   emergencyBtn.begin();
   pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
-  if (!initLidar()) {
-    debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
-    // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
-  } else {
-    debugPrintf(DBG_FSM, "LIDAR OK");
-  }
+  // if (!initLidar()) {
+  //   debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
+  //   // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
+  // } else {
+  //   debugPrintf(DBG_FSM, "LIDAR OK");
+  // }
 
-  // 2. Movement init
+  // 2. Team selection
+  pinMode(TEAM_SWITCH_PIN, INPUT_PULLUP);
+  bool teamSwitchRaw = digitalRead(TEAM_SWITCH_PIN);
+  ctx.currentTeam = (teamSwitchRaw == HIGH) ? Team::TEAM_BLUE : Team::TEAM_YELLOW;
+  delay(200);
+  debugPrintf(DBG_FSM, "Team switch read: TEAM_%c", (ctx.currentTeam == Team::TEAM_YELLOW) ? 'Y' : 'B');
+
+  // 3. Movement init
   movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
   delay(200);
+  debugPrintf(DBG_FSM, "1");
 
-  // 3. Task manager
+  // 4. Task manager
   if (!taskManager) taskManager = new TaskManager(&movement);
+  delay(200);
+  debugPrintf(DBG_FSM, "2");
 
-  // 4. FSM context init
+  // 5. FSM context init
   ctx.currentAction = FsmAction::INIT;
   markStateStart(ctx);
   debugPrintf(DBG_FSM, "FSM -> Init");
@@ -74,22 +83,30 @@ void fsmStep(FsmContext &ctx) {
 // 1. INIT
     // ===========================
     case FsmAction::INIT: {
+      debugPrintf(DBG_FSM, "INIT case entered");
       //
 
-      // ADD TASKS
-      static bool tasksEnqueued = false;
-      if (!tasksEnqueued) {
-        //taskManager -> addTask(new MoveTask(100.0f, 160, 0)); // move forward 100 cm
-        taskManager -> addTask(new GyroMoveTask(300.0f, 160, 0)); // move forward 100 cm
-        delay(100);
-        // taskManager -> addTask(new RotateTask(90.0f, DEFAULT_SPEED, 0)); // rotate +90 degrees
+      if (taskManager){
+        // ADD TASKS
+        static bool tasksEnqueued = false;
+        if (!tasksEnqueued) {
 
-        tasksEnqueued = true;
+          // CHANGE TASK BASED ON TEAM
+          if (ctx.currentTeam == Team::TEAM_YELLOW) {
+            // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+          } else {
+            // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+          }
+          tasksEnqueued = true;
+        }
+
+        ctx.currentAction = FsmAction::IDLE;
+        debugPrintf(DBG_FSM, "System Init done -> FSM IDLE (waiting for launch signal)");
       }
       
       
-      ctx.currentAction = FsmAction::IDLE;
-      debugPrintf(DBG_FSM, "System Init done -> FSM IDLE (waiting for launch signal)");
+      
+      
       break;
     }
 

@@ -3,6 +3,11 @@
 
 class Movement; // forward declare
 
+enum class Team {
+	TEAM_YELLOW = 0,
+	TEAM_BLUE = 1
+};
+
 
 enum class FsmAction {
 	INIT,
@@ -17,6 +22,7 @@ enum class FsmAction {
 struct FsmContext {
 	FsmAction currentAction;
 	unsigned long stateStartMs;
+	Team currentTeam;
 };
 
 void fsmInitializeSystem(FsmContext &ctx);
