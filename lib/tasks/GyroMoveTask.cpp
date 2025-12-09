@@ -18,9 +18,9 @@
 // ---------- Constructors ----------
 GyroMoveTask::GyroMoveTask(float distanceCm, int speed, float estCmPerSec) {
     if (estCmPerSec <= 0.01f) estCmPerSec = 10.0f;
-    durationMs = distanceCm;
-    
+    durationMs = (unsigned long)(((fabs(distanceCm) / estCmPerSec * 1000.0f)*1.5f)+1000);
     baseSpeed = speed;
+    distance = fabs(distanceCm);
     forward = (distanceCm >= 0.0f);
 }
 
@@ -68,8 +68,6 @@ void GyroMoveTask::start(Movement &mv) {
     mv.stop();
     delay(50);
 
-    mv.resetEncoders();
-
     // IMU init + quick calibration (stationary)
     imuBegin();
     const int samples = 200;
@@ -108,16 +106,21 @@ void GyroMoveTask::start(Movement &mv) {
 
 void GyroMoveTask::update(Movement &mv) {
     if (cancelled || finished || paused) return;
-
-    // check timeout by duration
-    if (mv.getDistanceTraveled() >= durationMs) {
-
+    if (mv.getDistanceTraveled()>= distance) { 
         mv.stop();
-        
         finished = true;
-        debugPrintf(DBG_MOVEMENT, "GyroMove DONE after %lums", millis() - startMs);
+        debugPrintf(DBG_MOVEMENT, "GyroMove Distance reached", distance);
         return;
     }
+
+    // check timeout by duration
+    if (durationMs > 0 && (millis() - startMs) >= durationMs) {
+        mv.stop();
+        finished = true;
+        debugPrintf(DBG_MOVEMENT, "GyroMove Time OUT", millis() - startMs);
+        return;
+    }
+    
 
     // integrate gyro and compute PID
     unsigned long nowMicros = micros();
