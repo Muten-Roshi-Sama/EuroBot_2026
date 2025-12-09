@@ -12,7 +12,7 @@
 
 // =========== ACTUATORS PINS ===========
 #define LAUNCH_TRIGGER_PIN A0
-// #define EMERGENCY_PIN 7
+#define EMERGENCY_PIN A4
 
 
 

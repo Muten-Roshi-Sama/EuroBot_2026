@@ -16,12 +16,15 @@
 // utils
 #include "../util/Debug.h"
 
+// LiDAR
+#include "../detection/capteur_lidar.h"
+
 
 
 // Instanciation of internal Globals
 Movement movement;
 LaunchTrigger launchTrigger(LAUNCH_TRIGGER_PIN, 3);
-// Button emergencyBtn(EMERGENCY_PIN, false, 2);
+Button emergencyBtn(EMERGENCY_PIN, false, 2);
 static void markStateStart(FsmContext &ctx);
 
 
@@ -30,8 +33,14 @@ static void markStateStart(FsmContext &ctx);
 void fsmInitializeSystem(FsmContext &ctx) {
   // 1. Hardware init
   launchTrigger.begin();
-  // emergencyBtn.begin();
-  // pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
+  emergencyBtn.begin();
+  pinMode(EMERGENCY_PIN, INPUT_PULLUP); // attachInterrupt(digitalPinToInterrupt(EMERGENCY_PIN), emergencyISR, FALLING);
+  if (!initLidar()) {
+    debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
+    // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
+  } else {
+    debugPrintf(DBG_FSM, "LIDAR OK");
+  }
 
   // 2. Movement init
   movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
