@@ -8,9 +8,12 @@
 #include "../drivers/launch_trigger/LaunchTrigger.h"
 #include "../drivers/button/Button.h"
 
-// Stepper
+// Stepper and Servo
 #include "../tasks/StepperTask.h"
 #include "../drivers/stepper_controller/StepperController.h"
+#include "../tasks/ServoTask.h"
+#include "../drivers/servo_controller/ServoController.h"
+
 
 // Movement
 #include "../movement/Movement.h"
@@ -24,13 +27,15 @@
 #include "../detection/capteur_lidar.h"
 
 // ==================================
-//      Globals Instanciation
+//      Globals Instanciations
 // ==================================
 Movement movement;
 LaunchTrigger launchTrigger(LAUNCH_TRIGGER_PIN, 3);
 Button emergencyBtn(EMERGENCY_PIN, false, 1);
 
+static ServoController servoCtrl(SERVO_PIN);
 static StepperController stepperCtrl(STEPPER_M1_PIN1, STEPPER_M1_PIN2, STEPPER_M1_PIN3, STEPPER_M1_PIN4, STEPPER_M2_PIN1, STEPPER_M2_PIN2, STEPPER_M2_PIN3, STEPPER_M2_PIN4);
+
 
 static constexpr unsigned long MATCH_DURATION_MS = 10000; // adjust (e.g., 90000 for 90s)
 static void markStateStart(FsmContext &ctx);
@@ -45,12 +50,13 @@ void fsmInitializeSystem(FsmContext &ctx)
   launchTrigger.begin();
   emergencyBtn.begin();
   stepperCtrl.begin();
-  // if (!initLidar()) {
-  //   debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
-  //   // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
-  // } else {
-  //   debugPrintf(DBG_FSM, "LIDAR OK");
-  // }
+  servoCtrl.begin();
+  // // if (!initLidar()) {
+  // //   debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
+  // //   // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
+  // // } else {
+  // //   debugPrintf(DBG_FSM, "LIDAR OK");
+  // // }
 
   // 2. Team selection
   pinMode(TEAM_SWITCH_PIN, INPUT_PULLUP);
@@ -115,6 +121,8 @@ void fsmStep(FsmContext &ctx)
 
                         - StepperUp   : taskManager->addTask(new StepperUpTask(&stepperCtrl, 5000));
                         - StepperDown : taskManager->addTask(new StepperDownTask(&stepperCtrl, 5000));
+
+                        - ServoMove   : taskManager->addTask(new ServoTask(&servoCtrl, 90, 1000));  // angle, delayMs
         */
 
         // CHANGE TASK BASED ON TEAM
@@ -132,15 +140,37 @@ void fsmStep(FsmContext &ctx)
         // }
 
         if (true) {
-          taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
+          // taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
+          // delay(200);
+        
+          // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
+          // delay(200);
+          
+          // // STEPPER
+          // taskManager->addTask(new StepperUpTask(&stepperCtrl, 5000));
+
+          // SERVO
+            // Move servo to specific angle with 1s hold
+          taskManager->addTask(new ServoTask(&servoCtrl, 90, 1000));
           delay(200);
-          taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
+          // Move to min angle (45°) from settings.h
+          taskManager->addTask(new ServoTask(&servoCtrl, SERVO_MIN_ANGLE, SERVO_DELAY_MS));
+          delay(200);
+          // Move to max angle (135°) from settings.h
+          taskManager->addTask(new ServoTask(&servoCtrl, SERVO_MAX_ANGLE, SERVO_DELAY_MS));
           delay(200);
 
-          taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
-          delay(200);
-          taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
-          delay(200);
+
+          
+          // taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
+          // delay(200);
+          // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
+          // delay(200);
+
+          // taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
+          // delay(200);
+          // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
+          // delay(200);
 
 
         }

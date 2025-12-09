@@ -49,7 +49,11 @@
 #define STEPPER_M2_PIN4 7
 
 
-
+// ============ SERVO PINS ===========
+#define SERVO_PIN 1
+#define SERVO_MIN_ANGLE 45
+#define SERVO_MAX_ANGLE 135
+#define SERVO_DELAY_MS 1000
 
 
 // =========== LiDAR ===========
