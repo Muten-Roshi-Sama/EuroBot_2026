@@ -33,7 +33,7 @@ void MoveTask::start(Movement &mv) {
     Ki = 0.1f;
     warmupIterations = 30;
     baseSpeed = getSpeed() ? getSpeed() : mv.defaultSpeed;
-    minSpeed = 40;
+    minSpeed = 85;
     maxSpeed = 255;
     deadZone = 0.0f;
 
@@ -87,16 +87,16 @@ void MoveTask::update(Movement &mv) {
 
     // Warmup ramp for base speed
     float rampFactor = 1.0f;
-    if (loopCounter < warmupIterations && warmupIterations > 0) {
-        rampFactor = (float)loopCounter / (float)warmupIterations;
-        if (rampFactor < 0.05f) rampFactor = 0.05f;
-    }
+    // if (loopCounter < warmupIterations && warmupIterations > 0) {
+    //     rampFactor = (float)loopCounter / (float)warmupIterations;
+    //     if (rampFactor < 0.05f) rampFactor = 0.05f;
+    // }
     int targetBase = minSpeed + (int)((baseSpeed - minSpeed) * rampFactor);
 
     int leftPWM = (int)constrain((float)targetBase - corrPWM, (float)minSpeed, 255.0f);
     int rightPWM = (int)constrain((float)targetBase + corrPWM, (float)minSpeed, 255.0f);
     debugPrintf(DBG_MOVEMENT, " err=%.1f corr=%.1f L=%d R=%d",
-            error, correction, leftPWM, rightPWM);
+            int(error), int(correction), leftTicks, rightTicks);
 
     if (distanceCm >= 0.0f) {
         mv.motorLeft->setSpeed(leftPWM);

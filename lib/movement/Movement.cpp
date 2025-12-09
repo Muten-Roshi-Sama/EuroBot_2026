@@ -87,8 +87,8 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     pinMode(encoderPinRight, INPUT_PULLUP);
     
     // Attachement des interruptions
-    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), minleftEncoderISR, RISING);
-    attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, RISING);
+    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), minleftEncoderISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, CHANGE);
     
     // Initialisation du timestamp
     lastUpdateTime = micros();

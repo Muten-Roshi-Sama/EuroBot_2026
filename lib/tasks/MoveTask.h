@@ -63,10 +63,10 @@ class RotateTask : public Task {
         unsigned long lastPidLoopMs = 0;
 
         // Tunables
-        float Kp = 1.3f;
+        float Kp = 0.8;
         float Ki = 0.08f;
-        int minSpeed = 50;
-        int maxSpeed = 90;
+        int minSpeed = 100;
+        int maxSpeed = 250;
         float deadZone = 3.5f;
 };
 
