@@ -66,13 +66,23 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     
     wheelCircumference = PI * wheelDiameter; // circonférence
     
-    // Initialisation du Motor Shield
-    if (!AFMS.begin()) {
-        Serial.println("ERREUR: Motor Shield non detecte!");
-        while (1); // Arrêt si non détecté
+    Serial.println("Initializing Motor Shield...");
+    unsigned long t0 = millis();
+    bool shield_ok = false;
+    while (millis() - t0 < 2000) { // 2s max
+        if (AFMS.begin()) {  // defaults to 0x60, 1.6kHz PWM
+            shield_ok = true;
+            break;
+        }
+        delay(10);
     }
-    AFMS.begin();
-    Serial.println("Motor Shield initialise avec succes");
+    if (!shield_ok) {
+        Serial.println("WARN: Motor Shield non detecte (timeout)");
+        // continue without motors to avoid blocking
+        motorLeft = nullptr;
+        motorRight = nullptr;
+        return;
+    }
     
     // Récupération des moteurs
     motorLeft = AFMS.getMotor(MOTOR_LEFT_ID);

@@ -91,11 +91,13 @@ void fsmStep(FsmContext &ctx) {
         static bool tasksEnqueued = false;
         if (!tasksEnqueued) {
           // taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+          // taskManager->addTask(new RotateGyroTask(90.0f, 150, 2.0f, 4000));
+
           // CHANGE TASK BASED ON TEAM
           if (ctx.currentTeam == Team::TEAM_YELLOW) {
             taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
           } else {
-            taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+            taskManager->addTask(new RotateGyroTask(10.0f, 150, 2.0f, 4000)); // angle, speed, tolerance, timeout
           }
           tasksEnqueued = true;
         }

@@ -12,8 +12,8 @@
 
 // =========== ACTUATORS PINS ===========
 #define LAUNCH_TRIGGER_PIN A0
-#define EMERGENCY_PIN A4
-#define TEAM_SWITCH_PIN A5
+#define EMERGENCY_PIN A3
+#define TEAM_SWITCH_PIN A2
 
 
 
