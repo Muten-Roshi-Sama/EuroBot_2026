@@ -13,7 +13,7 @@ void Encoder::subtractTick() {
     tick--;
 }
 
-int Encoder::getTicks() {
+long Encoder::getTicks() {
     return tick;
 }
 

@@ -17,34 +17,45 @@
 #include "../util/Debug.h"
 
 
+// #include <Adafruit_MotorShield.h>
+// #include <Encoder.h>
+
 
 FsmContext ctx;
-static FsmContext gFsm; 
-
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial) {}
-  Serial.println("Setup.");
   
-  // Init ?
-  init();
-
-  // DEBUG prints
-  debugInit(9600,    // comment DBG_ to deactivate its related prints
+  debugInit(9600,    // does serial.begin() in this function
     DBG_FSM | 
-    DBG_TASKMANAGER |
+    DBG_TASKMANAGER |    // comment DBG_ to deactivate its related prints
     DBG_MOVEMENT |
     DBG_SENSORS |
     DBG_COMMS |
     DBG_ENCODER
   );
+  delay(200);  // Serial.begin(115200);
 
-  fsmInit(gFsm);  //! ALL init functions  ====>  HERE  <=======
+  // Serial.println(" **************** START **************** ");
+  debugPrintf(DBG_FSM, "==================== START ===================");
+  
+  // Init ?
+  // init();    //! MAKEs EVERYTHING CRASH
+
+  
+
+  fsmInit(ctx);  //! ALL init functions  ====>  HERE  <=======
 }
 
 void loop() {
   fsmStep(ctx);
+
+
+  // static unsigned long count = 0;
+  // Serial.print("HB:");
+  // Serial.println(count++);
+  // delay(1000);
+
+
 }
 
 

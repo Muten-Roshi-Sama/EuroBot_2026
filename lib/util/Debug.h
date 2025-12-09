@@ -26,11 +26,9 @@ inline void debugEnable(uint8_t bits) { debugMask |= bits; }
 inline void debugDisable(uint8_t bits) { debugMask &= ~bits; }
 
 // Minimum safe formatted print for AVR
-inline void debugPrintf(
-  uint8_t feature, 
-  const char *fmt, ...) {
+inline void debugPrintf(uint8_t feature, const char *fmt, ...) {
   if (!(debugMask & feature)) return;
-  char buf[80]; // keep small
+  char buf[48]; // keep small — UNO RAM is tight
   va_list args;
   va_start(args, fmt);
   vsnprintf(buf, sizeof(buf), fmt, args);

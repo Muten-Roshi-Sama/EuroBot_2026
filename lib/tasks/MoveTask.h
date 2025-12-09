@@ -2,54 +2,76 @@
 #include "Task.h"
 #include "Movement.h"
 
-class MoveTask : public Task {
-public:
-    enum class MoveTaskMode { MOVE_DISTANCE, ROTATE_ANGLE };
+/*
+    Two simple concrete tasks:
+    - MoveTask(distanceCm)
+    - RotateTask(angleDeg)
 
-    MoveTask(MoveTaskMode mode, float value, uint8_t speed = 0, unsigned long timeoutMs = 0)
-        : Task(speed, timeoutMs), mode(mode), value(value) {}
+    Each implements:
+    start(), update(), handleInterrupt(), resume(), cancel()
+*/
+
+
+
+class MoveTask : public Task {
+    public:
+        MoveTask(float distanceCm_, uint8_t speed = 0, unsigned long timeoutMs = 0)
+            : Task(speed, timeoutMs), distanceCm(distanceCm_) {}
 
     void start(Movement &mv) override;
     void update(Movement &mv) override;
     TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
-    
-    void resume(Movement &mv);
+    void resume(Movement &mv) override;
     void cancel(Movement &mv) override;
 
+    private:
+        float distanceCm = 0.0f;
+        long targetTicks = 0;
 
-private:
-    MoveTaskMode mode;
-    float value;      
-    long targetTicks; 
+        // PID variables
+        float integralError = 0.0f;
+        int loopCounter = 0;
+        unsigned long lastPidLoopMs = 0;
 
-    // Variables internes PID
-    float integralError;
-    int loopCounter;
-    unsigned long lastPidLoopMs;
-    
-    // Paramètres qui changent selon le mode (Distance ou Rotation)
-    int baseSpeed;
-    int minSpeed;
-    int maxSpeed; // Ajout pour limiter la rotation (90 dans ton cas)
-    int warmupIterations;
-    float Kp;
-    float Ki;
-    float deadZone; // Ajout pour la rotation (3.5°)
-    // À ajouter dans ta classe / header
-    enum SubState { STATE_CALIBRATION, STATE_MOVING };
-    SubState subState = STATE_CALIBRATION;
-
-    long gyro_z_cal_sum = 0;
-    int calibration_count = 0;
-    float gyro_z_cal = 0;
-    float angle_z = 0;
-    float integral = 0;
-    float lastError = 0;
-    unsigned long previousTime = 0;
-
-    // Constantes PID (peuvent être static ou #define)
-    const float Kp_gyro = 0.8f;
-    const float Ki_gyro = 0.02f;
-    const float Kd_gyro = 0.5f;
-    const int CALIBRATION_SAMPLES = 50; // Réduit pour ne pas attendre 10 ans, ou garde 2000 si ta boucle est très rapide
+        // Tunables / runtime variables
+        int baseSpeed = 0;
+        int minSpeed = 0;
+        int maxSpeed = 255;
+        int warmupIterations = 30;
+        float Kp = 1.1f;
+        float Ki = 0.03f;
+        float deadZone = 0.0f;
 };
+
+class RotateTask : public Task {
+    public:
+        RotateTask(float angleDeg_, uint8_t speed = 0, unsigned long timeoutMs = 0)
+        : Task(speed, timeoutMs), angleDeg(angleDeg_) {}
+
+        void start(Movement &mv) override;
+        void update(Movement &mv) override;
+        TaskInterruptAction handleInterrupt(Movement &mv, uint8_t isrFlags) override;
+        void resume(Movement &mv) override;
+        void cancel(Movement &mv) override;
+
+    private:
+        float angleDeg = 0.0f;
+
+        // PID/internal state
+        float integralError = 0.0f;
+        int loopCounter = 0;
+        unsigned long lastPidLoopMs = 0;
+
+        // Tunables
+        float Kp = 0.8;
+        float Ki = 0.08f;
+        int minSpeed = 100;
+        int maxSpeed = 250;
+        float deadZone = 3.5f;
+};
+
+
+
+
+
+

@@ -53,6 +53,7 @@ Movement::Movement() : AFMS(Adafruit_MotorShield()),
 // Initialisation complète avec paramètres du robot
 void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution, 
                         int encPinLeft, int encPinRight, int defSpeed) {
+                            
     // Sauvegarde des paramètres
     wheelDiameter = wheelDiameterCm;
     wheelBase = wheelBaseCm;
@@ -86,8 +87,8 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     pinMode(encoderPinRight, INPUT_PULLUP);
     
     // Attachement des interruptions
-    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), leftEncoderISR, RISING);
-    attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, RISING);
+    attachInterrupt(digitalPinToInterrupt(encoderPinLeft), minleftEncoderISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, CHANGE);
     
     // Initialisation du timestamp
     lastUpdateTime = micros();
@@ -718,359 +719,28 @@ float Movement::getAverageSpeedTicks() {
 // void Movement::moveDistance(float cm, int speed) {
 //     resetEncoders();
 //     long targetTicks = cmToTicks(cm);
-//     float Kp = 0.4f; // Ajustez ces valeurs selon vos tests
-//     float Ki = 0.4f; // Ajustez ces valeurs selon vos tests
-//     float Kd = 0.4f; // Non utilisé dans cette version
-//     float target = 0;
-//     float error = 0;    
-//     float integral = 0;
-//     float derivatieve = 0;
-//     float lastError = 0;    
-//     float angle = 0;    
-
-//     int gyro_X, gyro_Y, gyro_Z;
-//     long gyro_x_cal, gyro_y_cal, gyro_z_cal;
-//     boolean setgyroangle;
-
-//     long acc_x, acc_y, acc_z, acc_total_vector;
-//     float angle_roll_acc, angle_pitch_acc;
-//     float angle_pitch, angle_roll;
-//     int angle_pitch_buffer, angle_roll_buffer;  
-//     float angle_pitch_output, angle_roll_output;
-
-//     long loop_timer;
-//     int temp ;
-//     int state = 0;
-
-//     Wire.beginTransmission(0x68); 
-//     //Send the requested starting register                                       
-//     Wire.write(0x6B);  
-//     //Set the requested starting register                                                  
-//     Wire.write(0x00);
-//     //End the transmission                                                    
-//     Wire.endTransmission(); 
-                                                
-//     //Configure the accelerometer (+/-8g)
-    
-//     //Start communicating with the MPU-6050
-//     Wire.beginTransmission(0x68); 
-//     //Send the requested starting register                                       
-//     Wire.write(0x1C);   
-//     //Set the requested starting register                                                 
-//     Wire.write(0x10); 
-//     //End the transmission                                                   
-//     Wire.endTransmission(); 
-                                                
-//     //Configure the gyro (500dps full scale)
-    
-//     //Start communicating with the MPU-6050
-//     Wire.beginTransmission(0x68);
-//     //Send the requested starting register                                        
-//     Wire.write(0x1B);
-//     //Set the requested starting register                                                    
-//     Wire.write(0x08); 
-//     //End the transmission                                                  
-//     Wire.endTransmission(); 
-//     for (int cal_int = 0; cal_int < 1000 ; cal_int ++) {
-//         Wire.beginTransmission(0x68);  
-//         //Send the requested starting register                                      
-//         Wire.write(0x3B);
-//         //End the transmission                                                    
-//         Wire.endTransmission(); 
-//         //Request 14 bytes from the MPU-6050                                  
-//         Wire.requestFrom(0x68,14);    
-//         //Wait until all the bytes are received                                       
-//         while(Wire.available() < 14);
-        
-//         //Following statements left shift 8 bits, then bitwise OR.  
-//         //Turns two 8-bit values into one 16-bit value                                       
-//         acc_x = Wire.read()<<8|Wire.read();                                  
-//         acc_y = Wire.read()<<8|Wire.read();                                  
-//         acc_z = Wire.read()<<8|Wire.read();                                  
-//         temp = Wire.read()<<8|Wire.read();                                   
-//         gyro_X = Wire.read()<<8|Wire.read();                                 
-//         gyro_Y = Wire.read()<<8|Wire.read();                                 
-//         gyro_Z = Wire.read()<<8|Wire.read(); 
-//         gyro_x_cal += gyro_X;
-//         gyro_y_cal += gyro_Y;
-//         gyro_z_cal += gyro_Z;
-//         delay(3);
-//     }
-//     gyro_x_cal /= 1000;
-//     gyro_y_cal /= 1000;
-//     gyro_z_cal /= 1000;
-
-//     loop_timer = micros();
-
-    
-    
-
-    
-
-//     if (cm > 0) {
-//         forward(speed);
-//     } else {
-//         backward(speed);
-//         targetTicks = -targetTicks; // Valeur absolue pour la comparaison
-//     }
-
-//     // Boucle bloquante jusqu'à atteindre la distance
-//     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
-        
-//         long leftTicks = encoderLeft.getTicks();
-//         long rightTicks = encoderRight.getTicks();
-//         Wire.beginTransmission(0x68);  
-//         //Send the requested starting register                                      
-//         Wire.write(0x3B);
-//         //End the transmission                                                    
-//         Wire.endTransmission(); 
-//         //Request 14 bytes from the MPU-6050                                  
-//         Wire.requestFrom(0x68,14);    
-//         //Wait until all the bytes are received                                       
-//         while(Wire.available() < 14);
-        
-//         //Following statements left shift 8 bits, then bitwise OR.  
-//         //Turns two 8-bit values into one 16-bit value                                       
-//         acc_x = Wire.read()<<8|Wire.read();                                  
-//         acc_y = Wire.read()<<8|Wire.read();                                  
-//         acc_z = Wire.read()<<8|Wire.read();                                  
-//         temp = Wire.read()<<8|Wire.read();                                   
-//         gyro_X = Wire.read()<<8|Wire.read();                                 
-//         gyro_Y = Wire.read()<<8|Wire.read();                                 
-//         gyro_Z = Wire.read()<<8|Wire.read(); 
-//         gyro_X -=   gyro_x_cal;
-//         gyro_Y -=   gyro_y_cal;
-//         gyro_Z -=   gyro_z_cal; 
-
-//         angle_pitch += gyro_X * 0.0000611;
-//         angle_roll  += gyro_Y * 0.0000611;
-
-//         angle_pitch += angle_roll * sin(gyro_Z * 0.000001066);
-
-//         // accelerometter angle calculations
-
-//         acc_total_vector = sqrt((acc_x * acc_x) + (acc_y * acc_y) + (acc_z * acc_z));
-//         angle_pitch_acc = asin((float)acc_y / (float)acc_total_vector) * 57.296;
-//         angle_roll_acc  = asin((float)acc_x / (float)acc_total_vector) * -57.296;
-
-//         angle_pitch_acc -= 0.0;
-//         angle_roll_acc  -= 0.0;
-
-//         if(setgyroangle){
-//             angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;
-//             angle_roll  = angle_roll  * 0.9996 + angle_roll_acc  * 0.0004;
-//         }
-//         else{
-//             angle_pitch = angle_pitch_acc;
-//             angle_roll  = angle_roll_acc;
-//             setgyroangle = true;
-//         }
-//         angle_pitch_output = angle_pitch * 0.90 + angle_pitch_acc * 0.1;
-//         angle_roll_output  = angle_roll  * 0.90 + angle_roll_acc  * 0.1;
-
-//         error = target - angle_pitch_output;
-//         integral = integral + error;
-//         derivatieve = error - lastError;
-    
-//         angle = Kp * error + Ki * integral + Kd * derivatieve;
-
-//         // Erreur entre les roues
-//         Serial.print("angle_pitch_output: ");
-//         Serial.println(angle_pitch_output);
-//         Serial.print("Error: ");
-//         Serial.println(error);
-//         Serial.print("Left Ticks: ");
-//         Serial.println(leftTicks);
-//         Serial.print("Right Ticks: ");
-//         Serial.println(rightTicks);
-
-    
-        
-
-//         motorLeft->setSpeed(speed);
-//         motorRight->setSpeed(speed);
-//         motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
-//         motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
-
-//         if(angle_pitch_output > 0){
-//             motorLeft->setSpeed(speed - angle);
-//             motorRight->setSpeed(speed + angle);
-//             motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
-//             motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
-//         }
-//         else{
-//             motorLeft->setSpeed(speed + angle);
-//             motorRight->setSpeed(speed - angle);
-//             motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
-//             motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
-
-//         }
-//         lastError = error ;
-
-//         updateEncoderTimestamps();
-        
-//     }
-    
-
-//     stop();
-// }
-
-
-// void Movement::moveDistance(float cm, int speed) {
-//     resetEncoders();
-//     CapPID.SetMode(MANUAL);
-//     CapOutput = 0;
-//     persistentError = 0.0f;
-//     long targetTicks = cmToTicks(cm);
-//     bool forwardDir = (cm > 0);
-    
-//     // --- PARAMÈTRES ---
-//     float alpha = 0.5f; 
-//     float slowDownTicks = 50.0f; 
-//     float minSlowFactor = 0.3f;  
-    
-//     // Sécurité anti-calage : On met 85 ici directement
-//     #define MIN_MOTOR_PWM 90
-
-//     int warmupIterations = 50;
-//     int loopCounter = 0;
-//     // Ajoutez cette variable paramètre au début de la fonction (ou en constante)
-//     int rampUpDuration = 80; // Durée de l'accélération en nombre de boucles (approx 0.5 à 1 sec selon votre loop)
-
-//     // *** CONFIGURATION PID (UNE SEULE FOIS AVANT LA BOUCLE) ***
-    
-//     // 1. Cap PID
-//     CapPID.SetMode(AUTOMATIC);
-//     CapPID.SetOutputLimits(-100, 100); 
-//     CapPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
-
-//     // 2. Speed PID
-//     SpeedPID.SetMode(AUTOMATIC);
-//     // Ici on applique la limite de 85 pour empêcher l'effondrement à la fin
-//     SpeedPID.SetOutputLimits(MIN_MOTOR_PWM, 255); 
-//     SpeedPID.SetSampleTime(MOVEMENT_LOOP_DELAY); 
-
-    
-    
-//     //----------------------------------------------------------------------
-    
-//     while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
-
-//         long leftTicks = encoderLeft.getTicks();
-//         long rightTicks = encoderRight.getTicks();
-
-//         // --- 1. CONTRÔLE DE VITESSE ---
-//         float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
-//         float slowFactor = constrain(distanceRemaining / slowDownTicks, minSlowFactor, 1.0f); 
-        
-//         SpeedSetpoint = (float)speed * slowFactor * TICKS_PER_PWM_UNIT; 
-//         SpeedInput = getAverageSpeedTicks(); 
-        
-//         //SpeedPID.Compute(); 
-//         int basePWM = (int)SpeedOutput; // Le PWM dynamique (min 85)
-        
-//         // --- 2. CONTRÔLE DE CAP ---
-//         float error = leftTicks - rightTicks;
-//         persistentError = ( persistentError) +  error;
-        
-//         CapInput = persistentError; 
-//         CapPID.Compute(); 
-//         float correction = CapOutput; 
-
-//         // --- 3. APPLICATION ---
-//         int leftSpeed = 0;
-//         int rightSpeed = 0;
-
-//         if (loopCounter < warmupIterations) {
-//              // Warm-up (laisser les moteurs à 0 ou accélération douce si vous en avez une)
-//              motorLeft->setSpeed(0);
-//              motorRight->setSpeed(0);
-//         } else {
-//             // --- FEEDFORWARD (FF) ---
-//             // Votre réglage final : on booste la gauche de +4
-            
-//             // --- CALCUL DE LA RAMPE ---
-//             int stepsSinceStart = loopCounter - warmupIterations;
-//             float rampFactor = (float)stepsSinceStart / (float)rampUpDuration;
-//             rampFactor = constrain(rampFactor, 0.0f, 1.0f); 
-
-//             // --- FEEDFORWARD (FF) ---
-//             // Vos réglages validés (FF sur droite)
-//             int offsetFF = -2; // Ajustez cette valeur selon vos tests
-//             int targetBaseRight = basePWM  ; 
-//             int targetBaseLeft  = basePWM + offsetFF;
-
-//             // --- CORRECTION "PIÉDESTAL" (CRUCIAL) ---
-//             // On ne part pas de 0. On part de MIN_MOTOR_PWM (85).
-//             // Formule : Vitesse = Min + (Cible - Min) * Rampe
-            
-//             int currentBaseLeft = MIN_MOTOR_PWM + (int)((targetBaseLeft - MIN_MOTOR_PWM) * rampFactor);
-//             int currentBaseRight = MIN_MOTOR_PWM + (int)((targetBaseRight - MIN_MOTOR_PWM) * rampFactor);
-
-//             // --- ATTÉNUATION DU PID PENDANT LA RAMPE ---
-//             // Astuce : Si on est en train d'accélérer, on réduit la violence du PID
-//             // pour éviter qu'il ne sur-réagisse aux petits frottements de départ.
-//             float rampDamping = 1.0f; // 50% de force PID pendant la rampe
-//             float effectiveCorrection = correction * rampDamping;
-
-//             // --- APPLICATION PID ---
-//             // Note : On utilise dynamicMinPWM = MIN_MOTOR_PWM car on est déjà au-dessus
-//             leftSpeed  = constrain(currentBaseLeft - (int)effectiveCorrection, MIN_MOTOR_PWM, 255);
-//             rightSpeed = constrain(currentBaseRight + (int)effectiveCorrection, MIN_MOTOR_PWM, 255);
-            
-            
-            
-//             // ... envoi aux moteurs ...
-            
-//             motorLeft->setSpeed(leftSpeed);
-//             motorRight->setSpeed(rightSpeed);
-//             motorLeft->run(forwardDir ? FORWARD : BACKWARD);
-//             motorRight->run(forwardDir ? FORWARD : BACKWARD);
-
-//             // Logs
-//             Serial.print("ErrCap: "); Serial.print(error);
-//             // Serial.print(" | encoderL: "); Serial.print(leftTicks);
-//             // Serial.print(" | encoderR: "); Serial.print(rightTicks);
-//             Serial.print(" | PersErr: "); Serial.print(persistentError);
-//             Serial.print(" | CorrCap: "); Serial.print(correction);
-//             Serial.print(" | BasePWM: "); Serial.print(basePWM);
-//             Serial.print(" | L: "); Serial.print(leftSpeed);
-//             Serial.print(" | R: "); Serial.println(rightSpeed);
-//             Serial.print(" | Dist: "); Serial.println(getDistanceTraveled());
-//         }
-//         delay(MOVEMENT_LOOP_DELAY);
-
-//         loopCounter++;
-//         updateEncoderTimestamps();
-//     }
-
-//     stop();
-// }
-// void Movement::moveDistance(float cm, int speed) {
-//     resetEncoders();
-//     long targetTicks = cmToTicks(cm);
 
 //     bool forwardDir = (cm > 0);
-//     if (!forwardDir) targetTicks = -targetTicks;
+//     // if (!forwardDir) targetTicks = -targetTicks;
 
 //     // --- PI PARAMETERS ---
-//     float Kp = 0.5f;
-//     float Ki = 0.02f;
+//     float Kp = 0.5f; // plus fort que ton 0.4
+//     float Ki = 0.6f; // plus agressif
+//     //kp =0.4
+//     //ki=float Ki = 0.05f;
 //     float integral = 0.0;
 //     float integralMax = 300.0f; 
+//     float deadzone = 2.0f;
 //     float dt = MOVEMENT_LOOP_DELAY / 1000.0f;
-//     int currentSpeed = 90;
 
 //     // --- erreur persistante (filtrée) ---
-//     static float persistentError = 0.0f;   // mémorise l'erreur entre itérations
-//     float alpha = 0.2f;                    // 0 = brut, 1 = très filtré
+//     float persistentError = 0.0f;   // mémorise l'erreur entre itérations
+//     float alpha = 0.3f;                    // 0 = brut, 1 = très filtré
 
 //     int warmupIterations = 50;  
 //     int loopCounter = 0;
 
-//     while (abs(encoderLeft.getTicks()) < abs(targetTicks) &&
-//            abs(encoderRight.getTicks()) < abs(targetTicks)) {
-            
+//     while (abs(encoderLeft.getTicks()) < abs(targetTicks) && abs(encoderRight.getTicks()) < abs(targetTicks)) {
 
 //         long leftTicks  = encoderLeft.getTicks();
 //         long rightTicks = encoderRight.getTicks();
@@ -1079,54 +749,72 @@ float Movement::getAverageSpeedTicks() {
 //         float error = leftTicks - rightTicks;
 
 //         // --- calcul erreur persistante (filtrée) ---
-//         persistentError = alpha * persistentError + (1.0f - alpha) * error;
+//         persistentError =  persistentError +  error;
 
 //         // --- intégration + anti-windup ---
-//         integral += persistentError * dt;
+//         if (abs(persistentError) <= deadzone) {
+//             // dans la deadzone, ne pas intégrer
+//         } else {
+//             integral += persistentError * dt;
+        
+//         }
+        
+        
 //         if (integral > integralMax) integral = integralMax;
 //         if (integral < -integralMax) integral = -integralMax;
 
+        
+
 //         // --- correction PI (avec erreur persistante) ---
 //         float correction = Kp * persistentError + Ki * integral;
+//         // --- correction PI (avec erreur persistante) ---
+//         // float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+
+// // // // // ajuster Kp
+// //         float Kp_mod = Kp * constrain(distanceRemaining / 50.0f, 0.1f, 1.0f);
+
+// // // // ajuster Ki
+// //         float Ki_mod = Ki * constrain(distanceRemaining / 50.0f, 0.05f, 1.0f);
+//         // float factor = distanceRemaining < 80 ? distanceRemaining / 80.0f : 1.0f;
+//         // factor = constrain(factor, 0.3f, 1.0f);
+
+//         // float Kp_mod = Kp * factor;
+//         // float Ki_mod = Ki * factor;
+
+
+//         // float correction = Kp_mod * persistentError + Ki_mod * integral;
 
 //         int leftSpeed = 0;
 //         int rightSpeed = 0;
 
 //         // --- warm-up ---
 //         if (loopCounter < warmupIterations) {
+            
 
-//             while(loopCounter < warmupIterations){
-//                 motorLeft->setSpeed(0);
-//                 motorRight->setSpeed(0);
-//                 motorLeft->run(RELEASE);
-//                 motorRight->run(RELEASE);
+//             motorLeft->setSpeed(0);
+//             motorRight->setSpeed(0);
+//             motorLeft->run(RELEASE);
+//             motorRight->run(RELEASE);
 
-//                 Serial.print("[Warm-up] Err: "); Serial.print(error);
-//                 Serial.print(" | PersErr: "); Serial.print(persistentError);
-//                 Serial.print(" | I: "); Serial.println(integral);
-//                 delay(MOVEMENT_LOOP_DELAY);
-//                 loopCounter++;
-//             }
-
+//             Serial.print("[Warm-up] Err: "); Serial.print(error);
+//             Serial.print(" | PersErr: "); Serial.print(persistentError);
+//             Serial.print(" | I: "); Serial.println(integral);
             
 
 //         } else {
-//             if (currentSpeed < speed)
-//             {
-//                 currentSpeed += 10;
-//                 if (currentSpeed > speed) currentSpeed = speed;
-//             }
 
 //             // --- PI normal après warm-up ---
 //             if (persistentError > 0.0f) {
-                
-//                 leftSpeed  = constrain(currentSpeed - correction, 80, 255);
-//                 rightSpeed = currentSpeed;
-                
+//                 leftSpeed  = constrain(speed - (correction/2), 90, 255);
+//                 rightSpeed = constrain(speed + (correction/2), 90, 255);
 //             } else {
-//                 leftSpeed  = currentSpeed;
-//                 rightSpeed = constrain(currentSpeed + correction, 80, 255);
+//                 leftSpeed  = constrain(speed - (correction/2), 90, 255);
+//                 rightSpeed = constrain(speed + (correction/2), 90, 255);
 //             }
+//             //float distanceRemaining = abs(targetTicks) - max(abs(leftTicks), abs(rightTicks));
+//             //float slowFactor = constrain(distanceRemaining / 50.0, 0.1, 1.0); // ralentit les 50 derniers ticks
+//             //leftSpeed  = constrain(slowFactor*leftSpeed, 70, 255);   // vitesse minimale de 80
+//             //rightSpeed = constrain(slowFactor*rightSpeed, 70, 255); // vitesse minimale de 80
 
 //             motorLeft->setSpeed(leftSpeed);
 //             motorRight->setSpeed(rightSpeed);
@@ -1140,124 +828,25 @@ float Movement::getAverageSpeedTicks() {
 //             Serial.print(" | L: "); Serial.print(leftSpeed);
 //             Serial.print(" | R: "); Serial.println(rightSpeed);
 //             Serial.print(" | Distance: "); Serial.println(getDistanceTraveled());
-//             Serial.print(" | curentSpeed: "); Serial.println(currentSpeed);
+            
+//             // Serial.print(" | Kp_mod: "); Serial.print(Kp_mod);  
+//             // Serial.print(" | Ki_mod: "); Serial.println(Ki_mod);
 //         }
 
 //         loopCounter++;
 //         updateEncoderTimestamps();
 //         delay(MOVEMENT_LOOP_DELAY);
+
+        
+        
 //     }
 
 //     stop();
-// }
-
-
-
-
-// void Movement::moveDistance(float cm, int speed) {
-//     resetEncoders();
-//     long targetTicks = cmToTicks(cm);
-
-//     if (cm > 0) {
-//         forward(speed);
-//     } else {
-//         backward(speed);
-//         targetTicks = -targetTicks; // Valeur absolue pour la comparaison
-//     }
-
-//     // Boucle bloquante jusqu'à atteindre la distance
-//     while (abs(encoderLeft.getTicks()) < targetTicks && abs(encoderRight.getTicks()) < targetTicks) {
-        
-//         long leftTicks = encoderLeft.getTicks();
-//         long rightTicks = encoderRight.getTicks();
-
-//         // Erreur entre les roues
-//         long error = leftTicks - rightTicks;
-//         Serial.print("Error: ");
-//         Serial.println(error);
-//         Serial.print("Left Ticks: ");
-//         Serial.println(leftTicks);
-//         Serial.print("Right Ticks: ");
-//         Serial.println(rightTicks);
-
-//         // PID simple pour corriger l'écart
-//         float Kp_wheel = 0.6f; // à ajuster
-//         int correction = Kp_wheel * error;
-//         if (abs(error) <= 1) correction = 0;
-
-//         int leftSpeed  = constrain(speed - correction, 0, 255);
-//         int rightSpeed = constrain(speed + correction, 0, 255);
-        
-
-//         motorLeft->setSpeed(leftSpeed);
-//         motorRight->setSpeed(rightSpeed);
-//         motorLeft->run((cm >= 0) ? FORWARD : BACKWARD);
-//         motorRight->run((cm >= 0) ? FORWARD : BACKWARD);
-
-//         updateEncoderTimestamps();
-//         delay(MOVEMENT_LOOP_DELAY);
-//     }
     
 
-//     stop();
-
-//     #if DEBUG_MOVEMENT
-//     Serial.print("Distance parcourue: ");
-//     Serial.print(getDistanceTraveled());
-//     Serial.println(" cm");
-//     #endif
-//     // resetEncoders();
-//     // unsigned long lastUpdateTimeDist = micros();
-
-//     // float targetDistance = abs(cm);
-//     // float Kp = 4.0;  // à ajuster selon ton robot
-//     // float Ki = 0.5;   // à ajuster aussi (souvent plus petit)
-
-//     // while (true) {
-//     //     // Distance parcourue actuelle
-//     //     float currentDistance = getDistanceTraveled();
-
-//     //     // Erreur = cible - actuelle
-//     //     float error = targetDistance - currentDistance;
-
-//     //     // Condition d’arrêt : proche de la cible
-//     //     if (fabs(error) <= 1.00f) break;
-
-//     //     // PID pour obtenir la consigne de vitesse
-//     //     float pidOutput = PIDControlDistance(lastUpdateTimeDist, targetDistance, currentDistance, Kp, Ki);
-
-//     //     // La direction dépend du signe de l’erreur :
-//     //     // Si erreur > 0 → aller vers l’avant
-//     //     // Si erreur < 0 → reculer pour corriger
-//     //     int direction = (error >= 0) ? FORWARD : BACKWARD;
-
-//     //     // Vitesse moteur = amplitude du PID, limitée et plancher minimal
-//     //     int motorSpeed = constrain(fabs(pidOutput), 0, 255);
-       
-
-//     //     // Appliquer la consigne aux deux moteurs
-//     //     motorLeft->setSpeed(motorSpeed);
-//     //     motorRight->setSpeed(motorSpeed);
-//     //     motorLeft->run(direction);
-//     //     motorRight->run(direction);
-
-//     //     // Debug (facultatif)
-//     //     Serial.print("Erreur: "); Serial.print(error);
-//     //     Serial.print(" | PID: "); Serial.print(pidOutput);
-//     //     Serial.print(" | Speed: "); Serial.println(motorSpeed);
-
-//     //     updateEncoderTimestamps();
-//     //     delay(MOVEMENT_LOOP_DELAY);
-//     // }
-
-//     // stop();
-
-//     // #if DEBUG_MOVEMENT
-//     // Serial.print("Distance parcourue: ");
-//     // Serial.print(getDistanceTraveled());
-//     // Serial.println(" cm");
-//     // #endif
 // }
+
+
 
 
 

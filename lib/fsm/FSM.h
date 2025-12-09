@@ -1,6 +1,8 @@
 
 #pragma once
 
+class Movement; // forward declare
+
 
 enum class FsmAction {
 	INIT,
@@ -8,7 +10,8 @@ enum class FsmAction {
 	TASK,
 	TIMER_END,
 	END,
-	EMERGENCY_STOP 
+	EMERGENCY_STOP,
+	motorTest
 };
 
 struct FsmContext {
@@ -23,4 +26,4 @@ void fsmStep(FsmContext &ctx);
 void fsmChangeAction(FsmContext &ctx, FsmAction next);
 
 
-
+void runMotorEncoderDiagnostics(Movement &mv);
