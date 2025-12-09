@@ -68,6 +68,8 @@ void GyroMoveTask::start(Movement &mv) {
     mv.stop();
     delay(50);
 
+    mv.resetEncoders();
+
     // IMU init + quick calibration (stationary)
     imuBegin();
     const int samples = 200;
@@ -109,7 +111,9 @@ void GyroMoveTask::update(Movement &mv) {
 
     // check timeout by duration
     if (mv.getDistanceTraveled() >= durationMs) {
+
         mv.stop();
+        
         finished = true;
         debugPrintf(DBG_MOVEMENT, "GyroMove DONE after %lums", millis() - startMs);
         return;
