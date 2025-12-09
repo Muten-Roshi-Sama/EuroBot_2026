@@ -3,6 +3,7 @@
 // Includes
 #include "globals.h"
 #include "isr_flags.h"
+#include "../detection/capteur_lidar.h"
 
 // Libs
 #include "../movement/Movement.h"
@@ -49,14 +50,6 @@ void TaskManager::addTask(Task *t)
 void TaskManager::tick()
 {
   /*
-    Loop logic :
-      1. check ISR -> check if ISR flag is up and manage it.
-      2. If no tasks active, start next task.
-      3. if a task is active (unfinished) task -> continue (update) this task for 100ms.
-      4. clean-up finished tasks.
-      5. update ISR timer to run every 100ms.
-
-    Notes :
       - response latency = time to next tick() + time to execute doISR().
 
     TODO :
@@ -98,8 +91,7 @@ void TaskManager::tick()
 
   // periodic updateISR every 100ms
   unsigned long now = millis();
-  if (now - lastISRupdateMs >= 100)
-  {
+  if (now - lastISRupdateMs >= 500) {
     lastISRupdateMs = now;
     updateISR();
     // debugPrintf(DBG_TASKMANAGER, "ISR_Update");
@@ -122,13 +114,44 @@ void TaskManager::updateISR()
   //   }
   // }
 
-  // Sensors
+  // Lecture des 3 LIDARs
+  int distance1 = lireDistanceLidar1();
+  int distance2 = lireDistanceLidar2();
+  int distance3 = lireDistanceLidar3();
+
+  // Affichage condensé sur une seule ligne
+  debugPrintf(DBG_TASKMANAGER, "L1:%dmm L2:%dmm L3:%dmm", distance1, distance2, distance3);
+
+  // Gestion ISR LIDAR1 (seuil 80mm)
+  if (distance1 > 0 && distance1 <= LIDAR1_THRESHOLD) {
+    requestISR(ISR_FLAG_OBSTACLE);
+    debugPrintf(DBG_TASKMANAGER, "LIDAR1 OBSTACLE!");
+  }
+  else if (distance1 > LIDAR1_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
+    requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+  }
+
+  // Gestion ISR LIDAR2 (seuil 80mm)
+  if (distance2 > 0 && distance2 <= LIDAR2_THRESHOLD) {
+    requestISR(ISR_FLAG_OBSTACLE);
+    debugPrintf(DBG_TASKMANAGER, "LIDAR2 OBSTACLE!");
+  }
+  else if (distance2 > LIDAR2_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
+    requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+  }
+
+  // Gestion ISR LIDAR3 (seuil 100mm)
+  if (distance3 > 0 && distance3 <= LIDAR3_THRESHOLD) {
+    requestISR(ISR_FLAG_OBSTACLE);
+    debugPrintf(DBG_TASKMANAGER, "LIDAR3 OBSTACLE!");
+  }
+  else if (distance3 > LIDAR3_THRESHOLD && (pendingIsrFlags & ISR_FLAG_OBSTACLE)) {
+    requestISR(ISR_FLAG_OBSTACLE_CLEARED);
+  }
 
   // ==================================
-  if (isrRequested)
-  {
-    doISR(); // handle any pending ISR first
-    return;
+  if (isrRequested) {
+    doISR();
   }
   if (active && !active->isFinished())
   {
@@ -136,8 +159,8 @@ void TaskManager::updateISR()
   }
 }
 
-void TaskManager::doISR()
-{
+
+void TaskManager::doISR() {
   // copy and clear flags atomically
   noInterrupts();
   uint8_t flags = pendingIsrFlags;
@@ -180,7 +203,17 @@ void TaskManager::doISR()
     mv->stop();
     // Optionally set global FSM emergency flag here
   }
-  // handle other flags (obstacle etc.) as needed
+  // gestion du flag obstacle
+  if (flags & ISR_FLAG_OBSTACLE) {
+      debugPrintf(DBG_TASKMANAGER, "Obstacle très proche, arrêt du robot");
+      
+      // Arrêt immédiat du robot
+      if (mv) mv->stop();    
+
+  }
+  if (flags & ISR_FLAG_OBSTACLE_CLEARED) {
+      debugPrintf(DBG_TASKMANAGER, "Obstacle dégagé, reprise TASK possible");
+  }
 }
 
 void TaskManager::requestISR(uint8_t flags)

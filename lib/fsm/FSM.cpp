@@ -65,6 +65,7 @@ void fsmStep(FsmContext &ctx) {
 // 1. INIT
     // ===========================
     case FsmAction::INIT: {
+      //
 
       // ADD TASKS
       static bool tasksEnqueued = false;
@@ -109,8 +110,6 @@ void fsmStep(FsmContext &ctx) {
       if (taskManager && taskManager->isIdle()) ctx.currentAction = FsmAction::IDLE;
       break;
     }
-
-
 
 
 // 4. EMERGENCY STOP

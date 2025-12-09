@@ -1,10 +1,25 @@
 
 
-//  TODO :
-//        - Fix 
-//        - Add 
-//        -
-//        - 
+// static FsmContext gFsm; 
+
+
+
+// void setup() {
+//   Serial.begin(9600);
+//   while (!Serial) {}
+//   Serial.println("Setup.");
+  
+//   fsmInit(gFsm);
+//     delay(2000);
+// }
+
+
+
+// void loop(){
+
+//   fsmStep(gFsm);
+// }
+
 
 // v0.1 wiring FSM minimal usage
 
@@ -16,9 +31,6 @@
 #include "settings.h"
 #include "../util/Debug.h"
 
-
-// #include <Adafruit_MotorShield.h>
-// #include <Encoder.h>
 
 
 FsmContext ctx;
@@ -57,6 +69,3 @@ void loop() {
   // delay(1000);
 
 }
-
-
-

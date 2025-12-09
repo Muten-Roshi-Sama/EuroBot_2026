@@ -51,3 +51,13 @@
 
 
 #endif // SETTINGS_H
+
+// =========== LiDAR ===========
+#define LIDAR1_PIN 8   // pin XSHUT du LIDAR1
+#define LIDAR2_PIN 9   // pin XSHUT du LIDAR2
+#define LIDAR3_PIN 10  // pin XSHUT du LIDAR3
+
+// Seuils de détection d'obstacle (en mm)
+#define LIDAR1_THRESHOLD 80
+#define LIDAR2_THRESHOLD 80
+#define LIDAR3_THRESHOLD 100

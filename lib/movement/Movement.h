@@ -1,37 +1,37 @@
 #ifndef MOVEMENT_H
 #define MOVEMENT_H
 
-
 #include <Arduino.h>
 #include "Encoder.h"
 #include <Adafruit_MotorShield.h>
 #include "settings.h"
 
+// Classe qui gère le mouvement du robot, moteurs et encodeurs
 class Movement {
 public:
-    // Moteurs et encodeurs
-    Adafruit_MotorShield AFMS;
-    Adafruit_DCMotor *motorLeft;
-    Adafruit_DCMotor *motorRight;
+    // Moteurs et Motor Shield
+    Adafruit_MotorShield AFMS;       // Objet Motor Shield
+    Adafruit_DCMotor *motorLeft;     // Moteur gauche
+    Adafruit_DCMotor *motorRight;    // Moteur droit
     
-    // Objets encodeurs (utilisation de la classe Encoder existante)
+    // Encodeurs pour les roues
     Encoder encoderLeft;
     Encoder encoderRight;
     
-    // Paramètres physiques du robot (stockés localement mais initialisés depuis settings.h)
+    // Paramètres physiques du robot
     float wheelDiameter;        // Diamètre des roues en cm
     float wheelBase;            // Distance entre les roues en cm
     int encoderResolution;      // Nombre de ticks par tour
-    float wheelCircumference;   // Circonférence de la roue en cm (calculée)
+    float wheelCircumference;   // Circonférence roue = PI*diamètre
     
-    // Pins des encodeurs
+    // Pins connectés aux encodeurs
     int encoderPinLeft;
     int encoderPinRight;
     
-    // Vitesse par défaut
+    // Vitesse par défaut pour les fonctions simplifiées
     int defaultSpeed;
     
-    // Timestamps pour calcul de vitesse
+    // Temps pour calculer l’intervalle entre ticks
     unsigned long lastUpdateTime;
     
     // Fonctions internes
@@ -53,31 +53,31 @@ public:
     
     // Mouvements basiques (non-bloquants)
     void forward(int speed);
-    void forward();  // Utilise defaultSpeed
+    void forward();  
     void backward(int speed);
-    void backward(); // Utilise defaultSpeed
+    void backward(); 
     void stop();
     
-    // Rotation sur place (2 moteurs en sens opposé)
-    void rotateLeft(int speed);   // Rotation sur place vers la gauche
+    // Rotations sur place (moteurs en sens opposé)
+    void rotateLeft(int speed);   
     void rotateLeft();
-    void rotateRight(int speed);  // Rotation sur place vers la droite
+    void rotateRight(int speed);  
     void rotateRight();
     
-    // Mouvements avec une seule roue (pour virages doux)
-    void turnLeftSoft(int speed);  // Seul moteur gauche ralentit
-    void turnRightSoft(int speed); // Seul moteur droit ralentit
+    // Virages doux (une roue ralentie)
+    void turnLeftSoft(int speed);  
+    void turnRightSoft(int speed); 
     
-    // Mouvements avec distance précise (bloquants)
-    void moveDistance(float cm, int speed); // Contrôle PID avec Kp et Ki
-    void moveDistance(float cm); // Utilise defaultSpeed
-    void rotate(float degrees, int speed); // Rotation de X degrés
-    void rotate(float degrees); // Utilise defaultSpeed
+    // Mouvements bloquants avec distance précise
+    void moveDistance(float cm, int speed); 
+    void moveDistance(float cm); 
+    void rotate(float degrees, int speed); 
+    void rotate(float degrees); 
     
-    // Getters pour les encodeurs
+    // Getters pour encoder
     long getLeftTicks();
     long getRightTicks();
-    float getDistanceTraveled(); // Distance moyenne parcourue en cm
+    float getDistanceTraveled(); // Distance moyenne parcourue
     
     // Fonctions de vitesse (utilise les objets Encoder)
     float getLeftRPM();          // Vitesse roue gauche en RPM
@@ -86,23 +86,23 @@ public:
     float getRightRevolutions(); // Nombre de tours roue droite
     float getAverageSpeedTicks();     // Vitesse moyenne en RPM
     
-    // Accès direct aux objets encodeurs (pour fonctionnalités avancées)
+    // Accès direct aux objets encodeurs
     Encoder* getLeftEncoder();
     Encoder* getRightEncoder();
     
-    // Callbacks statiques pour les interruptions
+    // Callbacks statiques pour ISR
     static void leftEncoderISR();
     static void rightEncoderISR();
     static void minleftEncoderISR();
     static void minrightEncoderISR();
-    float PIDControlAngle(unsigned long& lastUpdateTimeAngle,float targetAngle, float currentAngle, float Kp, float Ki);
-    float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
     static void encoderLeftISRWrapper();
     static void encoderRightISRWrapper();
     
+    // PID pour contrôle angle et distance
+    float PIDControlAngle(unsigned long& lastUpdateTimeAngle,float targetAngle, float currentAngle, float Kp, float Ki);
+    float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
     
-    
-    // Instance statique pour accès depuis les ISR
+    // Instance statique pour ISR
     static Movement* instance;
 };
 

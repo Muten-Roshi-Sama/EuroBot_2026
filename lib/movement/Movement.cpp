@@ -34,27 +34,34 @@ extern float (getAverageSpeedTicks);
 Movement* Movement::instance = nullptr;
 
 // Constructeur
-Movement::Movement() : AFMS(Adafruit_MotorShield()), 
-                        encoderLeft(ENCODER_RESOLUTION),
-                        encoderRight(ENCODER_RESOLUTION) {
-    motorLeft = nullptr;
+Movement::Movement() 
+    : AFMS(Adafruit_MotorShield()), 
+      encoderLeft(ENCODER_RESOLUTION),
+      encoderRight(ENCODER_RESOLUTION) 
+{
+    motorLeft = nullptr;      // Moteurs non initialisés
     motorRight = nullptr;
-    wheelDiameter = WHEEL_DIAMETER;
-    wheelBase = WHEEL_BASE;
+    wheelDiameter = WHEEL_DIAMETER;     // Défini dans settings.h
+    wheelBase = WHEEL_BASE;             // Défini dans settings.h
     encoderResolution = ENCODER_RESOLUTION;
     wheelCircumference = 0;
     encoderPinLeft = ENCODER_PIN_LEFT;
     encoderPinRight = ENCODER_PIN_RIGHT;
     defaultSpeed = DEFAULT_SPEED;
     lastUpdateTime = 0;
-    instance = this;
+    instance = this; // Permet aux ISR d’accéder à cet objet
 }
 
-// Initialisation complète avec paramètres du robot
+// Initialisation complète avec paramètres physiques et pins
 void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution, 
+<<<<<<< HEAD
                         int encPinLeft, int encPinRight, int defSpeed) {
                             
     // Sauvegarde des paramètres
+=======
+                     int encPinLeft, int encPinRight, int defSpeed) 
+{
+>>>>>>> feature/detection
     wheelDiameter = wheelDiameterCm;
     wheelBase = wheelBaseCm;
     encoderResolution = encResolution;
@@ -62,27 +69,25 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     encoderPinRight = encPinRight;
     defaultSpeed = defSpeed;
     
-    // Calcul de la circonférence de la roue
-    wheelCircumference = PI * wheelDiameter;
+    wheelCircumference = PI * wheelDiameter; // circonférence
     
     // Initialisation du Motor Shield
     if (!AFMS.begin()) {
         Serial.println("ERREUR: Motor Shield non detecte!");
-        while (1); // Arrêt si le shield n'est pas détecté
+        while (1); // Arrêt si non détecté
     }
     AFMS.begin();
     Serial.println("Motor Shield initialise avec succes");
-    //AFMS.begin();
     
-    // Récupération des moteurs (Motor 1 = gauche, Motor 2 = droite)
+    // Récupération des moteurs
     motorLeft = AFMS.getMotor(MOTOR_LEFT_ID);
     motorRight = AFMS.getMotor(MOTOR_RIGHT_ID);
     
-    // Initialisation des encodeurs avec la résolution
+    // Initialisation des encodeurs
     encoderLeft.changeResolution(encoderResolution);
-    encoderRight.changeResolution(encoderResolution);// verif
+    encoderRight.changeResolution(encoderResolution);
     
-    // Configuration des pins des encodeurs
+    // Configuration des pins en entrée pullup
     pinMode(encoderPinLeft, INPUT_PULLUP);
     pinMode(encoderPinRight, INPUT_PULLUP);
     
@@ -133,18 +138,17 @@ void Movement::backward() {
 }
 
 void Movement::stop() {
-    motorLeft->run(RELEASE);
+    motorLeft->run(RELEASE); // Arrêt moteurs
     motorRight->run(RELEASE);
 }
 
-// ============= ROTATIONS SUR PLACE (2 MOTEURS EN SENS OPPOSÉ) =============
+// ================= ROTATIONS SUR PLACE ==================
 
 void Movement::rotateLeft(int speed) {
-    // Roue gauche recule, roue droite avance -> rotation sur place vers la gauche
     motorLeft->setSpeed(speed);
     motorRight->setSpeed(speed);
-    motorLeft->run(BACKWARD);
-    motorRight->run(FORWARD);
+    motorLeft->run(BACKWARD); // roue gauche recule
+    motorRight->run(FORWARD); // roue droite avance
 }
 
 void Movement::rotateLeft() {
@@ -152,7 +156,6 @@ void Movement::rotateLeft() {
 }
 
 void Movement::rotateRight(int speed) {
-    // Roue gauche avance, roue droite recule -> rotation sur place vers la droite
     motorLeft->setSpeed(speed);
     motorRight->setSpeed(speed);
     motorLeft->run(FORWARD);
@@ -163,29 +166,25 @@ void Movement::rotateRight() {
     rotateRight(defaultSpeed);
 }
 
-// ============= VIRAGES DOUX (UNE ROUE RALENTIT) =============
+// ================= VIRAGES DOUX ==================
 
 void Movement::turnLeftSoft(int speed) {
-    // Roue droite à pleine vitesse, roue gauche ralentie
-    motorLeft->setSpeed(speed / 2);
+    motorLeft->setSpeed(speed / 2); // gauche ralentit
     motorRight->setSpeed(speed);
     motorLeft->run(FORWARD);
     motorRight->run(FORWARD);
 }
 
 void Movement::turnRightSoft(int speed) {
-    // Roue gauche à pleine vitesse, roue droite ralentie
-    motorLeft->setSpeed(speed);
-    motorRight->setSpeed(speed / 2);
+    motorLeft->setSpeed(speed);     
+    motorRight->setSpeed(speed / 2); // droite ralentit
     motorLeft->run(FORWARD);
     motorRight->run(FORWARD);
 }
-// ============= PID Integration =============
+
+// ================= PID ANGLE ET DISTANCE ==================
 float Movement::PIDControlAngle(unsigned long& lastUpdateTimeAngle, 
-                                float targetAngle, 
-                                float currentAngle, 
-                                float Kp, 
-                                float Ki) 
+                                float targetAngle, float currentAngle, float Kp, float Ki) 
 {
     unsigned long now = micros();
     float dt = (now - lastUpdateTimeAngle) / 1e6f;
@@ -227,7 +226,6 @@ float Movement::PIDControlAngle(unsigned long& lastUpdateTimeAngle,
 
 float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki) {
     unsigned long now = micros();
-    
     unsigned long interval = now - lastUpdateTimeDist;
     
     static float integral = 0;
@@ -235,21 +233,11 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
     float error = targetDistance - currentDistance;
     float dt = interval / 1e6; 
     integral += error * dt;
-
-    if (integral > 50) integral = 50;
-    if (integral < -50) integral = -50;
+    integral = constrain(integral, -50.0f, 50.0f);
     
     float output = Kp * error + Ki * integral ;
-    
-    // Limiter la sortie pour éviter des vitesses excessives
-    if (output > 255) output = 255;
-    if (output < 100) output = 100;
+    output = constrain(output, 100, 255); // limitation vitesse
     lastUpdateTime = now;
-    
-    
-    
-
-    
     return output;
 }
 
@@ -258,7 +246,6 @@ float Movement::PIDControlDistance(unsigned long& lastUpdateTimeDist,float targe
 void Movement::moveDistance(float cm, int speed) {
     resetEncoders();
     long targetTicks = cmToTicks(cm);
-
     bool forwardDir = (cm > 0);
     // if (!forwardDir) targetTicks = -targetTicks;
 
@@ -387,14 +374,18 @@ void Movement::moveDistance(float cm, int speed) {
 
 
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> feature/detection
 void Movement::moveDistance(float cm) {
-    moveDistance(cm, defaultSpeed); // Utilise default Kp et Ki
+    moveDistance(cm, defaultSpeed);
 }
 
 volatile int8_t encoderDirection = 1; // 1 = avant, -1 = arrière
 
+// Rotation robot
 void Movement::rotate(float degrees, int baseSpeed) {
     resetEncoders();
     unsigned long lastUpdateTimeAngle = micros();
@@ -491,7 +482,6 @@ void Movement::rotate(float degrees, int baseSpeed) {
     }
 
     stop();
-    Serial.println("=== Rotation terminée ===");
 }
 // void Movement::rotate(float degrees, int speed) {
 //     resetEncoders();
@@ -535,22 +525,16 @@ void Movement::rotate(float degrees) {
     rotate(degrees, defaultSpeed);
 }
 
-// ============= FONCTIONS DE CONVERSION =============
-
+// ================= FONCTIONS DE CONVERSION ==================
 float Movement::ticksToCm(long ticks) {
-    // Distance = (ticks / resolution) * circonférence
     return ((float)ticks / encoderResolution) * wheelCircumference;
 }
 
 long Movement::cmToTicks(float cm) {
-    // Ticks = (distance / circonférence) * resolution
     return (long)((cm / wheelCircumference) * encoderResolution);
 }
 
 float Movement::ticksToDegrees(long ticks) {
-    // Pour une rotation sur place:
-    // Arc parcouru par une roue = (wheelBase * PI * angle) / 360
-    // Distance parcourue = ticksToCm(ticks)
     float arcLength = ticksToCm(ticks);
     return (arcLength * 360.0) / (PI * wheelBase);
 }
@@ -561,11 +545,11 @@ float Movement::ticksToRotations(long ticksRight, long ticksLeft) {
 }
 
 long Movement::degreesToTicks(float degrees) {
-    // Arc que doit parcourir une roue pour tourner de X degrés
     float arcLength = (PI * wheelBase * abs(degrees)) / 360.0;
     return cmToTicks(arcLength);
 }
 
+// ================= ENCODEURS ==================
 void Movement::resetEncoders() {
     encoderLeft.reset();
     encoderRight.reset();
@@ -576,7 +560,6 @@ void Movement::updateEncoderTimestamps() {
     unsigned long now = micros();
     unsigned long interval = now - lastUpdateTime;
     
-    // Mise à jour des timestamps pour calcul de vitesse
     encoderLeft.setTimestamp(now);
     encoderLeft.setTickInterval(interval);
     
@@ -586,8 +569,7 @@ void Movement::updateEncoderTimestamps() {
     lastUpdateTime = now;
 }
 
-// ============= GETTERS =============
-
+// ================= GETTERS ==================
 long Movement::getLeftTicks() {
     return encoderLeft.getTicks();
 }
@@ -597,7 +579,6 @@ long Movement::getRightTicks() {
 }
 
 float Movement::getDistanceTraveled() {
-    // Moyenne des deux roues
     long avgTicks = (encoderLeft.getTicks() + encoderRight.getTicks()) / 2;
     return ticksToCm(avgTicks);
 }
@@ -628,32 +609,23 @@ Encoder* Movement::getRightEncoder() {
     return &encoderRight;
 }
 
-// ============= CALLBACKS D'INTERRUPTION =============
-
+// ================= CALLBACKS ==================
 void Movement::leftEncoderISR() {
-    if (instance != nullptr) {
-        instance->encoderLeft.addTick();
-    }
+    if (instance != nullptr) instance->encoderLeft.addTick();
 }
 
 void Movement::rightEncoderISR() {
-    if (instance != nullptr) {
-        instance->encoderRight.addTick();
-    }
-}
-void Movement::minleftEncoderISR()
-{
-    if (instance != nullptr) {
-        instance->encoderLeft.subtractTick();  // ✅
-    }
+    if (instance != nullptr) instance->encoderRight.addTick();
 }
 
-void Movement::minrightEncoderISR()
-{
-    if (instance != nullptr) {
-        instance->encoderRight.subtractTick(); // ✅
-    }
+void Movement::minleftEncoderISR() {
+    if (instance != nullptr) instance->encoderLeft.subtractTick();
 }
+
+void Movement::minrightEncoderISR() {
+    if (instance != nullptr) instance->encoderRight.subtractTick();
+}
+
 void Movement::encoderLeftISRWrapper() {
     if (instance != nullptr) {
         if (encoderDirection > 0)
