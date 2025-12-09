@@ -11,9 +11,8 @@
 class GyroMoveTask : public Task {
 public:
     // Constructor using distance estimate (distanceCm > 0 moves forward)
-    GyroMoveTask(float distanceCm, int speed = DEFAULT_SPEED, float estCmPerSec = 10.0f);
-    // Alternate constructor: explicit duration in ms
-    GyroMoveTask(unsigned long durationMs, int speed);
+    GyroMoveTask(float distanceCm, int speed, float estCmPerSec = 10.0f, unsigned long timeoutMs = 5000);
+    // GyroMoveTask(unsigned long durationMs, int speed);
 
     void start(Movement &mv) override;
     void update(Movement &mv) override;
@@ -26,7 +25,7 @@ private:
     unsigned long durationMs = 0;
     int baseSpeed = DEFAULT_SPEED;
     bool forward = true;
-    float distance;
+    float distance = 0.0f;
 
     // heading control
     float targetHeading = 0.0f;
@@ -40,12 +39,12 @@ private:
     float headingDeg = 0.0f; // integrated heading (deg), signed
 
     // simple PID state
-    float Kp = 0.8f;
-    float Ki = 0.01f;
+    float Kp = 3.0f;
+    float Ki = 0.02f;
     float Kd = 0.05f;
     float integ = 0.0f;
     float lastErr = 0.0f;
-    float maxCorrection = 120.0f; // max PWM correction
+    float maxCorrection = 150.0f; // max PWM correction
 
     // helpers (defined in .cpp)
     void imuBegin();

@@ -33,8 +33,13 @@ TaskManager::TaskManager(Movement *mv)
 
 void TaskManager::addTask(Task *t)
 {
-  debugPrintf(DBG_TASKMANAGER, "addTask called ptr=%p count=%d head=%d tail=%d free=%d",
-              (void *)t, count, head, tail, freeRam());
+  debugPrintf(DBG_TASKMANAGER, "addTask called ptr=%p count=%d",(void *)t, count);
+
+  // if (!t) {
+  //   Serial.println("ERROR: Task pointer is NULL!");
+  //   return;
+  // }
+
   if (count >= MAX_TASKS)
   {
     Serial.println("Task queue full");
@@ -43,8 +48,6 @@ void TaskManager::addTask(Task *t)
   queue[tail] = t;
   tail = (tail + 1) % MAX_TASKS;
   count++;
-  debugPrintf(DBG_TASKMANAGER, "AddTask ptr=%p -> queued (count=%d head=%d tail=%d) free=%d",
-              (void *)t, count, head, tail, freeRam());
 }
 
 void TaskManager::tick()

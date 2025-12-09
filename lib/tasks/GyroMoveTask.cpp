@@ -16,19 +16,20 @@
 #define MPU_SENS_250DPS 131.0f
 
 // ---------- Constructors ----------
-GyroMoveTask::GyroMoveTask(float distanceCm, int speed, float estCmPerSec) {
+GyroMoveTask::GyroMoveTask(float distanceCm, int speed, float estCmPerSec, unsigned long timeoutMs) {
     if (estCmPerSec <= 0.01f) estCmPerSec = 10.0f;
-    durationMs = distanceCm;
-    
+
+    distance = distanceCm;
+    durationMs = timeoutMs;
     baseSpeed = speed;
     forward = (distanceCm >= 0.0f);
 }
 
-GyroMoveTask::GyroMoveTask(unsigned long durationMs_, int speed) {
-    durationMs = durationMs_;
-    baseSpeed = speed;
-    forward = true;
-}
+// GyroMoveTask::GyroMoveTask(unsigned long durationMs_, int speed) {
+//     durationMs = durationMs_;
+//     baseSpeed = speed;
+//     forward = true;
+// }
 
 // ---------- IMU helpers ----------
 void GyroMoveTask::imuBegin() {
@@ -57,7 +58,7 @@ int16_t GyroMoveTask::readRawGyroZ() {
 
 
 //==================================================
-//                  RotateGyroTask.cpp
+//                  GyroMoveTask.cpp
 // =================================================
 
 void GyroMoveTask::start(Movement &mv) {
@@ -110,18 +111,20 @@ void GyroMoveTask::start(Movement &mv) {
 
 void GyroMoveTask::update(Movement &mv) {
     if (cancelled || finished || paused) return;
-    if (mv.getDistanceTraveled()>= distance) { 
-        mv.stop();
-        finished = true;
-        debugPrintf(DBG_MOVEMENT, "GyroMove Distance reached", distance);
-        return;
-    }
+    // if (mv.getDistanceTraveled()>= distance) { 
+    //     mv.stop();
+    //     finished = true;
+    //     debugPrintf(DBG_MOVEMENT, "GyroMove Distance reached", distance);
+    //     return;
+    // }
+
+    
 
     // check timeout by duration
     if (durationMs > 0 && (millis() - startMs) >= durationMs) {
         mv.stop();
         finished = true;
-        debugPrintf(DBG_MOVEMENT, "GyroMove Time OUT", millis() - startMs);
+        // debugPrintf(DBG_MOVEMENT, "GyroMove TIMEOUT after %lums", millis() - startMs);
         return;
     }
     
@@ -168,8 +171,8 @@ void GyroMoveTask::update(Movement &mv) {
         mv.motorRight->run(BACKWARD);
     }
 
-    debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",
-                dt, headingDeg, err, corrPWM, leftPWM, rightPWM);
+    // debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",
+    //             dt, headingDeg, err, corrPWM, leftPWM, rightPWM);
 }
 
 TaskInterruptAction GyroMoveTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {

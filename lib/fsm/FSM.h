@@ -23,6 +23,9 @@ struct FsmContext {
 	FsmAction currentAction;
 	unsigned long stateStartMs;
 	Team currentTeam;
+	unsigned long matchStartMs = 0;
+    unsigned long matchDurationMs = 0;
+    bool matchActive = false;
 };
 
 void fsmInitializeSystem(FsmContext &ctx);
