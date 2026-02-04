@@ -3,105 +3,133 @@
 #include <WiFi.h>
 #include <esp_wifi.h>
 
-namespace {
-    // Adresse MAC réelle du C3 (à garder)
-    uint8_t peerAddress[] = {0x58, 0x8C, 0x81, 0x94, 0x22, 0x1C};
-    volatile bool pongReceived = false;
-    volatile unsigned long pongTimestamp = 0;
-    unsigned long pingTimestamp = 0;
-    bool waitingPong = false;
-    unsigned long lastPing = 0;
 
-    // Callback natif ESP-IDF pour RSSI précis
-    void onReceive(const uint8_t *mac, const uint8_t *data, int len, void *rx_ctrl) {
-        Serial.print("[ESP-NOW RX] Message reçu : ");
-        for (int i = 0; i < len; i++) Serial.print((char)data[i]);
-        Serial.print(" | len="); Serial.print(len);
-        int rssi = 0;
-        if (rx_ctrl != nullptr) {
-            rssi = ((wifi_pkt_rx_ctrl_t*)rx_ctrl)->rssi;
-            Serial.print(" | RSSI précis: ");
-            Serial.print(rssi);
-            Serial.print(" dBm");
-        }
-        Serial.println();
-        if (len >= 4 && strncmp((const char*)data, "Pong", 4) == 0) {
-            pongTimestamp = micros();
-            pongReceived = true;
-        }
+// Adresse MAC du peer (à adapter)
+static uint8_t peerAddress[] = {0x58, 0x8C, 0x81, 0x94, 0x22, 0x1C};
+
+// STRUCTURE DE PACKET
+struct RangingPacket {
+    uint8_t  type;  // 0 = PING, 1 = PONG
+    uint64_t t1;
+    uint64_t t2;
+    uint64_t t3;
+};
+
+// UTILITAIRES HORODATAGE
+static inline uint64_t get_cycles() {
+    return (uint64_t)esp_cpu_get_ccount();
+}
+static constexpr double CYCLES_TO_SEC = 1.0 / 240000000.0; // 240 MHz
+static constexpr double SPEED_OF_LIGHT = 299792458.0;
+
+// GESTION WRAPAROUND (soustraction modulo 2^64)
+uint64_t cycles_diff(uint64_t a, uint64_t b) {
+    return (a >= b) ? (a - b) : (UINT64_MAX - b + a + 1);
+}
+
+#if ESPNOW_ROLE_INITIATOR
+static volatile bool pongReceived = false;
+static RangingPacket lastPong;
+static uint64_t t1, t4;
+#else
+static volatile bool pingReceived = false;
+static RangingPacket lastPing;
+#endif
+
+// CALLBACK RX
+static void onReceive(const uint8_t *mac, const uint8_t *data, int len) {
+    if (len != sizeof(RangingPacket)) return;
+    RangingPacket pkt;
+    memcpy(&pkt, data, sizeof(pkt));
+    Serial.println("[DEBUG] RX callback called");
+#if ESPNOW_ROLE_INITIATOR
+    if (pkt.type == 1) { // PONG
+        Serial.println("[DEBUG] PONG received");
+        lastPong = pkt;
+        t4 = get_cycles();
+        pongReceived = true;
     }
+#else
+    if (pkt.type == 0) { // PING
+        lastPing = pkt;
+        pingReceived = true;
+    }
+#endif
 }
 
 namespace espnow_receiver {
     void begin() {
-        Serial.println("[espnow_receiver] Début initialisation ESP-NOW");
+        Serial.println("[espnow_receiver] Début initialisation ESP-NOW DS-TWR");
         WiFi.mode(WIFI_STA);
-        Serial.println("[espnow_receiver] WiFi.mode(WIFI_STA) OK");
         esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
-        wifi_second_chan_t second;
-        uint8_t chan;
-        esp_wifi_get_channel(&chan, &second);
-        Serial.print("[espnow_receiver] Canal WiFi forcé sur ");
-        Serial.println(chan);
-        Serial.print("[MAC] ");
-        Serial.println(WiFi.macAddress());
-        esp_err_t initResult = esp_now_init();
-        if (initResult == ESP_OK) {
-            Serial.println("[espnow_receiver] esp_now_init OK");
-            esp_now_peer_info_t peerInfo = {};
-            memcpy(peerInfo.peer_addr, peerAddress, 6);
-            peerInfo.channel = 0;
-            peerInfo.encrypt = false;
-            esp_err_t peerResult = esp_now_add_peer(&peerInfo);
-            if (peerResult == ESP_OK) {
-                Serial.print("[espnow_receiver] Peer C3 ajouté OK : ");
-                for (int i = 0; i < 6; i++) {
-                    Serial.printf("%02X", peerAddress[i]);
-                    if (i < 5) Serial.print(":");
-                }
-                Serial.println();
-            } else {
-                Serial.print("[espnow_receiver] Erreur ajout peer: ");
-                Serial.println(peerResult);
-            }
-            // Enregistrement du callback natif avec RSSI
-            esp_now_register_recv_cb((esp_now_recv_cb_t)onReceive);
-            Serial.println("[espnow_receiver] Callback enregistré");
-        } else {
-            Serial.print("[espnow_receiver] Erreur init ESP-NOW: ");
-            Serial.println(initResult);
+        Serial.print("[MAC] "); Serial.println(WiFi.macAddress());
+        if (esp_now_init() != ESP_OK) {
+            Serial.println("[ERR] esp_now_init");
+            while (1) delay(1000);
         }
+        esp_now_peer_info_t peerInfo = {};
+        memcpy(peerInfo.peer_addr, peerAddress, 6);
+        peerInfo.channel = 0;
+        peerInfo.encrypt = false;
+        esp_now_add_peer(&peerInfo);
+        esp_now_register_recv_cb(onReceive);
+#if ESPNOW_ROLE_INITIATOR
+        Serial.println("[ROLE] INITIATOR");
+#else
+        Serial.println("[ROLE] RESPONDER");
+#endif
     }
 
     void detection_loop() {
+#if ESPNOW_ROLE_INITIATOR
+        static uint32_t lastPing = 0;
+        static bool waitingPong = false;
         if (!waitingPong && (millis() - lastPing > 1000)) {
-            const char msg[] = "Ping";
-            Serial.println("Ping envoyé");
-            esp_err_t result = esp_now_send(peerAddress, (uint8_t *)msg, sizeof(msg));
-            if (result != ESP_OK) {
-                Serial.print("Erreur esp_now_send: ");
-                Serial.println(result);
-            }
-            pingTimestamp = micros();
-            waitingPong = true;
+            // Envoi PING
+            RangingPacket pkt = {0, 0, 0, 0};
+            t1 = get_cycles();
+            pkt.type = 0;
+            pkt.t1 = t1;
+            esp_now_send(peerAddress, (uint8_t*)&pkt, sizeof(pkt));
+            Serial.println("[PING] Envoyé");
             lastPing = millis();
+            waitingPong = true;
         }
-
         if (waitingPong && pongReceived) {
-            unsigned long rtt = pongTimestamp - pingTimestamp; // en microsecondes
-            float distance = (rtt / 2.0) * 0.000299792458; // vitesse lumière ~0.3 m/µs
-            // Correction d'étalonnage (modifiable)
-            static float facteur_etalon = 5.0 / 0.7; // À ajuster selon ton étalonnage
-            float distance_corrigee = distance * facteur_etalon;
-            Serial.print("Pong reçu ! RTT: ");
-            Serial.print(rtt);
-            Serial.print(" us | Distance brute: ");
-            Serial.print(distance, 3);
-            Serial.print(" m | Distance corrigée: ");
-            Serial.print(distance_corrigee, 3);
-            Serial.println(" m");
+            // Calcul DS-TWR
+            uint64_t T1 = lastPong.t1;
+            uint64_t T2 = lastPong.t2;
+            uint64_t T3 = lastPong.t3;
+            uint64_t T4 = t4;
+            uint64_t delay = cycles_diff(T4, T1) - cycles_diff(T3, T2);
+            double tof = delay * CYCLES_TO_SEC / 2.0;
+            double distance = tof * SPEED_OF_LIGHT;
+            Serial.print("[RESULT] T1="); Serial.print(T1);
+            Serial.print(" T2="); Serial.print(T2);
+            Serial.print(" T3="); Serial.print(T3);
+            Serial.print(" T4="); Serial.print(T4);
+            Serial.print(" | ToF="); Serial.print(tof * 1e9, 1); Serial.print(" ns");
+            Serial.print(" | Distance="); Serial.print(distance, 3); Serial.println(" m");
             pongReceived = false;
             waitingPong = false;
         }
+#else
+        static bool waitingPing = false;
+        if (pingReceived) {
+            // À la réception du PING
+            uint64_t t2 = get_cycles();
+            RangingPacket resp;
+            resp.type = 1;
+            resp.t1 = lastPing.t1;
+            resp.t2 = t2;
+            resp.t3 = 0;
+            // Préparation de la réponse
+            delayMicroseconds(50); // Optionnel : simuler un petit délai de traitement
+            resp.t3 = get_cycles();
+            esp_now_send(peerAddress, (uint8_t*)&resp, sizeof(resp));
+            Serial.println("[PONG] Répondu");
+            pingReceived = false;
+        }
+#endif
     }
 }
