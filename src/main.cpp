@@ -39,12 +39,12 @@ void setup() {
   
   debugInit(9600,    // does serial.begin() in this function
     DBG_FSM | 
-    DBG_TASKMANAGER |    // comment DBG_ to deactivate its related prints
-    DBG_MOVEMENT |
-    DBG_SENSORS |
-    DBG_COMMS |
-    DBG_ENCODER |
-    DBG_LAUNCH_TGR
+    DBG_TASKMANAGER     // comment DBG_ to deactivate its related prints
+    // DBG_MOVEMENT |
+    // DBG_SENSORS |
+    // DBG_COMMS |
+    // DBG_ENCODER |
+    // DBG_LAUNCH_TGR
   );
   delay(200);  // Serial.begin(115200);
 

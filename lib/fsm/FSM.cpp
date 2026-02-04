@@ -43,14 +43,31 @@ static void markStateStart(FsmContext &ctx);
 
 
 
+void printFreeMemory(const char* label) {
+  #if defined(ESP32)
+    Serial.printf("[MEM] %s: Free heap: %u bytes\n", label, ESP.getFreeHeap());
+  #elif defined(ARDUINO_ARCH_AVR)
+    extern int __heap_start, *__brkval;
+    int v;
+    Serial.print("[MEM] ");
+    Serial.print(label);
+    Serial.print(": Free RAM: ");
+    Serial.println((int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval));
+  #endif
+}
+
+
+
 // ========== FSM Init =======================
 void fsmInitializeSystem(FsmContext &ctx)
 {
+  printFreeMemory("Before HW init");
   // 1. Hardware init
   launchTrigger.begin();
   emergencyBtn.begin();
   stepperCtrl.begin();
   servoCtrl.begin();
+  printFreeMemory("After HW init");
   // // if (!initLidar()) {
   // //   debugPrintf(DBG_FSM, "ERREUR: LIDAR non détecté !");
   // //   // Le robot peut continuer sans LIDAR ou s'arrêter selon votre choix
@@ -64,11 +81,13 @@ void fsmInitializeSystem(FsmContext &ctx)
   ctx.currentTeam = (teamSwitchRaw == HIGH) ? Team::TEAM_BLUE : Team::TEAM_YELLOW;
   delay(200);
   debugPrintf(DBG_FSM, "Team switch read: TEAM_%c", (ctx.currentTeam == Team::TEAM_YELLOW) ? 'Y' : 'B');
+  printFreeMemory("After team select");
 
   // 3. Movement init
   movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
   delay(200);
   debugPrintf(DBG_FSM, "1");
+  printFreeMemory("After movement init");
 
   // 4. Task manager
   static TaskManager taskManagerInstance(&movement);
@@ -83,6 +102,7 @@ void fsmInitializeSystem(FsmContext &ctx)
   ctx.matchStartMs = 0;
   markStateStart(ctx);
   debugPrintf(DBG_FSM, "FSM -> Init");
+  printFreeMemory("After TaskManager init");
 }
 
 static void markStateStart(FsmContext &ctx)
@@ -140,8 +160,8 @@ void fsmStep(FsmContext &ctx)
         // }
 
         if (true) {
-          // taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
-          // delay(200);
+          taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
+          delay(200);
         
           // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
           // delay(200);
@@ -151,14 +171,14 @@ void fsmStep(FsmContext &ctx)
 
           // SERVO
             // Move servo to specific angle with 1s hold
-          taskManager->addTask(new ServoTask(&servoCtrl, 90, 1000));
-          delay(200);
+          // taskManager->addTask(new ServoTask(&servoCtrl, 90, 1000));
+          // delay(200);
           // Move to min angle (45°) from settings.h
-          taskManager->addTask(new ServoTask(&servoCtrl, SERVO_MIN_ANGLE, SERVO_DELAY_MS));
-          delay(200);
+          // taskManager->addTask(new ServoTask(&servoCtrl, SERVO_MIN_ANGLE, SERVO_DELAY_MS));
+          // delay(200);
           // Move to max angle (135°) from settings.h
-          taskManager->addTask(new ServoTask(&servoCtrl, SERVO_MAX_ANGLE, SERVO_DELAY_MS));
-          delay(200);
+          // taskManager->addTask(new ServoTask(&servoCtrl, SERVO_MAX_ANGLE, SERVO_DELAY_MS));
+          // delay(200);
 
 
           
