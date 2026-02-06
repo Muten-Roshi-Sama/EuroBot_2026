@@ -16,7 +16,7 @@
 GyroMoveTask::GyroMoveTask(float distanceCm, int speed, float estCmPerSec) {
     if (estCmPerSec <= 0.01f) estCmPerSec = 10.0f;
     durationMs = (unsigned long)(fabs(distanceCm) / estCmPerSec * 1000.0f);
-    baseSpeed = speed;
+    baseSpeed = 80;
     forward = (distanceCm >= 0.0f);
 }
 
@@ -84,18 +84,18 @@ void GyroMoveTask::start(Movement &mv) {
     lastErr = 0.0f;
 
     // Start motors at base speed
-    int sp = constrain(baseSpeed, 0, 255);
-    if (forward) {
-        mv.motorLeft->setSpeed(sp);
-        mv.motorRight->setSpeed(sp);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(FORWARD);
-    } else {
-        mv.motorLeft->setSpeed(sp);
-        mv.motorRight->setSpeed(sp);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(BACKWARD);
-    }
+    // int sp = constrain(baseSpeed, 0, 255);
+    // if (forward) {
+    //     mv.motorLeft->setSpeed(sp);
+    //     mv.motorRight->setSpeed(sp);
+    //     mv.motorLeft->run(FORWARD);
+    //     mv.motorRight->run(FORWARD);
+    // } else {
+    //     mv.motorLeft->setSpeed(sp);
+    //     mv.motorRight->setSpeed(sp);
+    //     mv.motorLeft->run(BACKWARD);
+    //     mv.motorRight->run(BACKWARD);
+    // }
 
     debugPrintf(DBG_MOVEMENT, "GyroMove START dur=%lums sp=%d bias=%.2f", durationMs, baseSpeed, gyroBiasDegPerSec);
 }
@@ -109,6 +109,15 @@ void GyroMoveTask::update(Movement &mv) {
         finished = true;
         debugPrintf(DBG_MOVEMENT, "GyroMove DONE after %lums", millis() - startMs);
         return;
+    }
+    if (currentSpeed == 0) {
+        currentSpeed = startSpeed;
+    }
+    
+    // On augmente la vitesse progressivement jusqu'à atteindre la consigne baseSpeed
+    if (currentSpeed < baseSpeed) {
+        currentSpeed += acceleration; // Augmente doucement
+        if (currentSpeed > baseSpeed) currentSpeed = baseSpeed; // Plafond
     }
 
     // integrate gyro and compute PID
@@ -138,19 +147,28 @@ void GyroMoveTask::update(Movement &mv) {
     // convert PID output (degrees) to PWM correction directly (tune Kp/Ki/Kd)
     float corrPWM = constrain(out, -maxCorrection, maxCorrection);
 
-    int leftPWM = (int)constrain((float)baseSpeed - corrPWM, 0.0f, 255.0f);
-    int rightPWM = (int)constrain((float)baseSpeed + corrPWM, 0.0f, 255.0f);
+    int leftPWM = (int)constrain((float)currentSpeed - corrPWM, 0.0f, 255.0f);
+    int rightPWM = (int)constrain((float)currentSpeed + corrPWM, 0.0f, 255.0f);
 
     if (forward) {
-        mv.motorLeft->setSpeed(leftPWM);
-        mv.motorRight->setSpeed(rightPWM);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(FORWARD);
-    } else {
-        mv.motorLeft->setSpeed(leftPWM);
-        mv.motorRight->setSpeed(rightPWM);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(BACKWARD);
+       
+            mv.motorLeft->setSpeed(leftPWM);
+            mv.motorRight->setSpeed(rightPWM);
+            mv.motorLeft->run(FORWARD);
+            mv.motorRight->run(FORWARD);
+        
+        
+        
+    } 
+    else {
+        
+            mv.motorLeft->setSpeed(leftPWM);
+            mv.motorRight->setSpeed(rightPWM);
+            mv.motorLeft->run(BACKWARD);
+            mv.motorRight->run(BACKWARD);
+        
+        
+       
     }
 
     debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",
@@ -195,7 +213,7 @@ void GyroMoveTask::resume(Movement &mv) {
     debugPrintf(DBG_MOVEMENT, "GyroMove RESUMED");
 }
 
-// ===============RotateGyroTask.cpp=================
+// ===============RotateGyroTask.cpp===================
 RotateGyroTask::RotateGyroTask(float targetAngleDeg, int speed, float tolerance, unsigned long timeoutMs)
     : targetAngle(targetAngleDeg), baseSpeed(speed), toleranceDeg(tolerance), durationMs(timeoutMs) 
 {

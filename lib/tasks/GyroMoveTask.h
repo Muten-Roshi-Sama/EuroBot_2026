@@ -46,6 +46,9 @@ private:
     float integ = 0.0f;
     float lastErr = 0.0f;
     float maxCorrection = 120.0f; // max PWM correction
+    float currentSpeed = 0;       // La vitesse actuelle qui va augmenter
+    const float startSpeed = 60;  // Vitesse min pour que le moteur commence à tourner (à tester)
+    const float acceleration = 2.0;
 
     // helpers (defined in .cpp)
     void imuBegin();
