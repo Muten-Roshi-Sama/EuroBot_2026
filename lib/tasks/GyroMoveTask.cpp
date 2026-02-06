@@ -16,7 +16,7 @@
 GyroMoveTask::GyroMoveTask(float distanceCm, int speed, float estCmPerSec) {
     if (estCmPerSec <= 0.01f) estCmPerSec = 10.0f;
     durationMs = (unsigned long)(fabs(distanceCm) / estCmPerSec * 1000.0f);
-    baseSpeed = 80;
+    baseSpeed = 20;
     forward = (distanceCm >= 0.0f);
 }
 
@@ -66,7 +66,7 @@ void GyroMoveTask::start(Movement &mv) {
 
     // IMU init + quick calibration (stationary)
     imuBegin();
-    const int samples = 200;
+    const int samples = 3000;
     long sum = 0;
     for (int i = 0; i < samples; ++i) {
         int16_t gz = readRawGyroZ();
