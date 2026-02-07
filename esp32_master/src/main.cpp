@@ -6,11 +6,19 @@
 int c1 = 0;
 int c2 = 0;
 
+TaskHandle_t task1_handle = NULL;
+
 void task1(void *parameters){
   for(;;){
     Serial.print("Task 1: ");
     Serial.println(c1++);
     vTaskDelay(1000 / portTICK_PERIOD_MS); // delay for 1 second
+
+    if (c1 > 3) {
+      Serial.println("Suspending Task 1"); vTaskSuspend(task1_handle);
+    }
+
+
   } 
 }
 
@@ -18,18 +26,36 @@ void task2(void *parameters){
   for(;;){
     Serial.print("Task 2: ");
     Serial.println(c2++);
-    vTaskDelay(2000 / portTICK_PERIOD_MS); // delay for 1 second
+    vTaskDelay(1000 / portTICK_PERIOD_MS); // delay for 1 second
   } 
 }
+
+void superImportantTask(){
+  vTaskSuspendAll(); // suspend scheduler to run critical code without interruption
+  // critical code here (e.g., emergency stop)
+  xTaskResumeAll(); // resume scheduler after critical code is done
+}
+
 
 void setup() {
   Serial.begin(115200); delay(2000);
 
-  xTaskCreate(task1, "Task1", 10000, NULL, 1, NULL);
+  xTaskCreate(task1, "Task1", 10000, NULL, 1, &task1_handle);
   xTaskCreate(task2, "Task2", 10000, NULL, 1, NULL);
 }
 
 void loop() {
+
+
+  if (c2 == 5 && task1_handle != NULL) {
+      Serial.println("Resuming Task 1"); vTaskResume(task1_handle);
+      // Note : need to add the check if (task1_handle != NULL) in the loop()
+    }
+
+
+  if (c2 == 10 && task1_handle != NULL) {
+      Serial.println("Deleting task!"); vTaskDelete(task1_handle);
+    }
 
 }
 
