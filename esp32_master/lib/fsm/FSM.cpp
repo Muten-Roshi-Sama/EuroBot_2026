@@ -177,7 +177,7 @@ void fsmStep(FsmContext &ctx)
   {
     //
     // launchTrigger.update();
-    int millis_print = 0;
+    static unsigned long millis_print = 0;
 
     if (false){}
     // if (launchTrigger.isTriggered())
