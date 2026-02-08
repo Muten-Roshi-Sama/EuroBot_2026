@@ -108,15 +108,22 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next;
 void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
 {
 
-
+  // ---- SENSOR PRINTS -----
     static unsigned long millis_print = 0;
     if(ctx.matchActive && (millis() - millis_print >= 2000)) {
       millis_print = millis();
+      // ----- IMU -----
       Serial.print("FSM read IMU: ");
         Serial.print("X="); Serial.print(sensorsData.imu.ax, 2);
-        Serial.print(" Y="); Serial.print(sensorsData.imu.ay, 2);
-        Serial.print(" Z="); Serial.println(sensorsData.imu.az, 2);
+        // Serial.print(" Y="); Serial.print(sensorsData.imu.ay, 2);
+        // Serial.print(" Z="); Serial.println(sensorsData.imu.az, 2);
+      // ---- Ultrasonic ----
+      Serial.print("Ultrasonic read: ");
+      Serial.print("Front="); Serial.print(sensorsData.usFront.distanceCm, 2); Serial.print(" cm");
+      Serial.print(" Valid="); Serial.println(sensorsData.usFront.valid);
     }
+    
+  
     
   
   

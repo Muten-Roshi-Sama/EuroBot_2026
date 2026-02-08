@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include "FSM.h"
 #include "globals.h"
+#include "config.h"
 #include "imu.h"
 #include "../util/Debug.h"
 
@@ -11,15 +12,19 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include <Wire.h>
+#include <Ultrasonic.h>
 
 
+// Sensors 
 IMU imu;
 IMUData imuData;
-FsmContext fsmContext;
+Ultrasonic us(US_TRIG_PIN, US_ECHO_PIN, US_TIMEOUT);
 
 SensorsData sensorsData;
 SemaphoreHandle_t sensorsMutex;
 
+// FSM 
+FsmContext fsmContext;
 
 
 void i2c_scanner() {
@@ -39,9 +44,12 @@ void i2c_scanner() {
 
 
 // ====== FreeRTOS Tasks =========
-
 static int fsmSpeed = 1000; // ms delay between FSM steps (adjust as needed)
-static int imuSpeed = 500; // ms delay between IMU reads (adjust as needed)
+static int imuSpeed = 500;
+static int ultrasonicSpeed = 50; 
+
+
+
 
 void fsmTask(void* param) {
     FsmContext* ctx = (FsmContext*) param;
@@ -84,7 +92,23 @@ void imuTask(void* param) {
     }
 }
 
+void ultrasonicTask(void* param) {
+    while(true) {
 
+      // ---- Front US ----
+      float distanceFront = us.read();
+      bool validFront = (distanceFront > 0);
+      xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+        sensorsData.usFront.distanceCm = distanceFront;
+        sensorsData.usFront.valid = validFront;
+        xSemaphoreGive(sensorsMutex);
+
+      // ---- Back US ----
+      // ....
+
+        vTaskDelay(pdMS_TO_TICKS(ultrasonicSpeed)); // 10Hz
+    }
+}
 
 
 
@@ -115,6 +139,7 @@ void setup() {
   // Create Tasks
   xTaskCreatePinnedToCore(imuTask, "IMU", 2048, &imu,       2, nullptr, 1);  // Start IMU task (medium priority, core 1)
   xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
+  xTaskCreatePinnedToCore(ultrasonicTask, "ULTRA", 4096, &us, 2, nullptr, 1);
 
 
   // i2c_scanner();
@@ -126,51 +151,3 @@ void loop() {
   // Do nothing
   vTaskDelay(portMAX_DELAY); // makes tasks sleep without blocking other tasks
 }
-
-
-
-
-
-
-
-
-
-
-// =======================
-
-// #include <Arduino.h>
-// #include "FSM.h"
-// #include "settings.h"
-// #include "../util/Debug.h"
-// #include "globals.h"
-
-
-
-// FsmContext context;
-// TaskManager* taskManager = nullptr;
-
-// void setup() {
-//   debugInit(115200,    // does serial.begin() in this function
-//     DBG_FSM | 
-//     DBG_TASKMANAGER     // comment DBG_ to deactivate its related prints
-//     // DBG_MOVEMENT |
-//     // DBG_SENSORS |
-//     // DBG_COMMS |
-//     // DBG_ENCODER |
-//     // DBG_LAUNCH_TGR
-//   );
-//   delay(2000);
-//   debugPrintf(DBG_FSM, "==================== START ===================");
-
-//   fsmInitializeSystem(context);  //! ALL init functions  ====>  HERE  <=======
-// }
-
-// void loop() {
-//   fsmStep(context);
-
-//   // static unsigned long count = 0;
-//   // Serial.print("HB:");
-//   // Serial.println(count++);
-//   delay(1000);
-//   Serial.println("I'm Alive !");
-// }

@@ -55,15 +55,23 @@
 #define SERVO_DELAY_MS 1000
 
 
-// =========== LiDAR ===========
-// #define LIDAR1_PIN 8   // pin XSHUT du LIDAR1
-// #define LIDAR2_PIN 9   // pin XSHUT du LIDAR2
-// #define LIDAR3_PIN 10  // pin XSHUT du LIDAR3
 
-// Seuils de détection d'obstacle (en mm)
-#define LIDAR1_THRESHOLD 80
-#define LIDAR2_THRESHOLD 80
-#define LIDAR3_THRESHOLD 100
+// ===========
+// SENSORS PINS
+// ===========
 
+// Ultrasonic
+#define US_TIMEOUT 20000UL
+#define US_TRIG_PIN 12
+#define US_ECHO_PIN 13
+
+
+// LiDAR 
+// #define LIDAR1_PIN 8         // pin XSHUT du LIDAR1
+// #define LIDAR2_PIN 9         // pin XSHUT du LIDAR2
+// #define LIDAR3_PIN 10        // pin XSHUT du LIDAR3
+#define LIDAR1_THRESHOLD 80     // detection thresh in cm.
+#define LIDAR2_THRESHOLD 80     // detection thresh in cm.
+#define LIDAR3_THRESHOLD 100    // detection thresh in cm.
 
 #endif // SETTINGS_H

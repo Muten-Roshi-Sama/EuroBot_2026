@@ -17,9 +17,16 @@ struct IMUData {
     float roll; float pitch;        // Angles
 };
 
+struct USData {
+    float distanceCm;
+    bool valid;
+};
+
 struct SensorsData {
     IMUData imu;
-    // add other sensors later, e.g.:
+    USData usFront;
+    // USData usLeft;
+    // USData usRight;
     // float distanceLidar;
     // bool bumperPressed;
 };
