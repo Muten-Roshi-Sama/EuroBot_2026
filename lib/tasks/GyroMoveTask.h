@@ -77,7 +77,7 @@ private:
     // Motion parameters
     float targetAngle = 0.0f;
     float toleranceDeg = 2.0f;
-    int baseSpeed = 150;     // Vitesse max
+    int baseSpeed = 20;     // Vitesse max
     int minSpeed = 55;       // Vitesse min pour vaincre les frottements (ajustez selon votre robot)
     unsigned long durationMs = 0;
 

@@ -1,4 +1,7 @@
 
+
+
+
 #include "GyroMoveTask.h"
 #include "../util/Debug.h"
 #include <Wire.h>
@@ -16,7 +19,7 @@
 GyroMoveTask::GyroMoveTask(float distanceCm, int speed, float estCmPerSec) {
     if (estCmPerSec <= 0.01f) estCmPerSec = 10.0f;
     durationMs = (unsigned long)(fabs(distanceCm) / estCmPerSec * 1000.0f);
-    baseSpeed = 20;
+    baseSpeed = 60;
     forward = (distanceCm >= 0.0f);
 }
 
@@ -66,7 +69,7 @@ void GyroMoveTask::start(Movement &mv) {
 
     // IMU init + quick calibration (stationary)
     imuBegin();
-    const int samples = 3000;
+    const int samples = 1000;
     long sum = 0;
     for (int i = 0; i < samples; ++i) {
         int16_t gz = readRawGyroZ();
@@ -83,19 +86,8 @@ void GyroMoveTask::start(Movement &mv) {
     integ = 0.0f;
     lastErr = 0.0f;
 
-    // Start motors at base speed
-    // int sp = constrain(baseSpeed, 0, 255);
-    // if (forward) {
-    //     mv.motorLeft->setSpeed(sp);
-    //     mv.motorRight->setSpeed(sp);
-    //     mv.motorLeft->run(FORWARD);
-    //     mv.motorRight->run(FORWARD);
-    // } else {
-    //     mv.motorLeft->setSpeed(sp);
-    //     mv.motorRight->setSpeed(sp);
-    //     mv.motorLeft->run(BACKWARD);
-    //     mv.motorRight->run(BACKWARD);
-    // }
+    
+    
 
     debugPrintf(DBG_MOVEMENT, "GyroMove START dur=%lums sp=%d bias=%.2f", durationMs, baseSpeed, gyroBiasDegPerSec);
 }
@@ -109,15 +101,6 @@ void GyroMoveTask::update(Movement &mv) {
         finished = true;
         debugPrintf(DBG_MOVEMENT, "GyroMove DONE after %lums", millis() - startMs);
         return;
-    }
-    if (currentSpeed == 0) {
-        currentSpeed = startSpeed;
-    }
-    
-    // On augmente la vitesse progressivement jusqu'à atteindre la consigne baseSpeed
-    if (currentSpeed < baseSpeed) {
-        currentSpeed += acceleration; // Augmente doucement
-        if (currentSpeed > baseSpeed) currentSpeed = baseSpeed; // Plafond
     }
 
     // integrate gyro and compute PID
@@ -147,28 +130,19 @@ void GyroMoveTask::update(Movement &mv) {
     // convert PID output (degrees) to PWM correction directly (tune Kp/Ki/Kd)
     float corrPWM = constrain(out, -maxCorrection, maxCorrection);
 
-    int leftPWM = (int)constrain((float)currentSpeed - corrPWM, 0.0f, 255.0f);
-    int rightPWM = (int)constrain((float)currentSpeed + corrPWM, 0.0f, 255.0f);
+    int leftPWM = (int)constrain((float)baseSpeed - corrPWM, 0.0f, 255.0f);
+    int rightPWM = (int)constrain((float)baseSpeed + corrPWM, 0.0f, 255.0f);
 
     if (forward) {
-       
-            mv.motorLeft->setSpeed(leftPWM);
-            mv.motorRight->setSpeed(rightPWM);
-            mv.motorLeft->run(FORWARD);
-            mv.motorRight->run(FORWARD);
-        
-        
-        
-    } 
-    else {
-        
-            mv.motorLeft->setSpeed(leftPWM);
-            mv.motorRight->setSpeed(rightPWM);
-            mv.motorLeft->run(BACKWARD);
-            mv.motorRight->run(BACKWARD);
-        
-        
-       
+        mv.motorLeft->setSpeed(leftPWM);
+        mv.motorRight->setSpeed(rightPWM);
+        mv.motorLeft->run(FORWARD);
+        mv.motorRight->run(FORWARD);
+    } else {
+        mv.motorLeft->setSpeed(leftPWM);
+        mv.motorRight->setSpeed(rightPWM);
+        mv.motorLeft->run(BACKWARD);
+        mv.motorRight->run(BACKWARD);
     }
 
     debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",
@@ -213,159 +187,3 @@ void GyroMoveTask::resume(Movement &mv) {
     debugPrintf(DBG_MOVEMENT, "GyroMove RESUMED");
 }
 
-// ===============RotateGyroTask.cpp===================
-RotateGyroTask::RotateGyroTask(float targetAngleDeg, int speed, float tolerance, unsigned long timeoutMs)
-    : targetAngle(targetAngleDeg), baseSpeed(speed), toleranceDeg(tolerance), durationMs(timeoutMs) 
-{
-    // Pas de code ici, initialisation dans la liste ci-dessus
-}
-
-void RotateGyroTask::start(Movement &mv) {
-    started = true;
-    startMs = millis();
-    lastMicros = micros();
-    paused = false;
-    finished = false;
-    cancelled = false;
-
-    mv.stop();
-    delay(50); // Stabilisation avant calibration
-
-    // 1. Init & Calibration rapide IMU (Stationnaire)
-    imuBegin();
-    const int samples = 200;
-    long sum = 0;
-    for (int i = 0; i < samples; ++i) {
-        sum += readRawGyroZ();
-        delay(2);
-    }
-    float avgRaw = (float)sum / (float)samples;
-    gyroBiasDegPerSec = avgRaw / MPU_SENS_250DPS;
-
-    // 2. Reset des états
-    headingDeg = 0.0f; // On part de 0 (rotation relative)
-    integ = 0.0f;
-    lastErr = 0.0f;
-
-    debugPrintf(DBG_MOVEMENT, "RotateGyro START Target=%.1f deg Bias=%.2f", targetAngle, gyroBiasDegPerSec);
-}
-
-void RotateGyroTask::update(Movement &mv) {
-    if (cancelled || finished || paused) return;
-
-    // --- A. Vérification Timeout ---
-    
-
-    // --- B. Intégration Gyro ---
-    unsigned long nowMicros = micros();
-    float dt = (nowMicros - lastMicros) / 1e6f;
-    if (dt <= 0.0f) dt = 0.001f;
-    lastMicros = nowMicros;
-
-    int16_t rawGz = readRawGyroZ();
-    float gz = ((float)rawGz) / MPU_SENS_250DPS;
-    // Soustraction du bias et intégration
-    headingDeg -= (gz - gyroBiasDegPerSec) * dt;
-
-    // --- C. Calcul Erreur ---
-    float err = targetAngle - headingDeg;
-
-    // --- D. Condition de fin (Tolérance) ---
-    if (abs(err) <= toleranceDeg) {
-        mv.stop();
-        finished = true;
-        debugPrintf(DBG_MOVEMENT, "RotateGyro FINISHED (Final=%.2f)", headingDeg);
-        return;
-    }
-    if (durationMs > 0 && (millis() - startMs) >= durationMs) {
-        mv.stop();
-        finished = true;
-        debugPrintf(DBG_MOVEMENT, "RotateGyro TIMEOUT (Heading=%.2f)", headingDeg);
-        return;
-    }
-
-    // --- E. PID Control ---
-    integ += err * dt;
-    float deriv = (err - lastErr) / dt;
-    float out = (Kp * err) + (Ki * integ) + (Kd * deriv);
-    lastErr = err;
-
-    // --- F. Commande Moteurs ---
-    // La sortie du PID est la vitesse de rotation.
-    // On la contraint entre minSpeed (pour ne pas caler) et baseSpeed (vitesse max voulue).
-    float speedVal = abs(out);
-    speedVal = constrain(speedVal, (float)minSpeed, (float)baseSpeed);
-    
-    int pwm = (int)speedVal;
-
-    if (out > 0) {
-        // Erreur positive = On doit augmenter l'angle = Tourner Droite (CW)
-        mv.motorLeft->setSpeed(pwm);
-        mv.motorRight->setSpeed(pwm);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(BACKWARD);
-    } else {
-        // Erreur négative = On doit diminuer l'angle = Tourner Gauche (CCW)
-        mv.motorLeft->setSpeed(pwm);
-        mv.motorRight->setSpeed(pwm);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(FORWARD);
-    }
-}
-
-TaskInterruptAction RotateGyroTask::handleInterrupt(Movement &mv, uint8_t isrFlags) {
-    if (isrFlags & ISR_FLAG_EMERGENCY) {
-        mv.stop();
-        cancelled = true;
-        finished = true;
-        return TaskInterruptAction::CANCEL;
-    }
-    // Pour une rotation, on peut décider d'ignorer les obstacles, 
-    // ou de mettre en pause comme ici :
-    if (isrFlags & ISR_FLAG_OBSTACLE) {
-        mv.stop();
-        paused = true;
-        return TaskInterruptAction::PAUSE;
-    }
-    if ((isrFlags & ISR_FLAG_OBSTACLE_CLEARED) && paused) {
-        paused = false;
-        lastMicros = micros(); // Important pour ne pas avoir un dt énorme
-        return TaskInterruptAction::HANDLE;
-    }
-    return TaskInterruptAction::IGNORE;
-}
-
-void RotateGyroTask::cancel(Movement &mv) {
-    cancelled = true;
-    mv.stop();
-    finished = true;
-}
-
-void RotateGyroTask::resume(Movement &mv) {
-    if (!paused || cancelled || finished) return;
-    paused = false;
-    lastMicros = micros();
-}
-
-// --- Helpers IMU ---
-
-void RotateGyroTask::imuBegin() {
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x6B); // PWR_MGMT_1
-    Wire.write(0);    // Wake up
-    Wire.endTransmission(true);
-}
-
-int16_t RotateGyroTask::readRawGyroZ() {
-    Wire.beginTransmission(MPU_ADDR);
-    Wire.write(0x47); // GYRO_ZOUT_H
-    Wire.endTransmission(false);
-    
-    // Correction de l'erreur "ambiguous" : on force le cast en (int)
-    Wire.requestFrom((int)MPU_ADDR, 2, 1);
-    
-    if (Wire.available() < 2) return 0;
-    int16_t high = Wire.read();
-    int16_t low = Wire.read();
-    return (high << 8) | low;
-}

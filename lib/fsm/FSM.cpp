@@ -10,6 +10,7 @@
 #include "../tasks/MoveTask.h"
 #include "../tasks/GyroMoveTask.h"
 #include "../util/Debug.h"
+#include "../tasks/GyroTurnTask.h"
 
 
 
@@ -72,6 +73,7 @@ void fsmStep(FsmContext &ctx) {
       if (!tasksEnqueued) {
 
         taskManager -> addTask(new GyroMoveTask(150.0f, 110.0f, 0)); // 150 120 vitesse 
+        // taskManager -> addTask(new GyroTurnTask(90.0f, 110.0f)); // 90 degrés à droite
          // move forward 100 cm
         // taskManager -> addTask(new GyroMoveTask(300.0f, 50, 0)); // move forward 100 cm
         
