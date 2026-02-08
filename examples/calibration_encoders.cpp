@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include "Movement.h"
 #include "settings.h"
-#include <Adafruit_MotorShield.h>
+
 
 Movement movement;
 

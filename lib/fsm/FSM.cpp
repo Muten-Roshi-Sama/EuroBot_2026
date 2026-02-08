@@ -59,8 +59,24 @@ void fsmStep(FsmContext &ctx) {
     // 1. INIT
     case FsmAction::INIT: {
 
-      movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, 
-                      ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
+      movement.begin(
+    WHEEL_DIAMETER, 
+    WHEEL_BASE, 
+    ENCODER_RESOLUTION, 
+    ENCODER_PIN_LEFT, 
+    ENCODER_PIN_RIGHT, 
+    DEFAULT_SPEED,
+
+    // --- Moteur A (Gauche) ---
+    32,  // ENA (Vitesse PWM)
+    33,  // IN1 (Direction 1)
+    25,  // IN2 (Direction 2)
+
+    // --- Moteur B (Droit) ---
+    14,  // ENB (Vitesse PWM)
+    26,  // IN3 (Direction 1)
+    27   // IN4 (Direction 2)
+);
       delay(200);
 
 
@@ -128,7 +144,7 @@ void fsmStep(FsmContext &ctx) {
     }
 
     case FsmAction::motorTest: {
-        runMotorEncoderDiagnostics(movement);
+        //runMotorEncoderDiagnostics(movement);
         // ctx.currentAction = FsmAction::IDLE;  
         break;
     }
@@ -147,63 +163,63 @@ void fsmStep(FsmContext &ctx) {
 // Diagnostic test: run both motors forward/backward and print encoder ticks.
 // Put this in a temporary test routine and call it from setup() once.
 
-void runMotorEncoderDiagnostics(Movement &mv) {
-    Serial.println(F("DIAG: reset encoders"));
-    mv.resetEncoders();
-    delay(200);
+// void runMotorEncoderDiagnostics(Movement &mv) {
+//     Serial.println(F("DIAG: reset encoders"));
+//     mv.resetEncoders();
+//     delay(200);
 
-    Serial.println(F("DIAG: both motors FORWARD @150 for 1500ms"));
-    mv.motorLeft->setSpeed(150);
-    mv.motorRight->setSpeed(150);
-    mv.motorLeft->run(FORWARD);
-    mv.motorRight->run(FORWARD);
-    delay(1500);
-    noInterrupts();
-    long L1 = mv.getLeftTicks();
-    long R1 = mv.getRightTicks();
-    interrupts();
-    Serial.print(F("DIAG: forward -> L=")); Serial.print(L1); Serial.print(F("  R=")); Serial.println(R1);
+//     Serial.println(F("DIAG: both motors FORWARD @150 for 1500ms"));
+//     mv.motorLeft->setSpeed(150);
+//     mv.motorRight->setSpeed(150);
+//     mv.motorLeft->run(FORWARD);
+//     mv.motorRight->run(FORWARD);
+//     delay(1500);
+//     noInterrupts();
+//     long L1 = mv.getLeftTicks();
+//     long R1 = mv.getRightTicks();
+//     interrupts();
+//     Serial.print(F("DIAG: forward -> L=")); Serial.print(L1); Serial.print(F("  R=")); Serial.println(R1);
 
-    Serial.println(F("DIAG: both motors BACKWARD @150 for 1500ms"));
-    mv.resetEncoders();
-    mv.motorLeft->setSpeed(150);
-    mv.motorRight->setSpeed(150);
-    mv.motorLeft->run(BACKWARD);
-    mv.motorRight->run(BACKWARD);
-    delay(1500);
-    noInterrupts();
-    long L2 = mv.getLeftTicks();
-    long R2 = mv.getRightTicks();
-    interrupts();
-    Serial.print(F("DIAG: backward -> L=")); Serial.print(L2); Serial.print(F("  R=")); Serial.println(R2);
+//     Serial.println(F("DIAG: both motors BACKWARD @150 for 1500ms"));
+//     mv.resetEncoders();
+//     mv.motorLeft->setSpeed(150);
+//     mv.motorRight->setSpeed(150);
+//     mv.motorLeft->run(BACKWARD);
+//     mv.motorRight->run(BACKWARD);
+//     delay(1500);
+//     noInterrupts();
+//     long L2 = mv.getLeftTicks();
+//     long R2 = mv.getRightTicks();
+//     interrupts();
+//     Serial.print(F("DIAG: backward -> L=")); Serial.print(L2); Serial.print(F("  R=")); Serial.println(R2);
 
-    Serial.println(F("DIAG: left motor only FORWARD @150 for 1000ms"));
-    mv.resetEncoders();
-    mv.motorLeft->setSpeed(150);
-    mv.motorLeft->run(FORWARD);
-    mv.motorRight->run(RELEASE);
-    delay(1000);
-    noInterrupts();
-    long L3 = mv.getLeftTicks();
-    long R3 = mv.getRightTicks();
-    interrupts();
-    Serial.print(F("DIAG: left only -> L=")); Serial.print(L3); Serial.print(F("  R=")); Serial.println(R3);
+//     Serial.println(F("DIAG: left motor only FORWARD @150 for 1000ms"));
+//     mv.resetEncoders();
+//     mv.motorLeft->setSpeed(150);
+//     mv.motorLeft->run(FORWARD);
+//     mv.motorRight->run(RELEASE);
+//     delay(1000);
+//     noInterrupts();
+//     long L3 = mv.getLeftTicks();
+//     long R3 = mv.getRightTicks();
+//     interrupts();
+//     Serial.print(F("DIAG: left only -> L=")); Serial.print(L3); Serial.print(F("  R=")); Serial.println(R3);
 
-    Serial.println(F("DIAG: right motor only FORWARD @150 for 1000ms"));
-    mv.resetEncoders();
-    mv.motorLeft->run(RELEASE);
-    mv.motorRight->setSpeed(150);
-    mv.motorRight->run(FORWARD);
-    delay(1000);
-    noInterrupts();
-    long L4 = mv.getLeftTicks();
-    long R4 = mv.getRightTicks();
-    interrupts();
-    Serial.print(F("DIAG: right only -> L=")); Serial.print(L4); Serial.print(F("  R=")); Serial.println(R4);
+//     Serial.println(F("DIAG: right motor only FORWARD @150 for 1000ms"));
+//     mv.resetEncoders();
+//     mv.motorLeft->run(RELEASE);
+//     mv.motorRight->setSpeed(150);
+//     mv.motorRight->run(FORWARD);
+//     delay(1000);
+//     noInterrupts();
+//     long L4 = mv.getLeftTicks();
+//     long R4 = mv.getRightTicks();
+//     interrupts();
+//     Serial.print(F("DIAG: right only -> L=")); Serial.print(L4); Serial.print(F("  R=")); Serial.println(R4);
 
-    mv.stop();
-    Serial.println(F("DIAG: done"));
-}
+//     mv.stop();
+//     Serial.println(F("DIAG: done"));
+// }
 
 
 

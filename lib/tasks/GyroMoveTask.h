@@ -96,9 +96,9 @@ private:
     float headingDeg = 0.0f; // Position actuelle (relative au début de la rotation)
 
     // PID state (Ajusté pour la rotation)
-    float Kp = 3.5f;   // Plus agressif pour tourner
-    float Ki = 0.1f;
-    float Kd = 0.5f;
+    float Kp = 0.8f;
+    float Ki = 0.01f;
+    float Kd = 0.05f;
     float integ = 0.0f;
     float lastErr = 0.0f;
 

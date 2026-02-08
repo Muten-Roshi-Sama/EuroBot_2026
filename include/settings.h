@@ -4,76 +4,49 @@
 #pragma once
 
 /**
- * SETTINGS.H
- * 
- * Configuration centrale pour le système de mouvement du robot
- * Tous les paramètres physiques et pins sont définis ici
+ * SETTINGS.H (Version ESP32)
  */
 
-// =========== Emergency Button ===========
-#define EMERGENCY_PIN 7
+// =========== Boutons (Pins Sûres ESP32) ===========
+// On évite D12, D0, D2. On prend des GPIO classiques.
+#define EMERGENCY_PIN 23 
+#define CONTACT_PIN   5  
 
-// =========== Start Button ===========
-#define CONTACT_PIN 12  //A adapter selon le câblage
+// ============ Géométrie du Robot =============
+#define WHEEL_DIAMETER 6.0f     // 60mm
+#define WHEEL_BASE     10.8f    // 10.8cm
+#define ENCODER_RESOLUTION 70 // ATTENTION : Mettez la vraie valeur de VOS encodeurs ici (ex: 360, 1440...)
 
-// ============ Movement =============
+// =========== Encodeurs (Pins Sûres ESP32) ===========
+// Arduino Uno utilise 2 et 3. Sur ESP32, c'est dangereux pour le boot.
+// On utilise 18 et 19 qui sont parfaits pour ça.
+#define ENCODER_PIN_LEFT  18
+#define ENCODER_PIN_RIGHT 19
 
-#define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
-#define WHEEL_BASE 10.8f // Distance entre les centres des deux roues en centimètres (10cm)
-#define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
+// =========== Vitesse ===========
+#define DEFAULT_SPEED 150
+#define MIN_SPEED     80
+#define MAX_SPEED     255
 
+// =========== Moteurs (L298N sur ESP32) ===========
+// Ces IDs ne servent plus avec la lib L298N directe, 
+// mais on les garde pour éviter les erreurs si le code les appelle.
+#define MOTOR_LEFT_ID  1
+#define MOTOR_RIGHT_ID 2
 
-
-// CONFIGURATION DES PINS 
-#define ENCODER_PIN_LEFT 3   // Arduino Uno: pins 2 et 3 supportent les interruptions
-#define ENCODER_PIN_RIGHT 2
-
-// PARAMÈTRES DE VITESSE
-
-
-#define DEFAULT_SPEED 150  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
-#define MIN_SPEED 80
-#define MAX_SPEED 255
-
-// ============================================
-// CONFIGURATION DU MOTOR SHIELD
-// ============================================
-
-// Numéros des moteurs sur le Motor Shield
-#define MOTOR_LEFT_ID 1      // Motor 1 = roue gauche
-#define MOTOR_RIGHT_ID 2     // Motor 2 = roue droite
-
-// ============================================
-// FACTEURS DE CORRECTION (CALIBRATION)
-// ============================================
-
-// Facteur de correction pour la distance
-// 1.0 = pas de correction
-// > 1.0 = le robot va trop loin (réduire)
-// < 1.0 = le robot ne va pas assez loin (augmenter)
+// =========== Calibration ===========
 #define DISTANCE_CORRECTION_FACTOR 1.0f
-
-// Facteur de correction pour la rotation
 #define ROTATION_CORRECTION_FACTOR 1.0f
 
-// ============================================
-// PARAMÈTRES DE CONTRÔLE
-// ============================================
+// =========== Contrôle ===========
+// Correction importante : delay() attend des millisecondes (int), pas des floats.
+// 10ms est standard pour une boucle fluide.
+#define MOVEMENT_LOOP_DELAY 10 
 
-// Délai dans les boucles bloquantes (ms)
-#define MOVEMENT_LOOP_DELAY 0.01f
-
-// Tolérance pour l'arrêt (ticks)
 #define STOP_TOLERANCE 2
 
-// ============================================
-// CONFIGURATION DEBUG
-// ============================================
-
-// Activer les messages de debug (0 = non, 1 = oui)
+// =========== Debug ===========
 #define DEBUG_MOVEMENT 1
-
-// Activer l'affichage des encodeurs
 #define DEBUG_ENCODERS 1
 
 #endif // SETTINGS_H

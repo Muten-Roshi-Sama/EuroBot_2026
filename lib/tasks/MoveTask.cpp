@@ -3,6 +3,7 @@
 #include "isr_flags.h"
 #include "../util/Debug.h"
 #include <Arduino.h> 
+#include "L298N.h"
 
 // Gyro imu;
 // SimplePID headingPid;
@@ -101,13 +102,13 @@ void MoveTask::update(Movement &mv) {
     if (distanceCm >= 0.0f) {
         mv.motorLeft->setSpeed(leftPWM);
         mv.motorRight->setSpeed(rightPWM);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(FORWARD);
+        mv.motorLeft->forward();
+        mv.motorRight->forward();
     } else {
         mv.motorLeft->setSpeed(leftPWM);
         mv.motorRight->setSpeed(rightPWM);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(BACKWARD);
+        mv.motorLeft->backward();
+        mv.motorRight->backward();
     }
 
     loopCounter++;
@@ -229,13 +230,13 @@ void RotateTask::update(Movement &mv) {
     if (goRight) {
         mv.motorLeft->setSpeed(speed);
         mv.motorRight->setSpeed(speed);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(BACKWARD);
+        mv.motorLeft->forward();
+        mv.motorRight->backward();
     } else {
         mv.motorLeft->setSpeed(speed);
         mv.motorRight->setSpeed(speed);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(FORWARD);
+        mv.motorLeft->backward();
+        mv.motorRight->forward();
     }
 
     debugPrintf(DBG_MOVEMENT, "ROT U: ang=%.1f cur=%.2f err=%.2f pid=%.2f spd=%d dir=%s",

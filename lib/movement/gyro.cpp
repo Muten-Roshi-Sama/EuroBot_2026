@@ -19,7 +19,7 @@ void Gyro::readRaw() {
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x43); // gyro X high byte register
   Wire.endTransmission(false);
-  Wire.requestFrom(MPU_ADDR, 6, true);
+  Wire.requestFrom((uint16_t)MPU_ADDR, (uint8_t)6, true);
   int16_t gx = (Wire.read() << 8) | Wire.read();
   int16_t gy = (Wire.read() << 8) | Wire.read();
   int16_t gz = (Wire.read() << 8) | Wire.read();

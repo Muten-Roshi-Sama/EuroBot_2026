@@ -4,16 +4,14 @@
 
 #include <Arduino.h>
 #include "Encoder.h"
-#include <Adafruit_MotorShield.h>
 #include "settings.h"
+#include <L298N.h>
 
 class Movement {
 public:
     // Moteurs et encodeurs
-    Adafruit_MotorShield AFMS;
-    Adafruit_DCMotor *motorLeft;
-    Adafruit_DCMotor *motorRight;
-    
+    L298N* motorLeft = nullptr;
+    L298N* motorRight = nullptr;
     // Objets encodeurs (utilisation de la classe Encoder existante)
     Encoder encoderLeft;
     Encoder encoderRight;
@@ -49,7 +47,9 @@ public:
     
     // Initialisation avec paramètres du robot
     void begin(float wheelDiameterCm, float wheelBaseCm, int encResolution, 
-               int encPinLeft, int encPinRight, int defSpeed = 150);
+               int encPinLeft, int encPinRight, int defSpeed,
+               int enA, int in1, int in2,  // Pins Moteur Gauche
+               int enB, int in3, int in4);
     
     // Mouvements basiques (non-bloquants)
     void forward(int speed);
@@ -99,25 +99,39 @@ public:
     float PIDControlDistance(unsigned long& lastUpdateTimeDist,float targetDistance, float currentDistance, float Kp, float Ki);
     static void encoderLeftISRWrapper();
     static void encoderRightISRWrapper();
-    void setRawSpeeds(int leftSpeed, int rightSpeed) {
-    // Gestion moteur Gauche
-    if (leftSpeed == 0) {
-        motorLeft->setSpeed(0);
-        motorLeft->run(RELEASE);
-    } else {
-        motorLeft->setSpeed(abs(leftSpeed));
-        motorLeft->run(leftSpeed > 0 ? FORWARD : BACKWARD);
-    }
+    void setRawSpeeds(int leftSpeed, int rightSpeed) 
+    {
+        if (leftSpeed == 0) {
+            // run(RELEASE) équivaut à stop() sur le L298N (roue libre)
+            motorLeft->stop(); 
+        } else {
+            // On définit la vitesse absolue (toujours positive)
+            motorLeft->setSpeed(abs(leftSpeed));
+            
+            // On choisit la direction
+            if (leftSpeed > 0) {
+                motorLeft->forward();
+            } else {
+                motorLeft->backward();
+            }
+        }
 
-    // Gestion moteur Droit
-    if (rightSpeed == 0) {
-        motorRight->setSpeed(0);
-        motorRight->run(RELEASE);
-    } else {
-        motorRight->setSpeed(abs(rightSpeed));
-        motorRight->run(rightSpeed > 0 ? FORWARD : BACKWARD);
+        // --- Gestion moteur Droit ---
+        if (rightSpeed == 0) {
+            motorRight->stop();
+        } else {
+            motorRight->setSpeed(abs(rightSpeed));
+            
+            if (rightSpeed > 0) {
+                motorRight->forward();
+            } else {
+                motorRight->backward();
+            }
+        }
+
+        // Gestion moteur Gauche
+    
     }
-}
     
     
     

@@ -26,4 +26,4 @@ void fsmStep(FsmContext &ctx);
 void fsmChangeAction(FsmContext &ctx, FsmAction next);
 
 
-void runMotorEncoderDiagnostics(Movement &mv);
+//void runMotorEncoderDiagnostics(Movement &mv);

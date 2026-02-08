@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <Arduino.h>
 #include "isr_flags.h"
+#include "L298N.h"
 
 // MPU-6050 default I2C addr and registers
 #define MPU_ADDR 0x68
@@ -133,16 +134,18 @@ void GyroMoveTask::update(Movement &mv) {
     int leftPWM = (int)constrain((float)baseSpeed - corrPWM, 0.0f, 255.0f);
     int rightPWM = (int)constrain((float)baseSpeed + corrPWM, 0.0f, 255.0f);
 
+    mv.motorLeft->setSpeed(leftPWM);
+    mv.motorRight->setSpeed(rightPWM);
+
+    // 2. On gère la direction
     if (forward) {
-        mv.motorLeft->setSpeed(leftPWM);
-        mv.motorRight->setSpeed(rightPWM);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(FORWARD);
+        // Avancer
+        mv.motorLeft->forward();
+        mv.motorRight->forward();
     } else {
-        mv.motorLeft->setSpeed(leftPWM);
-        mv.motorRight->setSpeed(rightPWM);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(BACKWARD);
+        // Reculer
+        mv.motorLeft->backward();
+        mv.motorRight->backward();
     }
 
     debugPrintf(DBG_MOVEMENT, "GYRO U dt=%.3f heading=%.2f err=%.2f corr=%.2f L=%d R=%d",

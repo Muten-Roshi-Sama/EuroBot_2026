@@ -1,6 +1,7 @@
 #include "GyroTurnTask.h"
 #include <Wire.h>
 #include <Arduino.h>
+#include "L298N.h"
 
 // MPU6050
 #define MPU_ADDR 0x68
@@ -27,7 +28,8 @@ int16_t GyroTurnTask::readRawGyroZ() {
     Wire.beginTransmission(MPU_ADDR);
     Wire.write(MPU_GYRO_Z_H);
     Wire.endTransmission(false);
-    Wire.requestFrom(MPU_ADDR, (uint8_t)2, (uint8_t)true);
+    // On caste l'adresse en uint16_t pour cibler la bonne fonction ESP32
+    Wire.requestFrom((uint16_t)MPU_ADDR, (uint8_t)2, true);
 
     if (Wire.available() < 2) return 0;
     int16_t hi = Wire.read();
@@ -106,16 +108,19 @@ void GyroTurnTask::update(Movement &mv) {
     int pwm = constrain(abs(out), 25, maxPWM);
 
     // 🔁 motors
+    mv.motorLeft->setSpeed(pwm);
+    mv.motorRight->setSpeed(pwm);
+
     if (err > 0) {
-        mv.motorLeft->setSpeed(pwm);
-        mv.motorRight->setSpeed(pwm);
-        mv.motorLeft->run(FORWARD);
-        mv.motorRight->run(BACKWARD);
+        // Cas 1 : Pivot (ex: Tourner à Droite)
+        // Le moteur gauche avance, le droit recule
+        mv.motorLeft->forward();
+        mv.motorRight->backward();
     } else {
-        mv.motorLeft->setSpeed(pwm);
-        mv.motorRight->setSpeed(pwm);
-        mv.motorLeft->run(BACKWARD);
-        mv.motorRight->run(FORWARD);
+        // Cas 2 : Pivot inverse (ex: Tourner à Gauche)
+        // Le moteur gauche recule, le droit avance
+        mv.motorLeft->backward();
+        mv.motorRight->forward();
     }
 }
 

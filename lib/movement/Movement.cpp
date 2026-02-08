@@ -1,10 +1,11 @@
 #include "Movement.h"
 #include <Arduino.h>
-#include <Adafruit_MotorShield.h>
 #include <PID_v1.h>
 #include <Adafruit_MPU6050.h>
 #include<Wire.h>
 #include <math.h>
+#include <L298N.h>
+#include <settings.h>
 // --- PID 1 : Contrôleur de Cap (Boucle Interne) ---
 // Objectif: Rouler droit (Erreur de Ticks = 0)
 double CapSetpoint = 0; 
@@ -34,11 +35,16 @@ extern float (getAverageSpeedTicks);
 Movement* Movement::instance = nullptr;
 
 // Constructeur
-Movement::Movement() : AFMS(Adafruit_MotorShield()), 
-                        encoderLeft(ENCODER_RESOLUTION),
-                        encoderRight(ENCODER_RESOLUTION) {
+Movement::Movement() : 
+    // On retire "AFMS(Adafruit_MotorShield())" car il n'existe plus
+    encoderLeft(ENCODER_RESOLUTION),
+    encoderRight(ENCODER_RESOLUTION) 
+{
+    // On initialise les pointeurs à NULL (ils seront créés dans begin())
     motorLeft = nullptr;
     motorRight = nullptr;
+
+    // Le reste de vos initialisations de variables reste identique
     wheelDiameter = WHEEL_DIAMETER;
     wheelBase = WHEEL_BASE;
     encoderResolution = ENCODER_RESOLUTION;
@@ -52,9 +58,11 @@ Movement::Movement() : AFMS(Adafruit_MotorShield()),
 
 // Initialisation complète avec paramètres du robot
 void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution, 
-                        int encPinLeft, int encPinRight, int defSpeed) {
-                            
-    // Sauvegarde des paramètres
+                     int encPinLeft, int encPinRight, int defSpeed,
+                     int enA, int in1, int in2,   // Moteur Gauche (ENA, IN1, IN2)
+                     int enB, int in3, int in4) { // Moteur Droit (ENB, IN3, IN4)
+                        
+    // 1. Sauvegarde des paramètres physiques
     wheelDiameter = wheelDiameterCm;
     wheelBase = wheelBaseCm;
     encoderResolution = encResolution;
@@ -62,125 +70,77 @@ void Movement::begin(float wheelDiameterCm, float wheelBaseCm, int encResolution
     encoderPinRight = encPinRight;
     defaultSpeed = defSpeed;
     
-    // Calcul de la circonférence de la roue
+    // 2. Calculs géométriques
     wheelCircumference = PI * wheelDiameter;
     
-    // Initialisation du Motor Shield
-    if (!AFMS.begin()) {
-        Serial.println("ERREUR: Motor Shield non detecte!");
-        while (1); // Arrêt si le shield n'est pas détecté
-    }
-    AFMS.begin();
-    Serial.println("Motor Shield initialise avec succes");
-    //AFMS.begin();
-    
-    // Récupération des moteurs (Motor 1 = gauche, Motor 2 = droite)
-    motorLeft = AFMS.getMotor(MOTOR_LEFT_ID);
-    motorRight = AFMS.getMotor(MOTOR_RIGHT_ID);
-    
-    // Initialisation des encodeurs avec la résolution
-    encoderLeft.changeResolution(encoderResolution);
-    encoderRight.changeResolution(encoderResolution);// verif
+    // 3. Initialisation des Moteurs L298N
+    // On nettoie d'abord si ça a déjà été initialisé (pour éviter les fuites de mémoire)
+    if (motorLeft != nullptr) delete motorLeft;
+    if (motorRight != nullptr) delete motorRight;
+
+    // Création dynamique des objets moteurs avec vos pins
+    motorLeft = new L298N(enA, in1, in2);
+    motorRight = new L298N(enB, in3, in4);
+
+    // Initialisation de la vitesse PWM (par exemple 0 au début)
+    motorLeft->setSpeed(0);
+    motorRight->setSpeed(0);
+
+    // Arrêt initial explicite
+    motorLeft->stop();
+    motorRight->stop();
+
+    Serial.println("Moteurs L298N initialises avec succes");
+
+    // 4. Initialisation des encodeurs (Code inchangé)
+    // Note: Assurez-vous que votre classe Encoder a bien cette méthode
+    // encoderLeft.changeResolution(encoderResolution); 
+    // encoderRight.changeResolution(encoderResolution);
     
     // Configuration des pins des encodeurs
     pinMode(encoderPinLeft, INPUT_PULLUP);
     pinMode(encoderPinRight, INPUT_PULLUP);
     
     // Attachement des interruptions
+    // Assurez-vous que minleftEncoderISR et rightEncoderISR sont bien statiques ou globales
     attachInterrupt(digitalPinToInterrupt(encoderPinLeft), minleftEncoderISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(encoderPinRight), rightEncoderISR, CHANGE);
     
-    // Initialisation du timestamp
+    // 5. Initialisation du timestamp
     lastUpdateTime = micros();
     
-    // Arrêt initial des moteurs
-    stop();
-
-    // setup gyro and accelerometer
-    
-    
     #if DEBUG_MOVEMENT
-    // Serial.println("=== Configuration du robot ===");
-    // Serial.print("Diametre roues: "); Serial.print(wheelDiameter); Serial.println(" cm");
-    // Serial.print("Distance entre roues: "); Serial.print(wheelBase); Serial.println(" cm");
-    // Serial.print("Resolution encodeur: "); Serial.print(encoderResolution); Serial.println(" ticks/tour");
-    // Serial.print("Circonference roue: "); Serial.print(wheelCircumference); Serial.println(" cm");
-    // Serial.println("==============================");
+    // Serial.println("=== Configuration L298N ===");
+    // Serial.print("Pins Gauche: "); Serial.print(enA); Serial.print(","); Serial.print(in1); Serial.print(","); Serial.println(in2);
+    // Serial.print("Pins Droit: "); Serial.print(enB); Serial.print(","); Serial.print(in3); Serial.print(","); Serial.println(in4);
     #endif
 }
-
 // ============= MOUVEMENTS BASIQUES (NON-BLOQUANTS) =============
 
-void Movement::forward(int speed) {
-    motorLeft->setSpeed(speed);
-    motorRight->setSpeed(speed);
-    motorLeft->run(FORWARD);
-    motorRight->run(FORWARD);
-}
 
-void Movement::forward() {
-    forward(defaultSpeed);
-}
 
-void Movement::backward(int speed) {
-    motorLeft->setSpeed(speed);
-    motorRight->setSpeed(speed);
-    motorLeft->run(BACKWARD);
-    motorRight->run(BACKWARD);
-}
 
-void Movement::backward() {
-    backward(defaultSpeed);
-}
+
+
 
 void Movement::stop() {
-    motorLeft->run(RELEASE);
-    motorRight->run(RELEASE);
+    motorLeft->stop();
+    motorRight->stop();
 }
 
 // ============= ROTATIONS SUR PLACE (2 MOTEURS EN SENS OPPOSÉ) =============
 
-void Movement::rotateLeft(int speed) {
-    // Roue gauche recule, roue droite avance -> rotation sur place vers la gauche
-    motorLeft->setSpeed(speed);
-    motorRight->setSpeed(speed);
-    motorLeft->run(BACKWARD);
-    motorRight->run(FORWARD);
-}
 
-void Movement::rotateLeft() {
-    rotateLeft(defaultSpeed);
-}
 
-void Movement::rotateRight(int speed) {
-    // Roue gauche avance, roue droite recule -> rotation sur place vers la droite
-    motorLeft->setSpeed(speed);
-    motorRight->setSpeed(speed);
-    motorLeft->run(FORWARD);
-    motorRight->run(BACKWARD);
-}
 
-void Movement::rotateRight() {
-    rotateRight(defaultSpeed);
-}
+
+
+
+
 
 // ============= VIRAGES DOUX (UNE ROUE RALENTIT) =============
 
-void Movement::turnLeftSoft(int speed) {
-    // Roue droite à pleine vitesse, roue gauche ralentie
-    motorLeft->setSpeed(speed / 2);
-    motorRight->setSpeed(speed);
-    motorLeft->run(FORWARD);
-    motorRight->run(FORWARD);
-}
 
-void Movement::turnRightSoft(int speed) {
-    // Roue gauche à pleine vitesse, roue droite ralentie
-    motorLeft->setSpeed(speed);
-    motorRight->setSpeed(speed / 2);
-    motorLeft->run(FORWARD);
-    motorRight->run(FORWARD);
-}
 // ============= PID Integration =============
 float Movement::PIDControlAngle(unsigned long& lastUpdateTimeAngle, 
                                 float targetAngle, 
@@ -332,8 +292,8 @@ void Movement::moveDistance(float cm, int speed) {
 
             motorLeft->setSpeed(0);
             motorRight->setSpeed(0);
-            motorLeft->run(RELEASE);
-            motorRight->run(RELEASE);
+            motorLeft->stop();
+            motorRight->stop();
 
             Serial.print("[Warm-up] Err: "); Serial.print(error);
             Serial.print(" | PersErr: "); Serial.print(persistentError);
@@ -355,10 +315,20 @@ void Movement::moveDistance(float cm, int speed) {
             //leftSpeed  = constrain(slowFactor*leftSpeed, 70, 255);   // vitesse minimale de 80
             //rightSpeed = constrain(slowFactor*rightSpeed, 70, 255); // vitesse minimale de 80
 
+            // 1. On définit la vitesse (PWM) pour chaque moteur
             motorLeft->setSpeed(leftSpeed);
             motorRight->setSpeed(rightSpeed);
-            motorLeft->run(forwardDir ? FORWARD : BACKWARD);
-            motorRight->run(forwardDir ? FORWARD : BACKWARD);
+
+            // 2. On active les moteurs dans la bonne direction
+            if (forwardDir) {
+                // Si on veut avancer
+                motorLeft->forward();
+                motorRight->forward();
+            } else {
+                // Si on veut reculer
+                motorLeft->backward();
+                motorRight->backward();
+            }
 
             Serial.print("Err: "); Serial.print(error);
             Serial.print(" | PersErr: "); Serial.print(persistentError);
@@ -449,26 +419,33 @@ void Movement::rotate(float degrees, int baseSpeed) {
 
         // --- Choix de la direction ---
         if (error > 0) {
-            
-            
+        
             encoderDirection = 1;
             
+            // On définit la vitesse
             motorLeft->setSpeed(speed);
             motorRight->setSpeed(speed);
-            motorLeft->run(FORWARD);
-            motorRight->run(BACKWARD);
             
-            
-        } else {
-            
+            // Rotation dans un sens (ex: Droite)
+            // Gauche avance, Droite recule
+            motorLeft->forward();
+            motorRight->backward();
+        
+        } 
+        else
+         {
+        
             encoderDirection = -1;
             
+            // On définit la vitesse
             motorLeft->setSpeed(speed);
             motorRight->setSpeed(speed);
-            motorLeft->run(BACKWARD);
-            motorRight->run(FORWARD);
             
-            
+            // Rotation dans l'autre sens (ex: Gauche)
+            // Gauche recule, Droite avance
+            motorLeft->backward();
+            motorRight->forward();
+        
         }
         
 
