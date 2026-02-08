@@ -1,10 +1,10 @@
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #pragma once
 
 /**
- * SETTINGS.H
+ * CONFIG.H
  * 
  * Configuration centrale pour le système de mouvement du robot
  * Tous les paramètres physiques et pins sont définis ici

@@ -2,27 +2,23 @@
 
 
 #include <Arduino.h>
+#include "FSM.h"
+#include "globals.h"
+#include "imu.h"
+
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include <Wire.h>
 
-#include "imu.h"
 
 IMU imu;
+IMUData imuData;
+FsmContext fsmContext;
 
-// SemaphoreHandle_t i2cMutex;
-// QueueHandle_t imuQueue; // Shared queue for IMU data
+SensorsData sensorsData;
+SemaphoreHandle_t sensorsMutex;
 
-
-// void imuTask(void *arg){
-//   TickType_t last = xTaskGetTickCount();
-//   // AccelData data;
-//   while(1){
-//     xSemaphoreTake(i2cMutex, portMAX_DELAY);
-
-//     data.ax = 0;
-//   }
-// }
 
 
 void i2c_scanner() {
@@ -41,6 +37,56 @@ void i2c_scanner() {
 }
 
 
+// ====== FreeRTOS Tasks =========
+
+static int fsmSpeed = 1000; // ms delay between FSM steps (adjust as needed)
+static int imuSpeed = 500; // ms delay between IMU reads (adjust as needed)
+
+void fsmTask(void* param) {
+    FsmContext* ctx = (FsmContext*) param;
+    fsmInitializeSystem(*ctx);
+
+    // IMUData imuData;
+
+    while(true) {
+      // Copy latest sensor data safely
+        SensorsData current;
+        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+        current = sensorsData;
+        xSemaphoreGive(sensorsMutex);
+
+      // FSM step with current sensor data
+        fsmStep(*ctx, current); // normal FSM logic
+        vTaskDelay(pdMS_TO_TICKS(fsmSpeed)); // FSM loop
+    }
+}
+
+
+
+void imuTask(void* param) {
+    IMU* imu = (IMU*) param;
+
+    while(true) {
+        float ax, ay, az;
+        imu->readG(ax, ay, az);
+
+        // write to global struct safely
+        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+        sensorsData.imu.ax = ax;
+        sensorsData.imu.ay = ay;
+        sensorsData.imu.az = az;
+        // Serial.print("X: "); Serial.print(ax, 3); Serial.print("  Y: "); Serial.print(ay, 3); Serial.print("  Z: "); Serial.println(az, 3);
+        xSemaphoreGive(sensorsMutex);
+
+        vTaskDelay(pdMS_TO_TICKS(imuSpeed)); // 20Hz
+    }
+}
+
+
+
+
+
+
 
 // ======================
 
@@ -48,47 +94,27 @@ void setup() {
   Wire.begin(21, 22);
   Serial.begin(115200); delay(2000);
 
+
+  // Instanciate Drivers
   imu.begin();
 
 
+  // Shared resources
+  sensorsMutex = xSemaphoreCreateMutex();
+
+  // Create Tasks
+  xTaskCreatePinnedToCore(imuTask, "IMU", 2048, &imu,       2, nullptr, 1);  // Start IMU task (medium priority, core 1)
+  xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
+
+
   // i2c_scanner();
-
-
-  // Minimal FreeRTOS task example
-  // xTaskCreatePinnedToCore(
-  //   [](void *arg){
-  //     while(1){
-  //       Serial.println("Task alive!");
-  //       vTaskDelay(pdMS_TO_TICKS(1000)); // runs every 1s
-  //     }
-  //   },
-  //   "DemoTask",    // Task name
-  //   4096,          // Stack size (bytes)
-  //   NULL,          // parameters
-  //   1,             // priority
-  //   NULL,          // handle
-  //   1              // core
-  // );
-
 }
 
 
 
 void loop() {
-
   // Do nothing
-  // vTaskDelay(portMAX_DELAY); // makes tasks sleep without blocking other tasks
-
-  float ax, ay, az;
-  imu.readG(ax, ay, az);
-
-  Serial.print("X: "); Serial.print(ax, 3);
-  Serial.print("  Y: "); Serial.print(ay, 3);
-  Serial.print("  Z: "); Serial.println(az, 3);
-
-  vTaskDelay(pdMS_TO_TICKS(500));
-
-
+  vTaskDelay(portMAX_DELAY); // makes tasks sleep without blocking other tasks
 }
 
 

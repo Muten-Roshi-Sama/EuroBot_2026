@@ -1,8 +1,15 @@
 
 #include <Arduino.h>
-#include "settings.h"
-#include "globals.h"
 #include "FSM.h"
+
+#include "config.h"
+#include "globals.h"
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#include <Wire.h>
+
 // Tsk and Drivers
 #include "../task_manager/TaskManager.h"
 // #include "../drivers/launch_trigger/LaunchTrigger.h"
@@ -63,8 +70,8 @@ static void markStateStart(FsmContext &ctx) {ctx.stateStartMs = millis();}
 
 void fsmInitializeSystem(FsmContext &ctx)
 {
-  printFreeMemory("Before HW init");
   // 1. Hardware init
+  printFreeMemory("Before HW init");
   // launchTrigger.begin();
   // emergencyBtn.begin();
   // stepperCtrl.begin();
@@ -86,14 +93,14 @@ void fsmInitializeSystem(FsmContext &ctx)
 
   // 3. Movement init
   // movement.begin(WHEEL_DIAMETER, WHEEL_BASE, ENCODER_RESOLUTION, ENCODER_PIN_LEFT, ENCODER_PIN_RIGHT, DEFAULT_SPEED);
-  delay(200);
-  debugPrintf(DBG_FSM, "1");
+  // delay(200);
+  // debugPrintf(DBG_FSM, "1");
 
   // 4. Task manager
-  static TaskManager taskManagerInstance;
-  taskManager = &taskManagerInstance;
-  delay(200);
-  debugPrintf(DBG_FSM, "2");
+  // static TaskManager taskManagerInstance;
+  // taskManager = &taskManagerInstance;
+  // delay(200);
+  // debugPrintf(DBG_FSM, "2");
 
   // 5. FSM context init
   ctx.currentAction = FsmAction::INIT;
@@ -101,7 +108,7 @@ void fsmInitializeSystem(FsmContext &ctx)
   ctx.matchDurationMs = MATCH_DURATION_MS;
   ctx.matchStartMs = 0;
   markStateStart(ctx);
-  debugPrintf(DBG_FSM, "FSM -> Init");
+  // debugPrintf(DBG_FSM, "FSM -> Init");
   printFreeMemory("After TaskManager init");
 }
 
@@ -111,9 +118,21 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next;
   }
 
 // =========== FSM ==================
-void fsmStep(FsmContext &ctx)
+void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
 {
-  // ------------------------------------
+
+
+    static unsigned long millis_print = 0;
+    if(millis() - millis_print >= 2000) {
+      millis_print = millis();
+      Serial.print("FSM read IMU: ");
+        Serial.print("X="); Serial.print(sensorsData.imu.ax, 2);
+        Serial.print(" Y="); Serial.print(sensorsData.imu.ay, 2);
+        Serial.print(" Z="); Serial.println(sensorsData.imu.az, 2);
+    }
+    
+  
+  
   switch (ctx.currentAction){
     // 1. INIT
     // ===========================
@@ -122,11 +141,11 @@ void fsmStep(FsmContext &ctx)
     debugPrintf(DBG_FSM, "INIT case entered");
     //
 
-    if (taskManager)
-      {
+    // if (taskManager)
+    //   {
       // ADD TASKS
-      static bool tasksEnqueued = false;
-      if (!tasksEnqueued) {
+      // static bool tasksEnqueued = false;
+      // if (!tasksEnqueued) {
         /* EXAMPLE TASKS :
                         - GyroMove    : taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
                         - GyroRotate  : taskManager->addTask(new RotateGyroTask(90.0f, 150, 2.0f, 4000));
@@ -151,22 +170,22 @@ void fsmStep(FsmContext &ctx)
 
         // }
 
-        if (true) {
+        // if (true) {
           // taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
-          delay(200);
+          // delay(200);
         
           // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
           // delay(200);
-        }
+        // }
 
-        tasksEnqueued = true;
-      }
+        // tasksEnqueued = true;
+      // }
 
       printFreeMemory("After FsmAction:INIT");
       // ctx.currentAction = FsmAction::IDLE;
       ctx.currentAction = FsmAction::IDLE;
       debugPrintf(DBG_FSM, "System Init done -> FSM IDLE (waiting for launch signal)");
-    }
+    // }
     
     break;
   }
@@ -175,30 +194,29 @@ void fsmStep(FsmContext &ctx)
     // ===========================
   case FsmAction::IDLE:
   {
-    //
     // launchTrigger.update();
     static unsigned long millis_print = 0;
 
-    if (false){}
     // if (launchTrigger.isTriggered())
     // {
     //   // launchTrigger.reset();  // Optionnal ?
 
     //   // start 100sec timer
-    //   ctx.matchStartMs = millis();
-    //   ctx.matchActive = true;
-    //   ctx.matchDurationMs = MATCH_DURATION_MS;
+      ctx.matchStartMs = millis();
+      ctx.matchActive = true;
+      ctx.matchDurationMs = MATCH_DURATION_MS;
 
-    //   ctx.currentAction = FsmAction::TASK; // if tasks queued -> go to TASK state
-    //   debugPrintf(DBG_FSM, "FSM -> Task");
+      ctx.currentAction = FsmAction::TASK; // if tasks queued -> go to TASK state
+      debugPrintf(DBG_FSM, "FSM -> Task");
     // }
-    else {
-      if(millis() - millis_print >= 2000) {
-        millis_print = millis();
-        debugPrintf(DBG_FSM, "Waiting for launch...");
-        printFreeMemory("FsmAction:IDLE");
-      }
-    }
+    // else {
+      // if(millis() - millis_print >= 2000) {
+      //   millis_print = millis();
+      //   debugPrintf(DBG_FSM, "Waiting for launch...");
+      //   printFreeMemory("FsmAction:IDLE");
+      // }
+    // }
+    
 
     break;
   }
@@ -208,14 +226,17 @@ void fsmStep(FsmContext &ctx)
   case FsmAction::TASK:
   {
 
-    // if (ctx.matchActive && (millis() - ctx.matchStartMs >= ctx.matchDurationMs))
-    // {
-    //   ctx.matchActive = false;
-    //   movement.stop();
-    //   ctx.currentAction = FsmAction::TIMER_END;
-    //   debugPrintf(DBG_FSM, "Match timer elapsed -> TIMER_END");
-    //   break;
-    // }
+    if (ctx.matchActive && (millis() - ctx.matchStartMs >= ctx.matchDurationMs))
+    {
+      ctx.matchActive = false;
+      // movement.stop();
+      ctx.currentAction = FsmAction::TIMER_END;
+      debugPrintf(DBG_FSM, "Match timer elapsed -> TIMER_END");
+      break;
+    }
+
+    
+
 
     // if (taskManager) taskManager->tick(); //! runs tasks and updateISR every 100ms internally
 
@@ -239,72 +260,6 @@ void fsmStep(FsmContext &ctx)
     // movement.stop();
     break;
   }
-    
-
-  case FsmAction::motorTest:
-  {
-      // Serial.println("motorTest: Drawing a square");
-      
-      // // Configuration variables
-      // const float moveDist = 50.0f;      // Distance per side (cm)
-      // const int moveSpeed = 120;          // Movement speed (0-255)
-      // const float moveTimeout = 3000;     // Move timeout (ms)
-
-      // const float rotAngle = 20.0f;       // 90° turn for square corners
-      // const int rotSpeed = 150;           // Rotation speed (0-255)
-      // const float rotTolerance = 5.0f;    // Rotation tolerance (degrees)
-      // const float rotTimeout = 850;      // Rotation timeout (ms)
-
-      // const int delayBetweenTasks = 500;  // Delay between tasks (ms)
-    
-
-      // // Loop 4 times (4 sides + 4 turns = 8 iterations)
-      // for (int side = 1; side <= 2; side++) {
-      //     // Move forward
-      //     Serial.print("Side ");
-      //     Serial.print(side);
-      //     Serial.println(": Moving forward");
-      //     GyroMoveTask moveTask(moveDist, moveSpeed, 10.0f, moveTimeout);
-      //     moveTask.start(movement);
-      //     unsigned long moveStart = millis();
-      //     while (!moveTask.isFinished() && (millis() - moveStart < moveTimeout + 500)) {
-      //         moveTask.update(movement);
-      //         delay(10);
-      //     }
-      //     movement.stop();
-      //     Serial.print("Side ");
-      //     Serial.print(side);
-      //     Serial.println(" done");
-      //     delay(delayBetweenTasks);
-          
-      //     // Rotate 90° (skip after last side to complete square)
-      //     if (side < 4) {
-      //         Serial.print("Turn ");
-      //         Serial.print(side);
-      //         Serial.println(": Rotating 90 degrees");
-      //         RotateGyroTask rotTask(rotAngle, rotSpeed, rotTolerance, rotTimeout);
-      //         rotTask.start(movement);
-      //         unsigned long rotStart = millis();
-      //         while (!rotTask.isFinished() && (millis() - rotStart < rotTimeout + 500)) {
-      //             rotTask.update(movement);
-      //             delay(10);
-      //         }
-      //         movement.stop();
-      //         Serial.print("Turn ");
-      //         Serial.print(side);
-      //         Serial.println(" done");
-      //         delay(delayBetweenTasks);
-      //     }
-      // }
-      
-      // movement.stop();
-      // ctx.currentAction = FsmAction::TIMER_END;
-      // Serial.println("Square complete!");
-      // debugPrintf(DBG_FSM, "motorTest complete -> TIMER_END");
-      break;
-  }
-
-
 
 
   default:

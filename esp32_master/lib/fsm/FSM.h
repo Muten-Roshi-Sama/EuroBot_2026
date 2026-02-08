@@ -1,7 +1,7 @@
 
 #pragma once
 
-class Movement; // forward declare
+#include "globals.h"
 
 enum class Team {
 	TEAM_YELLOW = 0,
@@ -30,7 +30,7 @@ struct FsmContext {
 
 void fsmInitializeSystem(FsmContext &ctx);
 
-void fsmStep(FsmContext &ctx);
+void fsmStep(FsmContext &ctx, const SensorsData &sensorsData);
 
 void fsmChangeAction(FsmContext &ctx, FsmAction next);
 
