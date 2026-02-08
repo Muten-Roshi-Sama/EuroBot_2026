@@ -12,7 +12,10 @@ extern TaskManager* taskManager;
 
 // ==============================
 
-struct IMUData { float ax; float ay; float az; };
+struct IMUData { 
+    float ax; float ay; float az;   // acceleration/translation
+    float roll; float pitch;        // Angles
+};
 
 struct SensorsData {
     IMUData imu;

@@ -5,6 +5,7 @@
 #include "FSM.h"
 #include "globals.h"
 #include "imu.h"
+#include "../util/Debug.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -67,16 +68,17 @@ void imuTask(void* param) {
     IMU* imu = (IMU*) param;
 
     while(true) {
-        float ax, ay, az;
-        imu->readG(ax, ay, az);
+        IMUData local;
 
-        // write to global struct safely
+        imu->readG(local.ax, local.ay, local.az);
+        imu->readAngles(local.roll, local.pitch);
+
+        // write
         xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-        sensorsData.imu.ax = ax;
-        sensorsData.imu.ay = ay;
-        sensorsData.imu.az = az;
-        // Serial.print("X: "); Serial.print(ax, 3); Serial.print("  Y: "); Serial.print(ay, 3); Serial.print("  Z: "); Serial.println(az, 3);
+        sensorsData.imu = local;
         xSemaphoreGive(sensorsMutex);
+        // Serial.print("X: "); Serial.print(ax, 3); Serial.print("  Y: "); Serial.print(ay, 3); Serial.print("  Z: "); Serial.println(az, 3);
+        
 
         vTaskDelay(pdMS_TO_TICKS(imuSpeed)); // 20Hz
     }
@@ -91,8 +93,16 @@ void imuTask(void* param) {
 // ======================
 
 void setup() {
-  Wire.begin(21, 22);
-  Serial.begin(115200); delay(2000);
+  Wire.begin(22, 23);
+  debugInit(115200,    // does serial.begin() in this function
+    DBG_FSM | 
+    DBG_TASKMANAGER     // comment DBG_ to deactivate its related prints
+    // DBG_MOVEMENT |
+    // DBG_SENSORS |
+    // DBG_COMMS |
+    // DBG_ENCODER |
+    // DBG_LAUNCH_TGR
+  );
 
 
   // Instanciate Drivers

@@ -13,10 +13,20 @@
 // Tsk and Drivers
 #include "../task_manager/TaskManager.h"
 // #include "../drivers/launch_trigger/LaunchTrigger.h"
+// #include "../drivers/button/Button.h"
 
 // Stepper and Servo
+// #include "../tasks/StepperTask.h"
+// #include "../drivers/stepper_controller/StepperController.h"
+// #include "../tasks/ServoTask.h"
+// #include "../drivers/servo_controller/ServoController.h"
+
 
 // Movement
+// #include "../movement/Movement.h"
+// #include "../tasks/MoveTask.h"
+// #include "../tasks/GyroMoveTask.h"
+
 // utils
 #include "../util/Debug.h"
 
@@ -34,8 +44,11 @@
 // static StepperController stepperCtrl(STEPPER_M1_PIN1, STEPPER_M1_PIN2, STEPPER_M1_PIN3, STEPPER_M1_PIN4, STEPPER_M2_PIN1, STEPPER_M2_PIN2, STEPPER_M2_PIN3, STEPPER_M2_PIN4);
 
 
-static constexpr unsigned long MATCH_DURATION_MS = 20000; // adjust (e.g., 90000 for 90s)
+static constexpr unsigned long MATCH_DURATION_MS = 10000; // adjust (e.g., 90000 for 90s)
 static void markStateStart(FsmContext &ctx);
+
+
+
 
 void printFreeMemory(const char* label) {
   #if defined(ESP32)
@@ -110,7 +123,7 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
 
 
     static unsigned long millis_print = 0;
-    if(ctx.matchActive && (millis() - millis_print >= 2000)) {
+    if(millis() - millis_print >= 2000) {
       millis_print = millis();
       Serial.print("FSM read IMU: ");
         Serial.print("X="); Serial.print(sensorsData.imu.ax, 2);
@@ -126,6 +139,47 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
   case FsmAction::INIT:
   {
     debugPrintf(DBG_FSM, "INIT case entered");
+    //
+
+    // if (taskManager)
+    //   {
+      // ADD TASKS
+      // static bool tasksEnqueued = false;
+      // if (!tasksEnqueued) {
+        /* EXAMPLE TASKS :
+                        - GyroMove    : taskManager->addTask(new GyroMoveTask(300.0f, 160, 0));
+                        - GyroRotate  : taskManager->addTask(new RotateGyroTask(90.0f, 150, 2.0f, 4000));
+
+                        - StepperUp   : taskManager->addTask(new StepperUpTask(&stepperCtrl, 5000));
+                        - StepperDown : taskManager->addTask(new StepperDownTask(&stepperCtrl, 5000));
+
+                        - ServoMove   : taskManager->addTask(new ServoTask(&servoCtrl, 90, 1000));  // angle, delayMs
+        */
+
+        // CHANGE TASK BASED ON TEAM
+        // if (ctx.currentTeam == Team::TEAM_YELLOW)
+        // {
+          // taskManager->addTask(new GyroMoveTask(105.0f, 120, 10.0f, 1000)); // test100cm:3900, ayoub: 2800
+        // }
+        // else
+        // {
+        //   taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800)); // angle, speed, tolerance, timeout.... test100cm: 800timeout
+        //   delay(200);
+        //   // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800)); // angle, speed, tolerance, timeout.... test100cm: 800timeout
+        //   taskManager->addTask(new GyroMoveTask(105.0f, 120, 10.0f, 1000)); // test100cm:3900, ayoub: 2800
+
+        // }
+
+        // if (true) {
+          // taskManager->addTask(new GyroMoveTask(80.0f, 120, 10.0f, 1000));
+          // delay(200);
+        
+          // taskManager->addTask(new RotateGyroTask(20.0f, 150, 5.0f, 800));
+          // delay(200);
+        // }
+
+        // tasksEnqueued = true;
+      // }
 
       printFreeMemory("After FsmAction:INIT");
       // ctx.currentAction = FsmAction::IDLE;
@@ -152,9 +206,8 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
       ctx.matchActive = true;
       ctx.matchDurationMs = MATCH_DURATION_MS;
 
-      debugPrintf(DBG_FSM, "FSM -> Task");
       ctx.currentAction = FsmAction::TASK; // if tasks queued -> go to TASK state
-      
+      debugPrintf(DBG_FSM, "FSM -> Task");
     // }
     // else {
       // if(millis() - millis_print >= 2000) {
@@ -163,6 +216,8 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
       //   printFreeMemory("FsmAction:IDLE");
       // }
     // }
+    
+
     break;
   }
 
@@ -175,8 +230,8 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     {
       ctx.matchActive = false;
       // movement.stop();
-      debugPrintf(DBG_FSM, "Match timer elapsed -> TIMER_END");
       ctx.currentAction = FsmAction::TIMER_END;
+      debugPrintf(DBG_FSM, "Match timer elapsed -> TIMER_END");
       break;
     }
 
