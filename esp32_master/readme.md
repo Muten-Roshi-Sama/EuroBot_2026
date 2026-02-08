@@ -1,7 +1,32 @@
 
 
+### ESP32 characteristics and limitations : 
 
+Datasheet : https://documentation.espressif.com/esp32_datasheet_en.pdf
 
+1. onboard 3.3 V regulator (LDO) can usually supply ~250 mA max safely.
+
+```c++
+=== ESP32 Chip Info ===
+Model: ESP32
+Cores: 2
+Revision: 3
+Features: WiFi BLE BT
+Flash: 4MB external
+Free heap: 337064 bytes
+CPU frequency: 240 MHz
+SDK version: v4.4.7-dirty
+Sketch size: 288896 bytes
+Free sketch space: 1310720 bytes
+Chip ID: C1D8CBB0
+```
+
+#### ??? : 
+Datasheet :
+- 8 KB of SRAM in RTC, which is called RTC FAST Memory and can be used for data storage; it is accessed
+by the main CPU during RTC Boot from the Deep-sleep mode.
+- 8 KB of SRAM in RTC, which is called RTC SLOW Memory and can be accessed by the ULP coprocessor
+during the Deep-sleep mode
 
 
 

@@ -22,12 +22,17 @@ struct USData {
     bool valid;
 };
 
+struct LidarData {
+    float distanceCm;
+    bool valid;
+};
+
 struct SensorsData {
     IMUData imu;
     USData usFront;
     // USData usLeft;
     // USData usRight;
-    // float distanceLidar;
+    LidarData lidarFront;
     // bool bumperPressed;
 };
 

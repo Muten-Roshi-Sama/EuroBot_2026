@@ -67,6 +67,7 @@
 
 
 // LiDAR 
+#define LIDAR1_Addr 0x30        // pin XSHUT du LIDAR1
 // #define LIDAR1_PIN 8         // pin XSHUT du LIDAR1
 // #define LIDAR2_PIN 9         // pin XSHUT du LIDAR2
 // #define LIDAR3_PIN 10        // pin XSHUT du LIDAR3

@@ -113,14 +113,25 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     if(ctx.matchActive && (millis() - millis_print >= 2000)) {
       millis_print = millis();
       // ----- IMU -----
-      Serial.print("FSM read IMU: ");
-        Serial.print("X="); Serial.print(sensorsData.imu.ax, 2);
-        // Serial.print(" Y="); Serial.print(sensorsData.imu.ay, 2);
-        // Serial.print(" Z="); Serial.println(sensorsData.imu.az, 2);
-      // ---- Ultrasonic ----
-      Serial.print("Ultrasonic read: ");
-      Serial.print("Front="); Serial.print(sensorsData.usFront.distanceCm, 2); Serial.print(" cm");
-      Serial.print(" Valid="); Serial.println(sensorsData.usFront.valid);
+      Serial.println("\n========== SENSOR READINGS ==========");
+      
+      // IMU
+      Serial.print("IMU:      X = "); Serial.print(sensorsData.imu.ax, 2);
+      Serial.print(" | Y = "); Serial.print(sensorsData.imu.ay, 2);
+      Serial.print(" | Z = "); Serial.print(sensorsData.imu.az, 2);
+      Serial.println();
+      
+      // Ultrasonic
+      Serial.print("US Front: ");
+      Serial.print(sensorsData.usFront.distanceCm, 2); Serial.print(" cm");
+      Serial.print(" | Valid: "); Serial.println(sensorsData.usFront.valid ? "YES" : "NO");
+      
+      // LIDAR
+      Serial.print("LIDAR Front: ");
+      Serial.print(sensorsData.lidarFront.distanceCm, 2); Serial.print(" cm");
+      Serial.print(" | Valid: "); Serial.println(sensorsData.lidarFront.valid ? "YES" : "NO");
+      
+      Serial.println("=====================================");
     }
     
   
