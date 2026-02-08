@@ -2,64 +2,105 @@
 
 
 #include <Arduino.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <Wire.h>
 
-int c1 = 0;
-int c2 = 0;
+#include "imu.h"
 
-TaskHandle_t task1_handle = NULL;
+IMU imu;
 
-void task1(void *parameters){
-  for(;;){
-    Serial.print("Task 1: ");
-    Serial.println(c1++);
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // delay for 1 second
+// SemaphoreHandle_t i2cMutex;
+// QueueHandle_t imuQueue; // Shared queue for IMU data
 
-    if (c1 > 3) {
-      Serial.println("Suspending Task 1"); vTaskSuspend(task1_handle);
+
+// void imuTask(void *arg){
+//   TickType_t last = xTaskGetTickCount();
+//   // AccelData data;
+//   while(1){
+//     xSemaphoreTake(i2cMutex, portMAX_DELAY);
+
+//     data.ax = 0;
+//   }
+// }
+
+
+void i2c_scanner() {
+  Serial.println("I2C Scanner");
+  byte count = 0;
+  for (byte i = 8; i < 120; i++) {
+    Wire.beginTransmission(i);
+    if (Wire.endTransmission() == 0) {
+      Serial.print("Found device at 0x");
+      Serial.println(i, HEX);
+      count++;
+      delay(10);
     }
-
-
-  } 
+  }
+  if(count == 0) Serial.println("No I2C devices found");
 }
 
-void task2(void *parameters){
-  for(;;){
-    Serial.print("Task 2: ");
-    Serial.println(c2++);
-    vTaskDelay(1000 / portTICK_PERIOD_MS); // delay for 1 second
-  } 
-}
 
-void superImportantTask(){
-  vTaskSuspendAll(); // suspend scheduler to run critical code without interruption
-  // critical code here (e.g., emergency stop)
-  xTaskResumeAll(); // resume scheduler after critical code is done
-}
 
+// ======================
 
 void setup() {
+  Wire.begin(21, 22);
   Serial.begin(115200); delay(2000);
 
-  xTaskCreate(task1, "Task1", 10000, NULL, 1, &task1_handle);
-  xTaskCreate(task2, "Task2", 10000, NULL, 1, NULL);
+  imu.begin();
+
+
+  // i2c_scanner();
+
+
+  // Minimal FreeRTOS task example
+  // xTaskCreatePinnedToCore(
+  //   [](void *arg){
+  //     while(1){
+  //       Serial.println("Task alive!");
+  //       vTaskDelay(pdMS_TO_TICKS(1000)); // runs every 1s
+  //     }
+  //   },
+  //   "DemoTask",    // Task name
+  //   4096,          // Stack size (bytes)
+  //   NULL,          // parameters
+  //   1,             // priority
+  //   NULL,          // handle
+  //   1              // core
+  // );
+
 }
+
+
 
 void loop() {
 
+  // Do nothing
+  // vTaskDelay(portMAX_DELAY); // makes tasks sleep without blocking other tasks
 
-  if (c2 == 5 && task1_handle != NULL) {
-      Serial.println("Resuming Task 1"); vTaskResume(task1_handle);
-      // Note : need to add the check if (task1_handle != NULL) in the loop()
-    }
+  float ax, ay, az;
+  imu.readG(ax, ay, az);
 
+  Serial.print("X: "); Serial.print(ax, 3);
+  Serial.print("  Y: "); Serial.print(ay, 3);
+  Serial.print("  Z: "); Serial.println(az, 3);
 
-  if (c2 == 10 && task1_handle != NULL) {
-      Serial.println("Deleting task!"); vTaskDelete(task1_handle);
-    }
+  vTaskDelay(pdMS_TO_TICKS(500));
+
 
 }
 
 
+
+
+
+
+
+
+
+
+// =======================
 
 // #include <Arduino.h>
 // #include "FSM.h"
