@@ -100,7 +100,7 @@ void lidarTask(void* param) {
     LidarData local;
     local.distanceCm = 0;
     local.valid = true;
-
+    
     xSemaphoreTake(i2cMutex, portMAX_DELAY);  // block if I2C in use
     uint16_t distanceMM = lox.readRangeContinuousMillimeters();
     bool timeout = lox.timeoutOccurred();
