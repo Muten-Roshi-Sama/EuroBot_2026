@@ -25,8 +25,8 @@
 #define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
 // ENCODERS
-// #define ENCODER_PIN_LEFT 2   // Arduino Uno: pins 2 et 3 supportent les interruptions
-// #define ENCODER_PIN_RIGHT 3
+#define ENCODER_PIN_LEFT 34   // Arduino Uno: pins 2 et 3 supportent les interruptions
+#define ENCODER_PIN_RIGHT 35
 
 // SPEED
 #define DEFAULT_SPEED 120  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80

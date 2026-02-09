@@ -100,9 +100,7 @@ void fsmInitializeSystem(FsmContext &ctx)
 }
 
 
-void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next; markStateStart(ctx);
-    // debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
-  }
+void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next; markStateStart(ctx);} // debugPrintf(DBG_FSM, "FSM -> %d", (int)next); 
 
 // =========== FSM ==================
 void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
@@ -131,6 +129,13 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
       Serial.print(sensorsData.lidarFront.distanceCm, 2); Serial.print(" cm");
       Serial.print(" | Valid: "); Serial.println(sensorsData.lidarFront.valid ? "YES" : "NO");
       
+      // Encoders
+      Serial.print("Encoders: ");
+      Serial.print("Left = "); Serial.print(sensorsData.encoderLeft.distance_cm, 2); Serial.print(" cm");
+      Serial.print(" | Right = "); Serial.print(sensorsData.encoderRight.distance_cm, 2); Serial.print(" cm");
+      Serial.println();
+
+
       Serial.println("=====================================");
     }
     

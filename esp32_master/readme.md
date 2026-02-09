@@ -73,6 +73,18 @@ HC-SR04 ECHO ---[R1]---+--- ESP32 GPIO
 
 
 
+### Motors and L298N Driver : 
+
+
+Right : Out1 & Out2 
+Left : Out3 & Out4
+
+#### Encoders :
+Vin = 5v
+EchoLeft (blue) : P34
+EchoRight (White) : P35
+
+
 
 
 

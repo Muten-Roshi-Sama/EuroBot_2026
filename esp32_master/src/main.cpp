@@ -33,13 +33,21 @@ SemaphoreHandle_t i2cMutex;
 // FSM 
 FsmContext fsmContext;
 
+// Encoders
+volatile int32_t leftTicks = 0;
+volatile int32_t rightTicks = 0;
+void IRAM_ATTR leftEncoderISR() { leftTicks++; }
+void IRAM_ATTR rightEncoderISR() { rightTicks++; }
+
 
 
 // ====== FreeRTOS Tasks =========
-static int fsmSpeed = 50;          // ~20Hz
-static int imuSpeed = 10;         // ~100Hz
-static int ultrasonicSpeed = 50; // ~20Hz
-static int lidarSpeed = 50;     // ~20Hz   (vl53l0x max is 20ms/50Hz)
+static int fsmSpeed = 50;            // ~20Hz
+static int imuSpeed = 10;           // ~100Hz
+static int ultrasonicSpeed = 50;   // ~20Hz
+static int lidarSpeed = 50;       // ~20Hz   (vl53l0x max is 20ms/50Hz)
+static int encoderSpeed = 20;     // ~50Hz
+
 void fsmTask(void* param) {
     FsmContext* ctx = (FsmContext*) param;
     fsmInitializeSystem(*ctx);
@@ -118,6 +126,49 @@ void lidarTask(void* param) {
   }
 }
 
+void encoderTask(void* param) {
+    const float wheelCirc = PI * WHEEL_DIAMETER;
+    const float cmPerTick = wheelCirc / ENCODER_RESOLUTION;
+
+    int32_t lastLeftTicks = 0;
+    int32_t lastRightTicks = 0;
+
+    while (true) {
+        int32_t l, r;
+
+        // atomic copy
+        noInterrupts();
+        l = leftTicks;
+        r = rightTicks;
+        interrupts();
+
+        int32_t dl = l - lastLeftTicks;
+        int32_t dr = r - lastRightTicks;
+
+        lastLeftTicks = l;
+        lastRightTicks = r;
+
+        float dt = encoderSpeed / 1000.0f;
+
+        float leftSpeed  = (dl * cmPerTick) / dt;
+        float rightSpeed = (dr * cmPerTick) / dt;
+
+        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+        sensorsData.encoderLeft.ticks = l;
+        sensorsData.encoderLeft.speed_cms = leftSpeed;
+        sensorsData.encoderLeft.distance_cm = l * cmPerTick;
+
+        sensorsData.encoderRight.ticks = r;
+        sensorsData.encoderRight.speed_cms = rightSpeed;
+        sensorsData.encoderRight.distance_cm = r * cmPerTick;
+        xSemaphoreGive(sensorsMutex);
+
+        vTaskDelay(pdMS_TO_TICKS(encoderSpeed));
+    }
+}
+
+
+
 
 // ----- Helpers -----
 void i2c_scanner() {
@@ -175,7 +226,13 @@ void lidarinit() {
   //
 }
 
+void encoderInit(){
+  pinMode(ENCODER_PIN_LEFT, INPUT_PULLUP);
+  pinMode(ENCODER_PIN_RIGHT, INPUT_PULLUP);
 
+  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_LEFT), leftEncoderISR, RISING);
+  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_RIGHT), rightEncoderISR, RISING);
+}
 
 
 // ======================
@@ -194,7 +251,7 @@ void setup() {
   delay(200);
 
   // i2c_scanner();
-  // printEsp32Info();
+  printEsp32Info();
 
   // Shared resources
   sensorsMutex = xSemaphoreCreateMutex();
@@ -203,6 +260,7 @@ void setup() {
   // Instanciate Drivers
   lidarinit();
   imu.begin();
+  encoderInit();
   
   // US init done in constructor
   
@@ -215,6 +273,7 @@ void setup() {
   xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
   xTaskCreatePinnedToCore(ultrasonicTask, "US", 4096, &us, 2, nullptr, 1);
   xTaskCreatePinnedToCore(lidarTask, "LIDAR", 4096, &lox, 2, nullptr, 1);
+  xTaskCreatePinnedToCore(encoderTask, "ENCODER", 4096, nullptr, 3, nullptr, 1);
 // 
   
 }

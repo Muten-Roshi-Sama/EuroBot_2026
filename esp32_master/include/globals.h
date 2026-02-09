@@ -27,13 +27,19 @@ struct LidarData {
     bool valid;
 };
 
+struct EncoderData {
+    int32_t ticks;
+    float speed_cms;
+    float distance_cm;
+};
+
 struct SensorsData {
     IMUData imu;
     USData usFront;
-    // USData usLeft;
-    // USData usRight;
     LidarData lidarFront;
-    // bool bumperPressed;
+    //
+    EncoderData encoderLeft;
+    EncoderData encoderRight;
 };
 
 // Shared instance
