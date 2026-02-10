@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "Task.h"
+#include "../tasks/Task.h"
 
 #define MAX_TASKS 8
 

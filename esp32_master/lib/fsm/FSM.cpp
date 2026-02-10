@@ -113,10 +113,19 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
       // ----- IMU -----
       Serial.println("\n========== SENSOR READINGS ==========");
       
-      // IMU
-      Serial.print("IMU:      X = "); Serial.print(sensorsData.imu.ax, 2);
-      Serial.print(" | Y = "); Serial.print(sensorsData.imu.ay, 2);
-      Serial.print(" | Z = "); Serial.print(sensorsData.imu.az, 2);
+      // // IMU
+      // Serial.print("IMU:      X = "); Serial.print(sensorsData.imu.ax, 2);
+      // Serial.print(" | Y = "); Serial.print(sensorsData.imu.ay, 2);
+      // Serial.print(" | Z = "); Serial.print(sensorsData.imu.az, 2);
+      // Serial.println();
+      //! MPU 
+      Serial.print("MPU Accel: ");
+      Serial.print(sensorsData.mpu.ax, 2); Serial.print(" ");
+      Serial.print(sensorsData.mpu.ay, 2); Serial.print(" ");
+      Serial.println(sensorsData.mpu.az, 2);
+
+      Serial.print("MPU Yaw: ");
+      Serial.println(sensorsData.mpu.yaw, 2);
       Serial.println();
       
       // Ultrasonic

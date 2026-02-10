@@ -2,7 +2,6 @@
 #define CONFIG_H
 
 #pragma once
-
 /**
  * CONFIG.H
  * 
@@ -21,7 +20,7 @@
 // #define MOTOR_RIGHT_ID 2     // Motor 2 = roue droite
 
 #define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
-#define WHEEL_BASE 10.8f // Distance entre les centres des deux roues en centimètres (10cm)
+#define WHEEL_BASE 10.0f // Distance entre les centres des deux roues en centimètres (10cm)
 #define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
 // ENCODERS

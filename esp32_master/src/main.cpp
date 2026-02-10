@@ -11,6 +11,7 @@
 #include <Ultrasonic.h>
 #include <VL53L0X.h>
 #include "imu.h"
+#include "mpu6050.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -22,6 +23,7 @@
 
 // Sensors 
 IMU imu;
+MPU mpu; // for raw access if needed
 IMUData imuData;
 Ultrasonic us(US_TRIG_PIN, US_ECHO_PIN, US_TIMEOUT);
 VL53L0X lox;
@@ -44,6 +46,7 @@ void IRAM_ATTR rightEncoderISR() { rightTicks++; }
 // ====== FreeRTOS Tasks =========
 static int fsmSpeed = 50;            // ~20Hz
 static int imuSpeed = 10;           // ~100Hz
+static int mpuSpeed = 10;           // ~100Hz
 static int ultrasonicSpeed = 50;   // ~20Hz
 static int lidarSpeed = 50;       // ~20Hz   (vl53l0x max is 20ms/50Hz)
 static int encoderSpeed = 20;     // ~50Hz
@@ -84,6 +87,24 @@ void imuTask(void* param) {
         vTaskDelay(pdMS_TO_TICKS(imuSpeed)); // 20Hz
     }
 }
+
+void mpuTask(void* param) {
+    MPU* mpu = (MPU*)param;
+    MPUData local;
+    const float dt = mpuSpeed / 1000.0f; // sec.
+
+    while (1) {
+        mpu->read(local, dt);
+
+        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+        sensorsData.mpu = local;
+        xSemaphoreGive(sensorsMutex);
+
+        vTaskDelay(pdMS_TO_TICKS(mpuSpeed)); // e.g. 100 Hz
+    }
+}
+
+
 
 void ultrasonicTask(void* param) {
     while(true) {
@@ -259,7 +280,9 @@ void setup() {
 
   // Instanciate Drivers
   lidarinit();
-  imu.begin();
+  // imu.begin();
+  mpu.begin(true, true, true, false, false); // accel, gyro, yaw, roll, pitch
+
   encoderInit();
   
   // US init done in constructor
@@ -269,7 +292,8 @@ void setup() {
   
 
   // Create Tasks
-  xTaskCreatePinnedToCore(imuTask, "IMU", 2048, &imu,       2, nullptr, 1);  // Start IMU task (medium priority, core 1)
+  xTaskCreatePinnedToCore(mpuTask, "MPU", 2048, &mpu,       2, nullptr, 1);  // Start MPU task (medium priority, core 1)
+    // xTaskCreatePinnedToCore(imuTask, "IMU", 2048, &imu,       2, nullptr, 1);  // Start IMU task (medium priority, core 1)
   xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
   xTaskCreatePinnedToCore(ultrasonicTask, "US", 4096, &us, 2, nullptr, 1);
   xTaskCreatePinnedToCore(lidarTask, "LIDAR", 4096, &lox, 2, nullptr, 1);

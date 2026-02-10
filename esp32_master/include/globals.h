@@ -13,8 +13,16 @@ extern TaskManager* taskManager;
 // ==============================
 
 struct IMUData { 
-    float ax; float ay; float az;   // acceleration/translation
-    float roll; float pitch;        // Angles
+    float ax, ay, az;   // acceleration/translation
+    float roll, pitch;        // Angles
+};
+
+struct MPUData {
+    float ax, ay, az;   // acceleration/translation
+    float gx, gy, gz;   // gyro/rotation
+    float roll, pitch, yaw;        // Angles
+    // uint32_t timestampUs;
+    bool valid;
 };
 
 struct USData {
@@ -34,7 +42,8 @@ struct EncoderData {
 };
 
 struct SensorsData {
-    IMUData imu;
+    IMUData imu;  // only accel (unused)
+    MPUData mpu;    // full gyro + accel
     USData usFront;
     LidarData lidarFront;
     //
