@@ -262,8 +262,8 @@ void setup() {
   Wire.begin(22, 23); Wire.setClock(100000);
   debugInit(115200,    // does serial.begin() in this function
     DBG_FSM | 
+    DBG_MOVEMENT | 
     DBG_TASKMANAGER     // comment DBG_ to deactivate its related prints
-    // DBG_MOVEMENT |
     // DBG_SENSORS |
     // DBG_COMMS |
     // DBG_ENCODER |

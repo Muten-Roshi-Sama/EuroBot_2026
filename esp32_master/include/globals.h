@@ -10,8 +10,31 @@ class TaskManager;
 extern TaskManager* taskManager;
 
 
-// ==============================
+// =======================================================
+//                MOTOR PID & Movement
+// =======================================================
 
+struct PID {
+    float kp, ki, kd;
+    float integral, previousError;
+
+    PID(float _kp=0, float _ki=0, float _kd=0) : kp(_kp), ki(_ki), kd(_kd), integral(0), previousError(0) {}
+};
+
+const PID DISTANCE_PID_DEFAULT(1.5f, 0.0f, 0.2f); // KP, KI, KD initiaux pour la distance
+const PID ANGLE_PID_DEFAULT   (2.0f, 0.0f, 0.3f); // KP, KI, KD initiaux pour l'angle
+
+
+struct MovementTarget {
+    float distanceCm;   // Target distance in cm
+    float angleDeg;     // Target rotation in degrees
+    bool active;        // Is movement ongoing
+};
+
+
+// =======================================================
+//                    SENSORS 
+// =======================================================
 struct IMUData { 
     float ax, ay, az;   // acceleration/translation
     float roll, pitch;        // Angles

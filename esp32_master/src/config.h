@@ -9,6 +9,10 @@
  * Tous les paramètres physiques et pins sont définis ici
  */
 
+// 
+#define MATCH_DURATION_MS 50000 // Durée du match en millisecondes (50s pour test, 90s en compèt)
+
+
 // =========== ACTUATORS PINS ===========
 #define LAUNCH_TRIGGER_PIN A0
 #define TEAM_SWITCH_PIN A2
@@ -16,8 +20,12 @@
 
 
 // =========== MOTOR PINS =============
-// #define MOTOR_LEFT_ID 1      // Motor 1 = roue gauche
-// #define MOTOR_RIGHT_ID 2     // Motor 2 = roue droite
+#define IN1 33  // LEFT MOTOR : IN1, IN2, ENA (marron, gris, bleu)
+#define IN2 25
+#define ENA 32
+#define IN3 26  // RIGHT MOTOR : IN3, IN4, ENB (rouge, jaune, purple) 
+#define IN4 27
+#define ENB 14
 
 #define WHEEL_DIAMETER 6.0f // Diamètre des roues en centimètres (60mm)
 #define WHEEL_BASE 10.0f // Distance entre les centres des deux roues en centimètres (10cm)
@@ -27,12 +35,10 @@
 #define ENCODER_PIN_LEFT 34   // Arduino Uno: pins 2 et 3 supportent les interruptions
 #define ENCODER_PIN_RIGHT 35
 
-// SPEED
-#define DEFAULT_SPEED 120  // Vitesse par défaut des moteurs (0 = arrêt, 255 = vitesse maximale) min 80
-#define MIN_SPEED 80
-#define MAX_SPEED 255
-#define MOVEMENT_LOOP_DELAY 0.01f
-#define STOP_TOLERANCE 2
+// ----- PID INIT ------
+
+
+
 
 
 // =========== STEPPER PINS ===========
@@ -49,9 +55,9 @@
 
 // ============ SERVO PINS ===========
 // #define SERVO_PIN 1
-#define SERVO_MIN_ANGLE 45
-#define SERVO_MAX_ANGLE 135
-#define SERVO_DELAY_MS 1000
+// #define SERVO_MIN_ANGLE 45
+// #define SERVO_MAX_ANGLE 135
+// #define SERVO_DELAY_MS 1000
 
 
 
