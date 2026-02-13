@@ -84,6 +84,20 @@ void printSensorsData(const SensorsData &data) {
 // ========== FSM Init =======================
 static void markStateStart(FsmContext &ctx) {ctx.stateStartMs = millis();}
 void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next; markStateStart(ctx);} // debugPrintf(DBG_FSM, "FSM -> %d", (int)next); 
+void startMatchTimer(FsmContext& ctx) {
+    ctx.matchActive = true;
+    ctx.matchStartMs = millis();
+    ctx.stateStartMs = millis();
+    ctx.matchDurationMs = MATCH_DURATION_MS;
+}
+void checkMatchTimer(FsmContext& ctx) {
+    if (ctx.matchActive && millis() - ctx.matchStartMs >= ctx.matchDurationMs) {
+        ctx.matchActive = false;
+        debugPrintf(DBG_FSM, "Match timer elapsed -> TIMER_END");
+        ctx.currentAction = FsmAction::TIMER_END;
+    }
+}
+
 void fsmInitializeSystem(FsmContext &ctx)
 {
   // 1. Hardware init
@@ -139,12 +153,7 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     if(ctx.matchActive && (millis() - millis_print >= 2000)) { printSensorsData(sensorsData); millis_print = millis(); }
     
   // ------ MATCH TIMER CHECK ------
-    if (ctx.matchActive && (millis() - ctx.matchStartMs >= ctx.matchDurationMs)) {
-      ctx.matchActive = false;
-      movement.stopMotors();
-      debugPrintf(DBG_FSM, "Match timer elapsed -> TIMER_END");
-      ctx.currentAction = FsmAction::TIMER_END;
-  }
+    checkMatchTimer(ctx);
   
 
 
@@ -168,7 +177,7 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     // TUNING COMMANDS
     // ctx.commandQueue.push({RobotCommandType::TUNE_PID, (float)TUNE_DIST});
     // ctx.commandQueue.push({RobotCommandType::TUNE_PID, (float)TUNE_ANGLE});
-    ctx.commandQueue.push({RobotCommandType::TUNE_PID, (float)TUNE_BOTH});
+    // ctx.commandQueue.push({RobotCommandType::TUNE_PID, (float)TUNE_BOTH});
 
     ctx.currentAction = FsmAction::IDLE;
     break;
@@ -180,9 +189,7 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
       // ADD LaunchTrigger HERE
 
       // start 100sec timer
-      ctx.matchStartMs = millis();
-      ctx.matchActive = true;
-      ctx.matchDurationMs = MATCH_DURATION_MS;
+      startMatchTimer(ctx);
 
       debugPrintf(DBG_FSM, "FSM -> DISPATCH_CMD");
       fsmChangeAction(ctx, FsmAction::DISPATCH_CMD); // if tasks queued -> go to TASK state

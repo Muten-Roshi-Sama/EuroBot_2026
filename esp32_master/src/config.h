@@ -13,13 +13,13 @@
 #define MATCH_DURATION_MS 50000 // Durée du match en millisecondes (50s pour test, 90s en compèt)
 
 
-// =========== ACTUATORS PINS ===========
+// =================== ACTUATORS PINS ======================
 #define LAUNCH_TRIGGER_PIN A0
 #define TEAM_SWITCH_PIN A2
 // #define EMERGENCY_PIN A3
 
 
-// =========== MOTOR PINS =============
+// ===================== MOTORS ============================
 #define IN1 33  // LEFT MOTOR : IN1, IN2, ENA (marron, gris, bleu)
 #define IN2 25
 #define ENA 32
@@ -31,17 +31,17 @@
 #define WHEEL_BASE 10.0f // Distance entre les centres des deux roues en centimètres (10cm)
 #define ENCODER_RESOLUTION 70 // Résolution de l'encodeur (nombre de ticks par tour complet) - À VÉRIFIER!
 
-// ENCODERS
-#define ENCODER_PIN_LEFT 34   // Arduino Uno: pins 2 et 3 supportent les interruptions
+// ==================== ENCODERS ===========================
+#define ENC_L_A 14   // Pinout : Red (M+), Black (M-), Encoder_A = Yellow, Encoder_B = White
+#define ENC_L_B 13
+#define ENC_R_A 12   // Motor 2
+#define ENC_R_B 11
+// PETIT PAMI
+#define ENCODER_PIN_LEFT 34   
 #define ENCODER_PIN_RIGHT 35
 
-// ----- PID INIT ------
 
-
-
-
-
-// =========== STEPPER PINS ===========
+// ==================== STEPPER ============================
 // #define STEPPER_M1_PIN1 8
 // #define STEPPER_M1_PIN2 10
 // #define STEPPER_M1_PIN3 9
@@ -61,17 +61,13 @@
 
 
 
-// ===========
-// SENSORS PINS
-// ===========
-
-// Ultrasonic
+// ===================== ULTRASONIC =====================
 #define US_TIMEOUT 20000UL
 #define US_TRIG_PIN 12
 #define US_ECHO_PIN 13
 
 
-// LiDAR 
+// ===================== LIDAR =====================
 #define LIDAR1_Addr 0x30        // pin XSHUT du LIDAR1
 // #define LIDAR1_PIN 8         // pin XSHUT du LIDAR1
 // #define LIDAR2_PIN 9         // pin XSHUT du LIDAR2
@@ -79,5 +75,8 @@
 #define LIDAR1_THRESHOLD 80     // detection thresh in cm.
 #define LIDAR2_THRESHOLD 80     // detection thresh in cm.
 #define LIDAR3_THRESHOLD 100    // detection thresh in cm.
+
+
+
 
 #endif // SETTINGS_H

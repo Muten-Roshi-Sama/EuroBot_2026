@@ -23,9 +23,8 @@
 
 // Sensors 
 IMU imu;
-MPU mpu; // for raw access if needed
-IMUData imuData;
-Ultrasonic us(US_TRIG_PIN, US_ECHO_PIN, US_TIMEOUT);
+// MPU mpu;
+// Ultrasonic us(US_TRIG_PIN, US_ECHO_PIN, US_TIMEOUT);
 VL53L0X lox;
 
 SensorsData sensorsData;
@@ -51,142 +50,148 @@ static int ultrasonicSpeed = 50;   // ~20Hz
 static int lidarSpeed = 50;       // ~20Hz   (vl53l0x max is 20ms/50Hz)
 static int encoderSpeed = 20;     // ~50Hz
 
-void fsmTask(void* param) {
-    FsmContext* ctx = (FsmContext*) param;
-    fsmInitializeSystem(*ctx);
+// void fsmTask(void* param) {
+//     FsmContext* ctx = (FsmContext*) param;
+//     TickType_t lastWakeTime = xTaskGetTickCount();
 
-    while(true) {
-      // Copy latest sensor data safely
-        SensorsData current;
-        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-        current = sensorsData;
-        xSemaphoreGive(sensorsMutex);
+//     while(true) {
+//       // Copy latest sensor data safely
+//         SensorsData current;
+//         xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+//         current = sensorsData;
+//         xSemaphoreGive(sensorsMutex);
 
-      // FSM step with current sensor data
-        fsmStep(*ctx, current); // normal FSM logic
-        vTaskDelay(pdMS_TO_TICKS(fsmSpeed)); // FSM loop
-    }
-}
+//       // FSM step with current sensor data
+//         fsmStep(*ctx, current); // normal FSM logic
+//         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(fsmSpeed)); // FSM loop
+//     }
+// }
 
-void imuTask(void* param) {
-    IMU* imu = (IMU*) param;
+// void imuTask(void* param) {
+//     IMU* imu = (IMU*) param;
+//     TickType_t lastWakeTime = xTaskGetTickCount();
 
-    while(true) {
-        IMUData local;
+//     while(true) {
+//         IMUData local;
 
-        imu->readG(local.ax, local.ay, local.az);
-        imu->readAngles(local.roll, local.pitch);
+//         imu->readG(local.ax, local.ay, local.az);
+//         imu->readAngles(local.roll, local.pitch);
 
-        // write
-        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-        sensorsData.imu = local;
-        xSemaphoreGive(sensorsMutex);
-        // Serial.print("X: "); Serial.print(ax, 3); Serial.print("  Y: "); Serial.print(ay, 3); Serial.print("  Z: "); Serial.println(az, 3);
+//         // write
+//         xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+//         sensorsData.imu = local;
+//         xSemaphoreGive(sensorsMutex);
+//         // Serial.print("X: "); Serial.print(ax, 3); Serial.print("  Y: "); Serial.print(ay, 3); Serial.print("  Z: "); Serial.println(az, 3);
         
 
-        vTaskDelay(pdMS_TO_TICKS(imuSpeed)); // 20Hz
-    }
-}
+//         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(imuSpeed));
+//     }
+// }
 
-void mpuTask(void* param) {
-    MPU* mpu = (MPU*)param;
-    MPUData local;
-    const float dt = mpuSpeed / 1000.0f; // sec.
+// void mpuTask(void* param) {
+//     MPU* mpu = (MPU*)param;
+//     MPUData local;
+//     const float dt = mpuSpeed / 1000.0f; // sec.
+//     TickType_t lastWakeTime = xTaskGetTickCount();
 
-    while (1) {
-        mpu->read(local, dt);
+//     while (1) {
+//         mpu->read(local, dt);
 
-        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-        sensorsData.mpu = local;
-        xSemaphoreGive(sensorsMutex);
+//         xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+//         sensorsData.mpu = local;
+//         xSemaphoreGive(sensorsMutex);
 
-        vTaskDelay(pdMS_TO_TICKS(mpuSpeed)); // e.g. 100 Hz
-    }
-}
+//         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(mpuSpeed)); // e.g. 100 Hz
+//     }
+// }
 
 
 
-void ultrasonicTask(void* param) {
-    while(true) {
+// void ultrasonicTask(void* param) {
+//     TickType_t lastWakeTime = xTaskGetTickCount();
 
-      // ---- Front US ----
-      float distanceFront = us.read();
-      bool validFront = (distanceFront > 0);
-      xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-        sensorsData.usFront.distanceCm = distanceFront;
-        sensorsData.usFront.valid = validFront;
-        xSemaphoreGive(sensorsMutex);
+//     while(true) {
 
-      // ---- Back US ----
-      // ....
+//       // ---- Front US ----
+//       float distanceFront = us.read();
+//       bool validFront = (distanceFront > 0);
+//       xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+//         sensorsData.usFront.distanceCm = distanceFront;
+//         sensorsData.usFront.valid = validFront;
+//         xSemaphoreGive(sensorsMutex);
 
-        vTaskDelay(pdMS_TO_TICKS(ultrasonicSpeed)); // 10Hz
-    }
-}
+//       // ---- Back US ----
+//       // ....
 
-void lidarTask(void* param) {
-  while(true){
-    LidarData local;
-    local.distanceCm = 0;
-    local.valid = true;
+//         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(ultrasonicSpeed)); // 10Hz
+//     }
+// }
+
+// void lidarTask(void* param) {
+//   TickType_t lastWakeTime = xTaskGetTickCount();
+//   while(true){
+//     LidarData local;
+//     local.distanceCm = 0;
+//     local.valid = true;
     
-    xSemaphoreTake(i2cMutex, portMAX_DELAY);  // block if I2C in use
-    uint16_t distanceMM = lox.readRangeContinuousMillimeters();
-    bool timeout = lox.timeoutOccurred();
-    if (timeout) { Serial.print(" TIMEOUT"); }
-    xSemaphoreGive(i2cMutex);
+//     xSemaphoreTake(i2cMutex, portMAX_DELAY);  // block if I2C in use
+//     uint16_t distanceMM = lox.readRangeContinuousMillimeters();
+//     bool timeout = lox.timeoutOccurred();
+//     if (timeout) { Serial.print(" TIMEOUT"); }
+//     xSemaphoreGive(i2cMutex);
 
-    local.valid = !timeout && distanceMM >= 30 && distanceMM <= 2000;  // VL53L0X specs: 30mm - 2000mm
-    local.distanceCm = distanceMM / 10.0;
+//     local.valid = !timeout && distanceMM >= 30 && distanceMM <= 2000;  // VL53L0X specs: 30mm - 2000mm
+//     local.distanceCm = distanceMM / 10.0;
 
-    xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-    sensorsData.lidarFront = local;
-    xSemaphoreGive(sensorsMutex);
+//     xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+//     sensorsData.lidarFront = local;
+//     xSemaphoreGive(sensorsMutex);
 
-    vTaskDelay(pdMS_TO_TICKS(lidarSpeed));
-  }
-}
+//     vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(lidarSpeed));
+//   }
+// }
 
-void encoderTask(void* param) {
-    const float wheelCirc = PI * WHEEL_DIAMETER;
-    const float cmPerTick = wheelCirc / ENCODER_RESOLUTION;
+// void encoderTask(void* param) {
+//     TickType_t lastWakeTime = xTaskGetTickCount();
+//     const float wheelCirc = PI * WHEEL_DIAMETER;
+//     const float cmPerTick = wheelCirc / ENCODER_RESOLUTION;
 
-    int32_t lastLeftTicks = 0;
-    int32_t lastRightTicks = 0;
+//     int32_t lastLeftTicks = 0;
+//     int32_t lastRightTicks = 0;
 
-    while (true) {
-        int32_t l, r;
+//     while (true) {
+//         int32_t l, r;
 
-        // atomic copy
-        noInterrupts();
-        l = leftTicks;
-        r = rightTicks;
-        interrupts();
+//         // atomic copy
+//         noInterrupts();
+//         l = leftTicks;
+//         r = rightTicks;
+//         interrupts();
 
-        int32_t dl = l - lastLeftTicks;
-        int32_t dr = r - lastRightTicks;
+//         int32_t dl = l - lastLeftTicks;
+//         int32_t dr = r - lastRightTicks;
 
-        lastLeftTicks = l;
-        lastRightTicks = r;
+//         lastLeftTicks = l;
+//         lastRightTicks = r;
 
-        float dt = encoderSpeed / 1000.0f;
+//         float dt = encoderSpeed / 1000.0f;
 
-        float leftSpeed  = (dl * cmPerTick) / dt;
-        float rightSpeed = (dr * cmPerTick) / dt;
+//         float leftSpeed  = (dl * cmPerTick) / dt;
+//         float rightSpeed = (dr * cmPerTick) / dt;
 
-        xSemaphoreTake(sensorsMutex, portMAX_DELAY);
-        sensorsData.encoderLeft.ticks = l;
-        sensorsData.encoderLeft.speed_cms = leftSpeed;
-        sensorsData.encoderLeft.distance_cm = l * cmPerTick;
+//         xSemaphoreTake(sensorsMutex, portMAX_DELAY);
+//         sensorsData.encoderLeft.ticks = l;
+//         sensorsData.encoderLeft.speed_cms = leftSpeed;
+//         sensorsData.encoderLeft.distance_cm = l * cmPerTick;
 
-        sensorsData.encoderRight.ticks = r;
-        sensorsData.encoderRight.speed_cms = rightSpeed;
-        sensorsData.encoderRight.distance_cm = r * cmPerTick;
-        xSemaphoreGive(sensorsMutex);
+//         sensorsData.encoderRight.ticks = r;
+//         sensorsData.encoderRight.speed_cms = rightSpeed;
+//         sensorsData.encoderRight.distance_cm = r * cmPerTick;
+//         xSemaphoreGive(sensorsMutex);
 
-        vTaskDelay(pdMS_TO_TICKS(encoderSpeed));
-    }
-}
+//         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(encoderSpeed));
+//     }
+// }
 
 
 
@@ -206,6 +211,7 @@ void i2c_scanner() {
   }
   if(count == 0) Serial.println("No I2C devices found");
 }
+
 void printEsp32Info() {
     Serial.println("=== ESP32 Chip Info ===");
     esp_chip_info_t chip_info;
@@ -219,9 +225,9 @@ void printEsp32Info() {
         (chip_info.features & CHIP_FEATURE_BLE) ? "BLE " : "",
         (chip_info.features & CHIP_FEATURE_BT) ? "BT" : "");
 
-    Serial.printf("Flash: %dMB %s\n",
-        spi_flash_get_chip_size() / (1024 * 1024),
-        (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+    // Serial.printf("Flash: %dMB %s\n",
+    //     spi_flash_get_chip_size() / (1024 * 1024),
+    //     (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
     Serial.printf("CPU frequency: %u MHz\n", ESP.getCpuFreqMHz());
@@ -240,7 +246,7 @@ void lidarinit() {
   } else {
     Serial.println("VL53L0X booted successfully");
     lox.setTimeout(100);
-    lox.setMeasurementTimingBudget(33000);   // HIGH-SPEED mode
+    lox.setMeasurementTimingBudget(20000);   // HIGH-SPEED mode
     lox.startContinuous(lidarSpeed);         //? Note : Continuous must be > Timing budget !
     // lox.setAddress(LIDAR1_Addr);
   }
@@ -259,7 +265,7 @@ void encoderInit(){
 // ======================
 
 void setup() {
-  Wire.begin(22, 23); Wire.setClock(100000);
+  Wire.begin(6, 7); Wire.setClock(100000);
   debugInit(115200,    // does serial.begin() in this function
     DBG_FSM | 
     DBG_MOVEMENT | 
@@ -269,7 +275,10 @@ void setup() {
     // DBG_ENCODER |
     // DBG_LAUNCH_TGR
   );
+  // Serial.begin(115200);
   delay(200);
+
+  Serial.println("BOOT OK");
 
   // i2c_scanner();
   printEsp32Info();
@@ -277,28 +286,30 @@ void setup() {
   // Shared resources
   sensorsMutex = xSemaphoreCreateMutex();
   i2cMutex     = xSemaphoreCreateMutex();
+  memset(&sensorsData, 0, sizeof(sensorsData));
 
   // Instanciate Drivers
   lidarinit();
-  // imu.begin();
-  mpu.begin(true, true, true, false, false); // accel, gyro, yaw, roll, pitch
-
-  encoderInit();
+  imu.begin();
+  // US.init() done in constructor
+  // if (mpu.begin(true, true, true, false, false)) { // accel, gyro, yaw, roll, pitch
+  //   Serial.println("MPU initialized successfully");
+  // } else { Serial.println("Failed to initialize MPU");
+  // }
+  // encoderInit();
   
-  // US init done in constructor
   
+  // INIT HARDWARE
+  // fsmInitializeSystem(fsmContext);
 
-
-  
-
-  // Create Tasks
-  xTaskCreatePinnedToCore(mpuTask, "MPU", 2048, &mpu,       2, nullptr, 1);  // Start MPU task (medium priority, core 1)
+  // // Create Tasks
+  // xTaskCreatePinnedToCore(mpuTask, "MPU", 2048, &mpu,       2, nullptr, 1);  // Start MPU task (medium priority, core 1)
     // xTaskCreatePinnedToCore(imuTask, "IMU", 2048, &imu,       2, nullptr, 1);  // Start IMU task (medium priority, core 1)
-  xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
-  xTaskCreatePinnedToCore(ultrasonicTask, "US", 4096, &us, 2, nullptr, 1);
-  xTaskCreatePinnedToCore(lidarTask, "LIDAR", 4096, &lox, 2, nullptr, 1);
-  xTaskCreatePinnedToCore(encoderTask, "ENCODER", 4096, nullptr, 3, nullptr, 1);
-// 
+  // xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
+  // xTaskCreatePinnedToCore(ultrasonicTask, "US", 4096, &us, 2, nullptr, 1);
+  // xTaskCreatePinnedToCore(lidarTask, "LIDAR", 4096, &lox, 2, nullptr, 1);
+  // xTaskCreatePinnedToCore(encoderTask, "ENCODER", 4096, nullptr, 3, nullptr, 1);
+
   
 }
 
