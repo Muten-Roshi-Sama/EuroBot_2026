@@ -27,6 +27,12 @@ struct LidarData {
     bool valid;
 };
 
+struct IOExpanderData {
+  bool teamSwitch;      // Pin 1
+  bool launchTrigger;   // Pin 3
+  bool ready;           // Set to true after first I2C read
+};
+
 struct SensorsData {
     IMUData imu;
     USData usFront;
@@ -40,4 +46,5 @@ struct SensorsData {
 extern SensorsData sensorsData;
 extern SemaphoreHandle_t sensorsMutex;  // Mutex protecting access
 
-
+extern IOExpanderData ioExpanderData;
+extern SemaphoreHandle_t ioExpanderMutex;

@@ -11,8 +11,12 @@
  */
 
 // =========== ACTUATORS PINS ===========
-#define LAUNCH_TRIGGER_PIN A0
-#define TEAM_SWITCH_PIN A2
+// #define LAUNCH_TRIGGER_PIN A0
+// #define TEAM_SWITCH_PIN A2
+
+#define IO_EXPANDER_ADDR 0x20
+#define TEAM_SWITCH_PIN_IOEXP 1      // IO Expander pin 1
+#define LAUNCH_TRIGGER_PIN_IOEXP 3   // IO Expander pin 3
 // #define EMERGENCY_PIN A3
 
 

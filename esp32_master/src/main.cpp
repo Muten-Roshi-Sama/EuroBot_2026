@@ -18,7 +18,7 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "esp_chip_info.h"
-
+#include "ioexpander.h"
 
 // Sensors 
 IMU imu;
@@ -26,9 +26,14 @@ IMUData imuData;
 Ultrasonic us(US_TRIG_PIN, US_ECHO_PIN, US_TIMEOUT);
 VL53L0X lox;
 
+IOExpander ioExpander(0x20);
+
 SensorsData sensorsData;
 SemaphoreHandle_t sensorsMutex;
 SemaphoreHandle_t i2cMutex;
+
+IOExpanderData ioExpanderData = {false, false, false};  // Initialize: teamSwitch, launchTrigger, ready
+SemaphoreHandle_t ioExpanderMutex;
 
 // FSM 
 FsmContext fsmContext;
@@ -40,6 +45,7 @@ static int fsmSpeed = 50;          // ~20Hz
 static int imuSpeed = 10;         // ~100Hz
 static int ultrasonicSpeed = 50; // ~20Hz
 static int lidarSpeed = 50;     // ~20Hz   (vl53l0x max is 20ms/50Hz)
+
 void fsmTask(void* param) {
     FsmContext* ctx = (FsmContext*) param;
     fsmInitializeSystem(*ctx);
@@ -199,11 +205,12 @@ void setup() {
   // Shared resources
   sensorsMutex = xSemaphoreCreateMutex();
   i2cMutex     = xSemaphoreCreateMutex();
+  ioExpanderMutex = xSemaphoreCreateMutex();
 
   // Instanciate Drivers
   lidarinit();
   imu.begin();
-  
+  ioExpander.begin(); 
   // US init done in constructor
   
 
@@ -215,8 +222,18 @@ void setup() {
   xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
   xTaskCreatePinnedToCore(ultrasonicTask, "US", 4096, &us, 2, nullptr, 1);
   xTaskCreatePinnedToCore(lidarTask, "LIDAR", 4096, &lox, 2, nullptr, 1);
-// 
+  xTaskCreatePinnedToCore(IOExpander::taskEntry, "IOExpander", 2048, &ioExpander, 2, nullptr, 0);  // Core 0 to avoid I2C contention
   
+  // Wait for IOExpander to ready (first I2C read complete)
+  uint32_t timeout = millis();
+  while (!ioExpanderData.ready && (millis() - timeout < 5000)) {
+    delay(10);
+  }
+  if (ioExpanderData.ready) {
+    Serial.println("[Setup] IOExpander ready!");
+  } else {
+    Serial.println("[Setup] WARNING: IOExpander not ready after timeout");
+  }
 }
 
 

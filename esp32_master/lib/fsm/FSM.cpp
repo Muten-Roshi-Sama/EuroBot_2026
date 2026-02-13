@@ -59,6 +59,14 @@ void fsmInitializeSystem(FsmContext &ctx)
 {
   // 1. Hardware init
   printFreeMemory("Before HW init");
+  
+  // IOExpander is ready at this point (setup() waits for it)
+  // Team will be updated dynamically in IDLE
+  
+  
+  
+  
+  
   // launchTrigger.begin();
   // emergencyBtn.begin();
   // stepperCtrl.begin();
@@ -158,29 +166,42 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     // ===========================
   case FsmAction::IDLE:
   {
-    // launchTrigger.update();
-    static unsigned long millis_print = 0;
-
-    // if (launchTrigger.isTriggered())
-    // {
-    //   // launchTrigger.reset();  // Optionnal ?
-
-    //   // start 100sec timer
+    // Read team switch dynamically (IOExpander is ready)
+    xSemaphoreTake(ioExpanderMutex, portMAX_DELAY);
+    ctx.currentTeam = (ioExpanderData.teamSwitch == 0) ? Team::TEAM_BLUE : Team::TEAM_YELLOW;
+    bool launchPressed = ioExpanderData.launchTrigger;
+    xSemaphoreGive(ioExpanderMutex);
+    
+    Serial.printf("[IDLE] Team: %s, launchTrigger: %d\n", 
+                  (ctx.currentTeam == Team::TEAM_BLUE) ? "BLUE" : "YELLOW",
+                  launchPressed);
+    
+    // Check launch trigger from IOExpander - detect falling edge (1 -> 0)
+    static bool lastLaunchState = false;  // Initialize to current value on first call
+    static bool initialized = false;
+    if (!initialized) {
+      lastLaunchState = launchPressed;
+      initialized = true;
+    }
+    
+    // Falling edge detection: was 1, now 0
+    if (!launchPressed && lastLaunchState) {
+      // Launch triggered - start match
       ctx.matchStartMs = millis();
       ctx.matchActive = true;
       ctx.matchDurationMs = MATCH_DURATION_MS;
-
       debugPrintf(DBG_FSM, "FSM -> Task");
-      ctx.currentAction = FsmAction::TASK; // if tasks queued -> go to TASK state
-      
-    // }
-    // else {
-      // if(millis() - millis_print >= 2000) {
-      //   millis_print = millis();
-      //   debugPrintf(DBG_FSM, "Waiting for launch...");
-      //   printFreeMemory("FsmAction:IDLE");
-      // }
-    // }
+      ctx.currentAction = FsmAction::TASK;
+    }
+    
+    lastLaunchState = launchPressed;  // Remember state for next cycle
+    
+    // Waiting for launch
+    static unsigned long millis_print = 0;
+    if(millis() - millis_print >= 2000) {
+      millis_print = millis();
+      debugPrintf(DBG_FSM, "Waiting for launch...");
+    }
     break;
   }
 
