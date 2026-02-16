@@ -116,6 +116,23 @@ void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next;
 void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
 {
 
+  // ---- EMERGENCY STOP CHECK (always, from any state) ----
+  bool emergencyStopTriggered = false;
+  if (ctx.flags) {
+    emergencyStopTriggered = ctx.flags->get_emergency_stop();
+  }
+  
+  if (emergencyStopTriggered && ctx.currentAction != FsmAction::EMERGENCY_STOP) {
+    debugPrintf(DBG_FSM, "EMERGENCY STOP triggered from WiFi!");
+    fsmChangeAction(ctx, FsmAction::EMERGENCY_STOP);
+    ctx.matchActive = false;  // Stop match timer
+    if (ctx.flags) {
+      ctx.flags->clear_emergency_stop();
+    }
+    return;  // Exit and let next cycle handle EMERGENCY_STOP state
+  }
+  
+
   // ---- SENSOR PRINTS -----
     static unsigned long millis_print = 0;
     if(ctx.matchActive && (millis() - millis_print >= 2000)) {
@@ -172,9 +189,15 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     bool launchPressed = ioExpanderData.launchTrigger;
     xSemaphoreGive(ioExpanderMutex);
     
-    Serial.printf("[IDLE] Team: %s, launchTrigger: %d\n", 
+    // Check WiFi FSM flags if available
+    bool wifiTriggerLaunch = false;
+    if (ctx.flags) {
+      wifiTriggerLaunch = ctx.flags->get_trigger_launch();
+    }
+    
+    Serial.printf("[IDLE] Team: %s, launchTrigger: %d, wifiTrigger: %d\n", 
                   (ctx.currentTeam == Team::TEAM_BLUE) ? "BLUE" : "YELLOW",
-                  launchPressed);
+                  launchPressed, wifiTriggerLaunch);
     
     // Check launch trigger from IOExpander - detect falling edge (1 -> 0)
     static bool lastLaunchState = false;  // Initialize to current value on first call
@@ -185,13 +208,22 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     }
     
     // Falling edge detection: was 1, now 0
-    if (!launchPressed && lastLaunchState) {
+    // OR WiFi trigger (non-zero)
+    bool launchTriggered = (!launchPressed && lastLaunchState) || wifiTriggerLaunch;
+    
+    if (launchTriggered) {
       // Launch triggered - start match
       ctx.matchStartMs = millis();
       ctx.matchActive = true;
       ctx.matchDurationMs = MATCH_DURATION_MS;
-      debugPrintf(DBG_FSM, "FSM -> Task");
+      debugPrintf(DBG_FSM, "FSM -> Task (triggered from %s)", 
+                  wifiTriggerLaunch ? "WiFi" : "IOExpander");
       ctx.currentAction = FsmAction::TASK;
+      
+      // Clear WiFi trigger flag after consumption
+      if (ctx.flags) {
+        ctx.flags->clear_trigger_launch();
+      }
     }
     
     lastLaunchState = launchPressed;  // Remember state for next cycle
@@ -234,7 +266,10 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     // ===========================
   case FsmAction::EMERGENCY_STOP:
   {
+    debugPrintf(DBG_FSM, "EMERGENCY STOP STATE - Robot halted");
+    ctx.matchActive = false;
     // movement.stop();
+    // All other actions are blocked, wait for manual reset
     break;
   }
 

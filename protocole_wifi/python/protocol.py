@@ -54,6 +54,21 @@ def make_reset() -> str:
     return make_command("RESET")
 
 
+def make_fsm_set_ready(value: bool) -> str:
+    """Définir le flag ready de la FSM"""
+    return make_command("FSM_SET_READY", {"value": value})
+
+
+def make_fsm_trigger_launch(value: bool) -> str:
+    """Déclencher le lancement (flag_trigger_launch)"""
+    return make_command("FSM_TRIGGER_LAUNCH", {"value": value})
+
+
+def make_fsm_emergency_stop(value: bool) -> str:
+    """Déclencher l'arrêt d'urgence (flag_emergency_stop)"""
+    return make_command("FSM_EMERGENCY_STOP", {"value": value})
+
+
 def parse_message(data: str) -> Dict[str, Any]:
     """
     Parser un message JSON reçu

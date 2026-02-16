@@ -2,6 +2,7 @@
 #pragma once
 
 #include "globals.h"
+#include "../fsm_control/FSMFlags.h"
 
 enum class Team {
 	TEAM_YELLOW = 0,
@@ -26,6 +27,7 @@ struct FsmContext {
 	unsigned long matchStartMs = 0;
     unsigned long matchDurationMs = 0;
     bool matchActive = false;
+	FSMFlags* flags = nullptr;  // WiFi FSM control flags
 };
 
 void fsmInitializeSystem(FsmContext &ctx);

@@ -6,6 +6,9 @@
 #include "globals.h"
 #include "config.h"
 #include "../util/Debug.h"
+#include "../fsm_control/FSMFlags.h"
+#include "../wifi_protocol/WiFiProtocol.h"
+#include "../wifi_protocol/LEDController.h"
 
 #include <Wire.h>
 #include <Ultrasonic.h>
@@ -37,10 +40,11 @@ SemaphoreHandle_t ioExpanderMutex;
 
 // FSM 
 FsmContext fsmContext;
+FSMFlags fsmFlags;  // WiFi FSM control flags
 
-
-
-// ====== FreeRTOS Tasks =========
+// WiFi Protocol & LED Controller
+LEDController ledController;
+WiFiProtocol* wifiProtocol = nullptr;
 static int fsmSpeed = 50;          // ~20Hz
 static int imuSpeed = 10;         // ~100Hz
 static int ultrasonicSpeed = 50; // ~20Hz
@@ -181,10 +185,52 @@ void lidarinit() {
   //
 }
 
+// ====================== FSM WiFi CALLBACKS ======================
+/**
+ * Handle FSM commands from WiFiProtocol
+ * Commands: FSM_SET_READY, FSM_TRIGGER_LAUNCH, FSM_EMERGENCY_STOP
+ */
+void handle_fsm_commands(const char* cmd, const JsonObject& params, DynamicJsonDocument& response) {
+  if (strcmp(cmd, "FSM_SET_READY") == 0) {
+    bool value = params["value"] | false;
+    fsmFlags.set_ready(value);
+    
+    response["status"] = "ok";
+    response["message"] = "ready flag set";
+    response["data"]["flag"] = "ready";
+    response["data"]["value"] = value;
+    
+    Serial.printf("[FSM_CMD] SET_READY = %d\n", value);
+  }
+  else if (strcmp(cmd, "FSM_TRIGGER_LAUNCH") == 0) {
+    bool value = params["value"] | false;
+    fsmFlags.set_trigger_launch(value);
+    
+    response["status"] = "ok";
+    response["message"] = "trigger_launch flag set";
+    response["data"]["flag"] = "trigger_launch";
+    response["data"]["value"] = value;
+    
+    Serial.printf("[FSM_CMD] TRIGGER_LAUNCH = %d\n", value);
+  }
+  else if (strcmp(cmd, "FSM_EMERGENCY_STOP") == 0) {
+    bool value = params["value"] | false;
+    fsmFlags.set_emergency_stop(value);
+    
+    response["status"] = "ok";
+    response["message"] = "emergency_stop flag set";
+    response["data"]["flag"] = "emergency_stop";
+    response["data"]["value"] = value;
+    
+    Serial.printf("[FSM_CMD] EMERGENCY_STOP = %d\n", value);
+  }
+  else {
+    response["status"] = "error";
+    response["message"] = "Commande FSM inconnue";
+  }
+}
 
 
-
-// ======================
 
 void setup() {
   Wire.begin(22, 23); Wire.setClock(100000);
@@ -213,10 +259,26 @@ void setup() {
   ioExpander.begin(); 
   // US init done in constructor
   
-
-
+  // LED Controller init
+  ledController.init_led(16);  // Pin 16 for test LED
   
+  // FSM setup: associate flags
+  fsmContext.flags = &fsmFlags;
 
+  // WiFi Protocol setup
+  // Default: EuroBot AP (SSID="EuroBot_AP", Password="12345678")
+  // Port 5001 for Master
+  wifiProtocol = new WiFiProtocol("felix123", "ecamwouw", 5000);
+  if (wifiProtocol->setup()) {
+    Serial.println("[Main] WiFiProtocol initialized successfully");
+    // Register FSM command callback
+    wifiProtocol->on_command(handle_fsm_commands);
+    // Link LED controller
+    wifiProtocol->set_led_controller(&ledController);
+  } else {
+    Serial.println("[Main] WARNING: WiFiProtocol setup failed");
+  }
+  
   // Create Tasks
   xTaskCreatePinnedToCore(imuTask, "IMU", 2048, &imu,       2, nullptr, 1);  // Start IMU task (medium priority, core 1)
   xTaskCreatePinnedToCore(fsmTask, "FSM", 4096, &fsmContext, 3, nullptr, 1);  // Start FSM task (high priority, core 1)
@@ -239,6 +301,14 @@ void setup() {
 
 
 void loop() {
-  // Do nothing
-  vTaskDelay(portMAX_DELAY); // makes tasks sleep without blocking other tasks
+  // WiFi Protocol update (non-blocking)
+  if (wifiProtocol) {
+    wifiProtocol->update();
+  }
+  
+  // LED Controller update
+  ledController.update();
+  
+  // Small delay to avoid CPU saturation
+  delayMicroseconds(100);
 }

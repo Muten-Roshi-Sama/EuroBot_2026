@@ -9,7 +9,8 @@ from datetime import datetime
 from wifi_client import WiFiClient
 from protocol import (
     make_led_on, make_led_off, make_led_blink, 
-    make_get_status, make_reset
+    make_get_status, make_reset,
+    make_fsm_set_ready, make_fsm_trigger_launch, make_fsm_emergency_stop
 )
 
 
@@ -22,7 +23,6 @@ class RobotControlApp:
         
         self.client = None
         self.connected = False
-        self.module_type = None  # "wifi_test" ou "master"
         
         self._create_ui()
         self._load_config()
@@ -69,9 +69,7 @@ class RobotControlApp:
         preset_frame = ttk.Frame(frame_connection)
         preset_frame.grid(row=2, column=1, columnspan=5, sticky="w")
         
-        ttk.Button(preset_frame, text="WiFi Test (5000)", width=18,
-                  command=lambda: self._set_connection("192.168.4.1", "5000")).pack(side="left", padx=2)
-        ttk.Button(preset_frame, text="Master (5001)", width=18,
+        ttk.Button(preset_frame, text="ESP32 (Default)", width=18,
                   command=lambda: self._set_connection("192.168.4.1", "5001")).pack(side="left", padx=2)
         ttk.Button(preset_frame, text="Custom IP...", width=18,
                   command=self._custom_ip).pack(side="left", padx=2)
@@ -109,6 +107,47 @@ class RobotControlApp:
         # Configure weights pour expander
         for i in range(6):
             frame_commands.columnconfigure(i, weight=1)
+        
+        # ===== FRAME FSM CONTROLS =====
+        frame_fsm = ttk.LabelFrame(self.root, text="🕹️ Contrôle FSM", padding=10)
+        frame_fsm.pack(fill="x", padx=10, pady=10)
+        self.frame_fsm = frame_fsm  # Store reference for enable/disable
+        
+        # FSM Status Display
+        self.label_fsm_status = ttk.Label(frame_fsm, text="État: 🟢 Prêt", 
+                                         foreground="green", font=("Arial", 9))
+        self.label_fsm_status.pack(anchor="w", pady=5)
+        
+        # Buttons frame
+        btn_frame = ttk.Frame(frame_fsm)
+        btn_frame.pack(fill="x", expand=True, pady=5)
+        
+        self.btn_fsm_ready = ttk.Button(btn_frame, text="✓ Ready", 
+                                       command=self._on_fsm_ready, state="disabled", width=15)
+        self.btn_fsm_ready.pack(side="left", padx=5)
+        
+        self.btn_fsm_launch = ttk.Button(btn_frame, text="🚀 Launch!", 
+                                        command=self._on_fsm_launch, state="disabled", width=15)
+        self.btn_fsm_launch.pack(side="left", padx=5)
+        
+        self.btn_fsm_emergency = ttk.Button(btn_frame, text="🛑 Emergency STOP", 
+                                           command=self._on_fsm_emergency, state="disabled", width=15)
+        self.btn_fsm_emergency.pack(side="left", padx=5)
+        
+        # Status LED indicators
+        status_frame = ttk.Frame(frame_fsm)
+        status_frame.pack(fill="x", pady=5)
+        
+        ttk.Label(status_frame, text="Flags: ").pack(side="left")
+        
+        self.label_ready_indicator = ttk.Label(status_frame, text="🔴 Ready", foreground="red", font=("Arial", 9))
+        self.label_ready_indicator.pack(side="left", padx=10)
+        
+        self.label_launch_indicator = ttk.Label(status_frame, text="🔴 Launch", foreground="red", font=("Arial", 9))
+        self.label_launch_indicator.pack(side="left", padx=10)
+        
+        self.label_emergency_indicator = ttk.Label(status_frame, text="🔴 Emergency", foreground="red", font=("Arial", 9))
+        self.label_emergency_indicator.pack(side="left", padx=10)
         
         # ===== FRAME ACTIONS SYSTÈME =====
         frame_system = ttk.LabelFrame(self.root, text="⚙️ Système", padding=10)
@@ -199,16 +238,7 @@ class RobotControlApp:
             )
             
             if self.client.connect():
-                # Déterminer le type de module
-                if port == 5000:
-                    self.module_type = "wifi_test"
-                    self._log(f"✓ Connecté (Port 5000)", "success")
-                elif port == 5001:
-                    self.module_type = "master"
-                    self._log(f"✓ Connecté (Port 5001)", "success")
-                else:
-                    self.module_type = "unknown"
-                
+                self._log(f"✓ Connecté à {ip}:{port}", "success")
                 self._update_connection_state(True)
             else:
                 self._log(f"✗ Connexion échouée à {ip}:{port}", "error")
@@ -297,14 +327,7 @@ class RobotControlApp:
         
         if connected:
             self.label_status.config(text="✅ Connecté", foreground="green")
-            
-            # Afficher le type de module
-            if self.module_type == "wifi_test":
-                self.label_module.config(text="Module: 📦 ESP32 WiFi Test (LED Control)", foreground="blue")
-            elif self.module_type == "master":
-                self.label_module.config(text="Module: 🤖 ESP32 Master (Robot Control)", foreground="green")
-            else:
-                self.label_module.config(text="Module: ? Détection en cours...", foreground="orange")
+            self.label_module.config(text="Module: 🤖 EuroBot Control", foreground="green")
             
             self.btn_connect.config(state="disabled")
             self.btn_disconnect.config(state="normal")
@@ -313,12 +336,14 @@ class RobotControlApp:
             self.btn_led_blink.config(state="normal")
             self.btn_status.config(state="normal")
             self.btn_reset.config(state="normal")
+            self.btn_fsm_ready.config(state="normal")
+            self.btn_fsm_launch.config(state="normal")
+            self.btn_fsm_emergency.config(state="normal")
             self.entry_ip.config(state="disabled")
             self.entry_port.config(state="disabled")
         else:
             self.label_status.config(text="❌ Déconnecté", foreground="red")
             self.label_module.config(text="Module: Non détecté", foreground="gray")
-            self.module_type = None
             
             self.btn_connect.config(state="normal")
             self.btn_disconnect.config(state="disabled")
@@ -327,8 +352,40 @@ class RobotControlApp:
             self.btn_led_blink.config(state="disabled")
             self.btn_status.config(state="disabled")
             self.btn_reset.config(state="disabled")
+            self.btn_fsm_ready.config(state="disabled")
+            self.btn_fsm_launch.config(state="disabled")
+            self.btn_fsm_emergency.config(state="disabled")
             self.entry_ip.config(state="normal")
             self.entry_port.config(state="normal")
+    
+
+    def _on_fsm_ready(self):
+        """Envoyer FSM_SET_READY command"""
+        if self.client and self.client.is_connected():
+            cmd = make_fsm_set_ready(True)
+            self.client.send(cmd)
+            self._log("📤 [FSM] SET_READY = True", "info")
+            self.label_ready_indicator.config(text="🟢 Ready", foreground="green")
+    
+    def _on_fsm_launch(self):
+        """Envoyer FSM_TRIGGER_LAUNCH command (demander confirmation)"""
+        if messagebox.askyesno("Confirmation", "Êtes-vous sûr de vouloir déclencher le lancement?"):
+            if self.client and self.client.is_connected():
+                cmd = make_fsm_trigger_launch(True)
+                self.client.send(cmd)
+                self._log("🚀 [FSM] TRIGGER_LAUNCH = True", "warning")
+                self.label_launch_indicator.config(text="🟡 Launch", foreground="orange")
+    
+    def _on_fsm_emergency(self):
+        """Envoyer FSM_EMERGENCY_STOP command (confirmation urgente)"""
+        if messagebox.showwarning("⚠️ ARRÊT D'URGENCE", 
+                                  "ÊTES-VOUS ABSOLUMENT SÛR?\n\nCeci arrêtera immédiatement le robot!",
+                                  icon="warning"):
+            if self.client and self.client.is_connected():
+                cmd = make_fsm_emergency_stop(True)
+                self.client.send(cmd)
+                self._log("🛑 [FSM] EMERGENCY_STOP = True - ROBOT ARRÊTÉ!", "error")
+                self.label_emergency_indicator.config(text="🟠 Emergency", foreground="red")
     
     def _log(self, message: str, tag: str = "serial"):
         """Ajouter un message au log console"""
