@@ -53,6 +53,10 @@ void LEDController::stop_blink(uint8_t pin) {
     }
 }
 
+void LEDController::stop_all_blinks() {
+    blinks.clear();
+}
+
 void LEDController::update() {
     uint32_t now = millis();
     

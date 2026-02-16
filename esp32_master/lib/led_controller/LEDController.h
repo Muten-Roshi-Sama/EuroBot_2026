@@ -38,6 +38,9 @@ public:
     // Arrêter le clignotement d'une LED
     void stop_blink(uint8_t pin);
     
+    // Arrêter TOUS les clignotements
+    void stop_all_blinks();
+    
     // Mettre à jour les clignotements (appeler régulièrement dans loop())
     void update();
     

@@ -1,13 +1,9 @@
 """
-Application GUI pour contrôler l'ESP32 à distance
-Interface simple pour allumer/éteindre/clignoter LED et afficher les logs
-Connexion TCP, console colorisée en temps réel
+Application GUI pour contrôler l'ESP32 à distance via WiFi TCP
 """
 
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
-import threading
-import time
 from datetime import datetime
 
 from wifi_client import WiFiClient
@@ -21,11 +17,12 @@ class RobotControlApp:
     def __init__(self, root):
         self.root = root
         self.root.title("🤖 EuroBot 2026 - Contrôle WiFi ESP32")
-        self.root.geometry("1000x750")
+        self.root.geometry("1100x800")
         self.root.resizable(True, True)
         
         self.client = None
         self.connected = False
+        self.module_type = None  # "wifi_test" ou "master"
         
         self._create_ui()
         self._load_config()
@@ -38,12 +35,12 @@ class RobotControlApp:
         frame_connection.pack(fill="x", padx=10, pady=10)
         
         # Ligne 1: IP et Port
-        ttk.Label(frame_connection, text="IP ESP32:").grid(row=0, column=0, sticky="w")
+        ttk.Label(frame_connection, text="IP ESP32:").grid(row=0, column=0, sticky="w", padx=5)
         self.entry_ip = ttk.Entry(frame_connection, width=20)
-        self.entry_ip.insert(0, "192.168.1.100")
+        self.entry_ip.insert(0, "192.168.4.1")  # IP par défaut du WiFi
         self.entry_ip.grid(row=0, column=1, padx=5)
         
-        ttk.Label(frame_connection, text="Port:").grid(row=0, column=2, sticky="w")
+        ttk.Label(frame_connection, text="Port:").grid(row=0, column=2, sticky="w", padx=5)
         self.entry_port = ttk.Entry(frame_connection, width=10)
         self.entry_port.insert(0, "5000")
         self.entry_port.grid(row=0, column=3, padx=5)
@@ -56,10 +53,28 @@ class RobotControlApp:
                                         command=self._on_disconnect, state="disabled")
         self.btn_disconnect.grid(row=0, column=5, padx=5)
         
+        # Module type
+        self.label_module = ttk.Label(frame_connection, text="Module: Non détecté", 
+                                     foreground="gray", font=("Arial", 9))
+        self.label_module.grid(row=1, column=0, columnspan=2, sticky="w", pady=5)
+        
         # Status
         self.label_status = ttk.Label(frame_connection, text="❌ Déconnecté", 
                                      foreground="red", font=("Arial", 10, "bold"))
-        self.label_status.grid(row=1, column=0, columnspan=6, sticky="w", pady=5)
+        self.label_status.grid(row=1, column=2, columnspan=4, sticky="w", pady=5)
+        
+        # Quick presets
+        ttk.Label(frame_connection, text="Quick:", font=("Arial", 9, "bold")).grid(row=2, column=0, sticky="w")
+        
+        preset_frame = ttk.Frame(frame_connection)
+        preset_frame.grid(row=2, column=1, columnspan=5, sticky="w")
+        
+        ttk.Button(preset_frame, text="WiFi Test (5000)", width=18,
+                  command=lambda: self._set_connection("192.168.4.1", "5000")).pack(side="left", padx=2)
+        ttk.Button(preset_frame, text="Master (5001)", width=18,
+                  command=lambda: self._set_connection("192.168.4.1", "5001")).pack(side="left", padx=2)
+        ttk.Button(preset_frame, text="Custom IP...", width=18,
+                  command=self._custom_ip).pack(side="left", padx=2)
         
         # ===== FRAME COMMANDES LED =====
         frame_commands = ttk.LabelFrame(self.root, text="💡 Contrôle LED (Pin 16)", padding=10)
@@ -130,12 +145,36 @@ class RobotControlApp:
         self.text_logs.tag_config("info", foreground="blue", font=("Courier", 9))
         self.text_logs.tag_config("serial", foreground="black", font=("Courier", 9))
         self.text_logs.tag_config("warning", foreground="orange", font=("Courier", 9, "bold"))
-        self.text_logs.tag_config("status", foreground="purple", font=("Courier", 9))
+    
+    def _set_connection(self, ip, port):
+        """Set IP and Port then connect"""
+        self.entry_ip.delete(0, tk.END)
+        self.entry_ip.insert(0, ip)
+        self.entry_port.delete(0, tk.END)
+        self.entry_port.insert(0, port)
+        self._on_connect()
+    
+    def _custom_ip(self):
+        """Ask for custom IP"""
+        top = tk.Toplevel(self.root)
+        top.title("IP Personnalisée")
+        top.geometry("300x150")
         
-        # Log initial
-        self._log("=== EuroBot 2026 Contrôle WiFi ===", "info")
-        self._log("Entrez l'IP de l'ESP32 et cliquez sur 'Connecter'", "info")
-        self._log("Protocole: JSON TCP", "info")
+        ttk.Label(top, text="Adresse IP:").pack(pady=5)
+        entry_ip = ttk.Entry(top, width=20)
+        entry_ip.pack(pady=5)
+        entry_ip.insert(0, self.entry_ip.get())
+        
+        ttk.Label(top, text="Port:").pack(pady=5)
+        entry_port = ttk.Entry(top, width=20)
+        entry_port.pack(pady=5)
+        entry_port.insert(0, self.entry_port.get())
+        
+        def set_custom():
+            self._set_connection(entry_ip.get(), entry_port.get())
+            top.destroy()
+        
+        ttk.Button(top, text="Connecter", command=set_custom).pack(pady=10)
     
     def _on_connect(self):
         """Établir la connexion TCP"""
@@ -147,7 +186,7 @@ class RobotControlApp:
                 messagebox.showerror("Erreur", "Entrez une adresse IP")
                 return
             
-            self._log(f"📡 Connexion à {ip}:{port}...", "info")
+            self._log(f"📡 Tentative de connexion à {ip}:{port}...", "info")
             self.root.update()
             
             self.client = WiFiClient(
@@ -160,10 +199,19 @@ class RobotControlApp:
             )
             
             if self.client.connect():
+                # Déterminer le type de module
+                if port == 5000:
+                    self.module_type = "wifi_test"
+                    self._log(f"✓ Connecté (Port 5000)", "success")
+                elif port == 5001:
+                    self.module_type = "master"
+                    self._log(f"✓ Connecté (Port 5001)", "success")
+                else:
+                    self.module_type = "unknown"
+                
                 self._update_connection_state(True)
-                self._log(f"✓ Connecté à {ip}:{port}", "success")
             else:
-                self._log(f"✗ Impossible de se connecter à {ip}:{port}", "error")
+                self._log(f"✗ Connexion échouée à {ip}:{port}", "error")
                 
         except ValueError:
             messagebox.showerror("Erreur", "Port invalide")
@@ -179,14 +227,12 @@ class RobotControlApp:
         """Allumer la LED"""
         if self.client and self.client.is_connected():
             cmd = make_led_on(16)
-            self._log(f"→ Envoi: LED_ON (pin 16)", "info")
             self.client.send(cmd)
     
     def _on_led_off(self):
         """Éteindre la LED"""
         if self.client and self.client.is_connected():
             cmd = make_led_off(16)
-            self._log(f"→ Envoi: LED_OFF (pin 16)", "info")
             self.client.send(cmd)
     
     def _on_led_blink(self):
@@ -201,7 +247,6 @@ class RobotControlApp:
             
             if self.client and self.client.is_connected():
                 cmd = make_led_blink(16, interval, cycles)
-                self._log(f"→ Envoi: LED_BLINK (pin 16, interval={interval}ms, cycles={cycles})", "info")
                 self.client.send(cmd)
         except ValueError:
             messagebox.showerror("Erreur", "Paramètres invalides (nombres entiers)")
@@ -210,7 +255,6 @@ class RobotControlApp:
         """Demander le status"""
         if self.client and self.client.is_connected():
             cmd = make_get_status()
-            self._log(f"→ Envoi: GET_STATUS", "info")
             self.client.send(cmd)
     
     def _on_reset(self):
@@ -218,9 +262,8 @@ class RobotControlApp:
         if messagebox.askyesno("Confirmation", "Êtes-vous sûr de vouloir redémarrer l'ESP32?"):
             if self.client and self.client.is_connected():
                 cmd = make_reset()
-                self._log(f"→ Envoi: RESET (redémarrage en cours...)", "warning")
+                self._log(f"Redémarrage ESP32...", "warning")
                 self.client.send(cmd)
-                # La connexion sera fermée après le redémarrage
     
     def _on_clear_logs(self):
         """Effacer les logs"""
@@ -233,23 +276,11 @@ class RobotControlApp:
         if not data:
             return
         
-        # Afficher le message reçu
         if isinstance(data, dict):
             status = data.get("status", "unknown")
             message = data.get("message", "")
-            msg_data = data.get("data", {})
-            
-            # Détermine la couleur selon le status
             tag = "success" if status == "ok" else "error" if status == "error" else "info"
-            
-            # Format: ← Reçu: [status] message {data}
-            log_msg = f"← Reçu: [{status}] {message}"
-            if msg_data:
-                log_msg += f" | {msg_data}"
-            
-            self._log(log_msg, tag)
-        else:
-            self._log(f"← Reçu (raw): {data}", "serial")
+            self._log(f"[{status}] {message}", tag)
     
     def _on_connection_changed(self, connected):
         """Callback changement connexion"""
@@ -266,6 +297,15 @@ class RobotControlApp:
         
         if connected:
             self.label_status.config(text="✅ Connecté", foreground="green")
+            
+            # Afficher le type de module
+            if self.module_type == "wifi_test":
+                self.label_module.config(text="Module: 📦 ESP32 WiFi Test (LED Control)", foreground="blue")
+            elif self.module_type == "master":
+                self.label_module.config(text="Module: 🤖 ESP32 Master (Robot Control)", foreground="green")
+            else:
+                self.label_module.config(text="Module: ? Détection en cours...", foreground="orange")
+            
             self.btn_connect.config(state="disabled")
             self.btn_disconnect.config(state="normal")
             self.btn_led_on.config(state="normal")
@@ -277,6 +317,9 @@ class RobotControlApp:
             self.entry_port.config(state="disabled")
         else:
             self.label_status.config(text="❌ Déconnecté", foreground="red")
+            self.label_module.config(text="Module: Non détecté", foreground="gray")
+            self.module_type = None
+            
             self.btn_connect.config(state="normal")
             self.btn_disconnect.config(state="disabled")
             self.btn_led_on.config(state="disabled")
