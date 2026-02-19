@@ -55,6 +55,19 @@ void printFreeMemory(const char* label) {
 // ========== FSM Init =======================
 static void markStateStart(FsmContext &ctx) {ctx.stateStartMs = millis();}
 
+void fsmChangeAction(FsmContext &ctx, FsmAction next) {
+  // Block state transitions if ready flag not set and not emergency stop
+  if (ctx.flags && !ctx.flags->get_ready() && next != FsmAction::EMERGENCY_STOP && next != FsmAction::INIT) {
+    debugPrintf(DBG_FSM, "State change BLOCKED: ready flag not set. Current: %d, Requested: %d", 
+                (int)ctx.currentAction, (int)next);
+    return;  // Don't change state
+  }
+  
+  ctx.currentAction = next;
+  markStateStart(ctx);
+    // debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
+  }
+
 void fsmInitializeSystem(FsmContext &ctx)
 {
   // 1. Hardware init
@@ -108,9 +121,7 @@ void fsmInitializeSystem(FsmContext &ctx)
 }
 
 
-void fsmChangeAction(FsmContext &ctx, FsmAction next) {ctx.currentAction = next; markStateStart(ctx);
-    // debugPrintf(DBG_FSM, "FSM -> %d", (int)next);
-  }
+
 
 // =========== FSM ==================
 void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
