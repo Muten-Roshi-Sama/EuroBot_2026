@@ -1,7 +1,8 @@
 #include "FSMFlags.h"
 
 FSMFlags::FSMFlags()
-    : flag_ready(false),
+    : flag_ble_connected(false),
+      flag_ready(false),
       flag_trigger_launch(false),
       flag_emergency_stop(false)
 {
@@ -9,6 +10,12 @@ FSMFlags::FSMFlags()
 }
 
 // === SETTERS ===
+void FSMFlags::set_ble_connected(bool value) {
+    xSemaphoreTake(flags_mutex, portMAX_DELAY);
+    flag_ble_connected = value;
+    xSemaphoreGive(flags_mutex);
+}
+
 void FSMFlags::set_ready(bool value) {
     xSemaphoreTake(flags_mutex, portMAX_DELAY);
     flag_ready = value;
@@ -28,6 +35,13 @@ void FSMFlags::set_emergency_stop(bool value) {
 }
 
 // === GETTERS ===
+bool FSMFlags::get_ble_connected() const {
+    xSemaphoreTake(flags_mutex, portMAX_DELAY);
+    bool value = flag_ble_connected;
+    xSemaphoreGive(flags_mutex);
+    return value;
+}
+
 bool FSMFlags::get_ready() const {
     xSemaphoreTake(flags_mutex, portMAX_DELAY);
     bool value = flag_ready;

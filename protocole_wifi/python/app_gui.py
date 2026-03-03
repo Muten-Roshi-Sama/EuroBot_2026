@@ -1,12 +1,15 @@
 """
-Application GUI pour contrôler l'ESP32 à distance via WiFi TCP
+Application GUI pour contrôler l'ESP32 à distance via Bluetooth BLE
 """
+# [WiFi] Application GUI pour contrôler l'ESP32 à distance via WiFi TCP
 
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 from datetime import datetime
+import threading
 
-from wifi_client import WiFiClient
+# [WiFi] from wifi_client import WiFiClient
+from ble_client import BLEClient
 from protocol import (
     make_led_on, make_led_off, make_led_blink, 
     make_get_status, make_reset,
@@ -17,7 +20,8 @@ from protocol import (
 class RobotControlApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("🤖 EuroBot 2026 - Contrôle WiFi ESP32")
+        self.root.title("🤖 EuroBot 2026 - Contrôle BLE ESP32")
+        # [WiFi] self.root.title("🤖 EuroBot 2026 - Contrôle WiFi ESP32")
         self.root.geometry("1100x800")
         self.root.resizable(True, True)
         
@@ -31,48 +35,59 @@ class RobotControlApp:
         """Créer l'interface utilisateur"""
         
         # ===== FRAME CONNEXION =====
-        frame_connection = ttk.LabelFrame(self.root, text="🌐 Connexion WiFi TCP", padding=10)
+        # [WiFi] frame_connection = ttk.LabelFrame(self.root, text="🌐 Connexion WiFi TCP", ...)
+        frame_connection = ttk.LabelFrame(self.root, text="📶 Connexion Bluetooth BLE", padding=10)
         frame_connection.pack(fill="x", padx=10, pady=10)
-        
-        # Ligne 1: IP et Port
-        ttk.Label(frame_connection, text="IP ESP32:").grid(row=0, column=0, sticky="w", padx=5)
-        self.entry_ip = ttk.Entry(frame_connection, width=20)
-        self.entry_ip.insert(0, "192.168.4.1")  # IP par défaut du WiFi
-        self.entry_ip.grid(row=0, column=1, padx=5)
-        
-        ttk.Label(frame_connection, text="Port:").grid(row=0, column=2, sticky="w", padx=5)
-        self.entry_port = ttk.Entry(frame_connection, width=10)
-        self.entry_port.insert(0, "5000")
-        self.entry_port.grid(row=0, column=3, padx=5)
-        
-        self.btn_connect = ttk.Button(frame_connection, text="🔗 Connecter", 
-                                     command=self._on_connect)
-        self.btn_connect.grid(row=0, column=4, padx=5)
-        
-        self.btn_disconnect = ttk.Button(frame_connection, text="❌ Déconnecter", 
-                                        command=self._on_disconnect, state="disabled")
-        self.btn_disconnect.grid(row=0, column=5, padx=5)
-        
+
+        # [WiFi] Ligne 1: IP et Port
+        # [WiFi] ttk.Label(frame_connection, text="IP ESP32:")
+        # [WiFi] self.entry_ip = ttk.Entry(frame_connection, width=20); insert(0, "192.168.4.1")
+        # [WiFi] ttk.Label(frame_connection, text="Port:")
+        # [WiFi] self.entry_port = ttk.Entry(frame_connection, width=10); insert(0, "5000")
+
+        # Ligne 1: Nom BLE + adresse MAC
+        ttk.Label(frame_connection, text="Nom BLE:").grid(row=0, column=0, sticky="w", padx=5)
+        self.entry_device_name = ttk.Entry(frame_connection, width=20)
+        self.entry_device_name.insert(0, "EuroBot")
+        self.entry_device_name.grid(row=0, column=1, padx=5)
+
+        ttk.Label(frame_connection, text="Adresse MAC (opt.):").grid(row=0, column=2, sticky="w", padx=5)
+        self.entry_mac = ttk.Entry(frame_connection, width=20)
+        self.entry_mac.grid(row=0, column=3, padx=5)
+
+        self.btn_scan = ttk.Button(frame_connection, text="🔍 Scanner",
+                                   command=self._on_scan)
+        self.btn_scan.grid(row=0, column=4, padx=5)
+
+        self.btn_connect = ttk.Button(frame_connection, text="🔗 Connecter",
+                                      command=self._on_connect)
+        self.btn_connect.grid(row=0, column=5, padx=5)
+
+        self.btn_disconnect = ttk.Button(frame_connection, text="❌ Déconnecter",
+                                         command=self._on_disconnect, state="disabled")
+        self.btn_disconnect.grid(row=0, column=6, padx=5)
+
         # Module type
-        self.label_module = ttk.Label(frame_connection, text="Module: Non détecté", 
-                                     foreground="gray", font=("Arial", 9))
-        self.label_module.grid(row=1, column=0, columnspan=2, sticky="w", pady=5)
-        
+        self.label_module = ttk.Label(frame_connection, text="Module: Non détecté",
+                                      foreground="gray", font=("Arial", 9))
+        self.label_module.grid(row=1, column=0, columnspan=3, sticky="w", pady=5)
+
         # Status
-        self.label_status = ttk.Label(frame_connection, text="❌ Déconnecté", 
-                                     foreground="red", font=("Arial", 10, "bold"))
-        self.label_status.grid(row=1, column=2, columnspan=4, sticky="w", pady=5)
-        
+        self.label_status = ttk.Label(frame_connection, text="❌ Déconnecté",
+                                      foreground="red", font=("Arial", 10, "bold"))
+        self.label_status.grid(row=1, column=3, columnspan=4, sticky="w", pady=5)
+
         # Quick presets
-        ttk.Label(frame_connection, text="Quick:", font=("Arial", 9, "bold")).grid(row=2, column=0, sticky="w")
-        
+        ttk.Label(frame_connection, text="Quick:", font=("Arial", 9, "bold"))\
+            .grid(row=2, column=0, sticky="w")
         preset_frame = ttk.Frame(frame_connection)
-        preset_frame.grid(row=2, column=1, columnspan=5, sticky="w")
-        
-        ttk.Button(preset_frame, text="ESP32 (Default)", width=18,
-                  command=lambda: self._set_connection("192.168.4.1", "5001")).pack(side="left", padx=2)
-        ttk.Button(preset_frame, text="Custom IP...", width=18,
-                  command=self._custom_ip).pack(side="left", padx=2)
+        preset_frame.grid(row=2, column=1, columnspan=6, sticky="w")
+        # [WiFi] ttk.Button(preset_frame, text="ESP32 (Default)", command=lambda: self._set_connection(...))
+        # [WiFi] ttk.Button(preset_frame, text="Custom IP...", command=self._custom_ip)
+        ttk.Button(preset_frame, text="EuroBot (défaut)", width=18,
+                   command=lambda: self._set_ble_name("EuroBot")).pack(side="left", padx=2)
+        ttk.Button(preset_frame, text="Adresse manuelle...", width=18,
+                   command=self._custom_address).pack(side="left", padx=2)
         
         # ===== FRAME COMMANDES LED =====
         frame_commands = ttk.LabelFrame(self.root, text="💡 Contrôle LED (Pin 16)", padding=10)
@@ -185,66 +200,129 @@ class RobotControlApp:
         self.text_logs.tag_config("serial", foreground="black", font=("Courier", 9))
         self.text_logs.tag_config("warning", foreground="orange", font=("Courier", 9, "bold"))
     
-    def _set_connection(self, ip, port):
-        """Set IP and Port then connect"""
-        self.entry_ip.delete(0, tk.END)
-        self.entry_ip.insert(0, ip)
-        self.entry_port.delete(0, tk.END)
-        self.entry_port.insert(0, port)
-        self._on_connect()
-    
-    def _custom_ip(self):
-        """Ask for custom IP"""
+    # [WiFi] def _set_connection(self, ip, port): ...
+    def _set_ble_name(self, name: str):
+        """Pré-remplir le nom BLE"""
+        self.entry_device_name.delete(0, tk.END)
+        self.entry_device_name.insert(0, name)
+
+    # [WiFi] def _custom_ip(self): ...
+    def _custom_address(self):
+        """Saisir manuellement l'adresse MAC"""
         top = tk.Toplevel(self.root)
-        top.title("IP Personnalisée")
-        top.geometry("300x150")
-        
-        ttk.Label(top, text="Adresse IP:").pack(pady=5)
-        entry_ip = ttk.Entry(top, width=20)
-        entry_ip.pack(pady=5)
-        entry_ip.insert(0, self.entry_ip.get())
-        
-        ttk.Label(top, text="Port:").pack(pady=5)
-        entry_port = ttk.Entry(top, width=20)
-        entry_port.pack(pady=5)
-        entry_port.insert(0, self.entry_port.get())
-        
-        def set_custom():
-            self._set_connection(entry_ip.get(), entry_port.get())
+        top.title("Adresse MAC manuelle")
+        top.geometry("320x140")
+        top.resizable(False, False)
+
+        ttk.Label(top, text="Adresse MAC (ex: AA:BB:CC:DD:EE:FF):").pack(pady=8)
+        entry_mac = ttk.Entry(top, width=26)
+        entry_mac.pack(pady=5)
+        entry_mac.insert(0, self.entry_mac.get())
+
+        def set_mac():
+            self.entry_mac.delete(0, tk.END)
+            self.entry_mac.insert(0, entry_mac.get().strip())
             top.destroy()
-        
-        ttk.Button(top, text="Connecter", command=set_custom).pack(pady=10)
+
+        ttk.Button(top, text="Confirmer", command=set_mac).pack(pady=10)
+
+    def _on_scan(self):
+        """Scanner les appareils BLE et afficher une fenêtre de sélection"""
+        top = tk.Toplevel(self.root)
+        top.title("🔍 Scan BLE")
+        top.geometry("420x300")
+        top.resizable(False, False)
+
+        ttk.Label(top, text="Appareils BLE détectés :", font=("Arial", 10, "bold")).pack(pady=8)
+        frame_list = ttk.Frame(top)
+        frame_list.pack(fill="both", expand=True, padx=10)
+
+        scrollbar = ttk.Scrollbar(frame_list)
+        scrollbar.pack(side="right", fill="y")
+        listbox = tk.Listbox(frame_list, yscrollcommand=scrollbar.set, width=50, height=8)
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=listbox.yview)
+
+        lbl_scan = ttk.Label(top, text="Scan en cours...", foreground="blue")
+        lbl_scan.pack(pady=4)
+        ttk.Button(top, text="✅ Sélectionner",
+                   command=lambda: _select()).pack(pady=4)
+
+        devices_found = []
+
+        def do_scan():
+            import asyncio
+            from bleak import BleakScanner
+            loop = asyncio.new_event_loop()
+            devs = loop.run_until_complete(BleakScanner.discover(timeout=6.0))
+            loop.close()
+            self.root.after(0, lambda: _populate(devs))
+
+        def _populate(devs):
+            lbl_scan.config(text=f"{len(devs)} appareil(s) trouvé(s)")
+            listbox.delete(0, tk.END)
+            devices_found.clear()
+            for d in devs:
+                listbox.insert(tk.END, f"{d.name or '(sans nom)'}  —  {d.address}")
+                devices_found.append(d)
+
+        def _select():
+            sel = listbox.curselection()
+            if not sel:
+                return
+            dev = devices_found[sel[0]]
+            self.entry_device_name.delete(0, tk.END)
+            self.entry_device_name.insert(0, dev.name or "EuroBot")
+            self.entry_mac.delete(0, tk.END)
+            self.entry_mac.insert(0, dev.address)
+            self._log(f"📶 Appareil sélectionné : {dev.name} [{dev.address}]", "info")
+            top.destroy()
+
+        listbox.bind("<Double-Button-1>", lambda e: _select())
+        threading.Thread(target=do_scan, daemon=True).start()
     
     def _on_connect(self):
-        """Établir la connexion TCP"""
-        try:
-            ip = self.entry_ip.get().strip()
-            port = int(self.entry_port.get().strip())
-            
-            if not ip:
-                messagebox.showerror("Erreur", "Entrez une adresse IP")
-                return
-            
-            self._log(f"📡 Tentative de connexion à {ip}:{port}...", "info")
-            self.root.update()
-            
-            self.client = WiFiClient(
-                host=ip,
-                port=port,
-                on_message=self._on_message,
-                on_connection=self._on_connection_changed,
-                on_error=self._on_wifi_error,
-                timeout=5.0
-            )
-            
-            if self.client.connect():
-                self._log(f"✓ Connecté à {ip}:{port}", "success")
-                self._update_connection_state(True)
-            else:
-                self._log(f"✗ Connexion échouée à {ip}:{port}", "error")
-                
-        except ValueError:
-            messagebox.showerror("Erreur", "Port invalide")
+        """Établir la connexion BLE"""
+        # [WiFi] ip = self.entry_ip.get(); port = int(self.entry_port.get())
+        # [WiFi] self.client = WiFiClient(host=ip, port=port, ...)
+        device_name = self.entry_device_name.get().strip() or "EuroBot"
+        mac_address = self.entry_mac.get().strip() or None
+
+        if mac_address:
+            self._log(f"📶 Connexion directe à [{mac_address}]...", "info")
+        else:
+            self._log(f"📶 Scan + connexion au device '{device_name}'...", "info")
+
+        self.btn_connect.config(state="disabled")
+        self.btn_scan.config(state="disabled")
+        self.label_status.config(text="⏳ Connexion...", foreground="orange")
+        self.root.update()
+
+        self.client = BLEClient(
+            device_name=device_name,
+            device_address=mac_address,
+            on_message=self._on_message,
+            on_connection=self._on_connection_changed,
+            on_error=self._on_ble_error,
+            scan_timeout=8.0,
+        )
+
+        def _do_connect():
+            success = self.client.connect()
+            self.root.after(0, lambda: self._post_connect(success, device_name, mac_address))
+
+        threading.Thread(target=_do_connect, daemon=True).start()
+
+    def _post_connect(self, success: bool, device_name: str, mac_address):
+        """Mise à jour UI après tentative de connexion BLE"""
+        self.btn_scan.config(state="normal")
+        if success:
+            addr_str = mac_address or "(via scan)"
+            self._log(f"✓ Connecté BLE à '{device_name}' {addr_str}", "success")
+            self._update_connection_state(True)
+        else:
+            self._log(f"✗ Connexion BLE échouée pour '{device_name}'", "error")
+            self.btn_connect.config(state="normal")
     
     def _on_disconnect(self):
         """Fermer la connexion"""
@@ -316,20 +394,23 @@ class RobotControlApp:
         """Callback changement connexion"""
         self._update_connection_state(connected)
     
-    def _on_wifi_error(self, error):
-        """Callback erreur WiFi"""
-        self._log(f"⚠️ Erreur WiFi: {error}", "error")
+    # [WiFi] def _on_wifi_error(self, error): ...
+    def _on_ble_error(self, error):
+        """Callback erreur BLE"""
+        self._log(f"⚠️ Erreur BLE: {error}", "error")
         self._update_connection_state(False)
     
     def _update_connection_state(self, connected):
         """Mettre à jour l'état de l'UI selon la connexion"""
         self.connected = connected
         
+        # [WiFi] self.entry_ip / self.entry_port  →  self.entry_device_name / self.entry_mac
         if connected:
-            self.label_status.config(text="✅ Connecté", foreground="green")
-            self.label_module.config(text="Module: 🤖 EuroBot Control", foreground="green")
-            
+            self.label_status.config(text="✅ Connecté BLE", foreground="green")
+            self.label_module.config(text="Module: 🤖 EuroBot BLE", foreground="green")
+
             self.btn_connect.config(state="disabled")
+            self.btn_scan.config(state="disabled")
             self.btn_disconnect.config(state="normal")
             self.btn_led_on.config(state="normal")
             self.btn_led_off.config(state="normal")
@@ -339,13 +420,14 @@ class RobotControlApp:
             self.btn_fsm_ready.config(state="normal")
             self.btn_fsm_launch.config(state="normal")
             self.btn_fsm_emergency.config(state="normal")
-            self.entry_ip.config(state="disabled")
-            self.entry_port.config(state="disabled")
+            self.entry_device_name.config(state="disabled")
+            self.entry_mac.config(state="disabled")
         else:
             self.label_status.config(text="❌ Déconnecté", foreground="red")
             self.label_module.config(text="Module: Non détecté", foreground="gray")
-            
+
             self.btn_connect.config(state="normal")
+            self.btn_scan.config(state="normal")
             self.btn_disconnect.config(state="disabled")
             self.btn_led_on.config(state="disabled")
             self.btn_led_off.config(state="disabled")
@@ -355,8 +437,8 @@ class RobotControlApp:
             self.btn_fsm_ready.config(state="disabled")
             self.btn_fsm_launch.config(state="disabled")
             self.btn_fsm_emergency.config(state="disabled")
-            self.entry_ip.config(state="normal")
-            self.entry_port.config(state="normal")
+            self.entry_device_name.config(state="normal")
+            self.entry_mac.config(state="normal")
     
 
     def _on_fsm_ready(self):

@@ -1,0 +1,18 @@
+{
+  "name": "Bluetooth",
+  "version": "1.0.0",
+  "description": "Bluetooth BLE protocol library for EuroBot 2026 (Nordic UART Service)",
+  "keywords": ["ble", "bluetooth", "uart", "nordic"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Muten-Roshi-Sama/EuroBot_2026"
+  },
+  "authors": [
+    {
+      "name": "EuroBot Team",
+      "url": "https://github.com/Muten-Roshi-Sama/EuroBot_2026"
+    }
+  ],
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

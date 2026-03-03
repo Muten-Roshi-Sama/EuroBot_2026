@@ -7,8 +7,9 @@
 #include "config.h"
 #include "../util/Debug.h"
 #include "../fsm_control/FSMFlags.h"
-#include "../wifi_protocol/WiFiProtocol.h"
-#include "../wifi_protocol/LEDController.h"
+// [WiFi] #include "../wifi_protocol/WiFiProtocol.h"
+// [WiFi] #include "../wifi_protocol/LEDController.h"
+#include "../bluetooth/bluetooth.h"
 
 #include <Wire.h>
 #include <Ultrasonic.h>
@@ -40,11 +41,14 @@ SemaphoreHandle_t ioExpanderMutex;
 
 // FSM 
 FsmContext fsmContext;
-FSMFlags fsmFlags;  // WiFi FSM control flags
+FSMFlags fsmFlags;  // FSM control flags
 
-// WiFi Protocol & LED Controller
-LEDController ledController;
-WiFiProtocol* wifiProtocol = nullptr;
+// [WiFi] WiFi Protocol & LED Controller
+// [WiFi] LEDController ledController;
+// [WiFi] WiFiProtocol* wifiProtocol = nullptr;
+
+// Bluetooth Protocol
+BluetoothProtocol* bleProtocol = nullptr;
 static int fsmSpeed = 50;          // ~20Hz
 static int imuSpeed = 10;         // ~100Hz
 static int ultrasonicSpeed = 50; // ~20Hz
@@ -185,12 +189,13 @@ void lidarinit() {
   //
 }
 
-// ====================== FSM WiFi CALLBACKS ======================
+// ====================== FSM BLE CALLBACKS ======================
 /**
- * Handle FSM commands from WiFiProtocol
+ * Handle FSM commands from BluetoothProtocol
  * Commands: FSM_SET_READY, FSM_TRIGGER_LAUNCH, FSM_EMERGENCY_STOP
  */
-void handle_fsm_commands(const char* cmd, const JsonObject& params, DynamicJsonDocument& response) {
+// [WiFi] void handle_fsm_commands(const char* cmd, const JsonObject& params, DynamicJsonDocument& response) {
+void handle_fsm_commands(const char* cmd, const JsonObject& params, JsonDocument& response) {
   if (strcmp(cmd, "FSM_SET_READY") == 0) {
     bool value = params["value"] | false;
     fsmFlags.set_ready(value);
@@ -232,6 +237,12 @@ void handle_fsm_commands(const char* cmd, const JsonObject& params, DynamicJsonD
 
 
 
+// Callback connexion BLE -> met à jour le flag FSM
+void handle_ble_connection(bool connected) {
+  fsmFlags.set_ble_connected(connected);
+  Serial.printf("[BLE_CONN] FSM ble_connected = %d\n", connected);
+}
+
 void setup() {
   Wire.begin(22, 23); Wire.setClock(100000);
   debugInit(115200,    // does serial.begin() in this function
@@ -259,24 +270,34 @@ void setup() {
   ioExpander.begin(); 
   // US init done in constructor
   
-  // LED Controller init
-  ledController.init_led(16);  // Pin 16 for test LED
+  // [WiFi] LED Controller init
+  // [WiFi] ledController.init_led(16);  // Pin 16 for test LED
   
   // FSM setup: associate flags
   fsmContext.flags = &fsmFlags;
 
-  // WiFi Protocol setup
-  // Default: EuroBot AP (SSID="EuroBot_AP", Password="12345678")
-  // Port 5001 for Master
-  wifiProtocol = new WiFiProtocol("felix123", "ecamwouw", 5000);
-  if (wifiProtocol->setup()) {
-    Serial.println("[Main] WiFiProtocol initialized successfully");
+  // [WiFi] WiFi Protocol setup
+  // [WiFi] Default: EuroBot AP (SSID="EuroBot_AP", Password="12345678")
+  // [WiFi] Port 5001 for Master
+  // [WiFi] wifiProtocol = new WiFiProtocol("felix123", "ecamwouw", 5000);
+  // [WiFi] if (wifiProtocol->setup()) {
+  // [WiFi]   Serial.println("[Main] WiFiProtocol initialized successfully");
+  // [WiFi]   wifiProtocol->on_command(handle_fsm_commands);
+  // [WiFi]   wifiProtocol->set_led_controller(&ledController);
+  // [WiFi] } else {
+  // [WiFi]   Serial.println("[Main] WARNING: WiFiProtocol setup failed");
+  // [WiFi] }
+
+  // Bluetooth Protocol setup
+  bleProtocol = new BluetoothProtocol("EuroBot");
+  if (bleProtocol->setup()) {
+    Serial.println("[Main] BluetoothProtocol initialized successfully");
     // Register FSM command callback
-    wifiProtocol->on_command(handle_fsm_commands);
-    // Link LED controller
-    wifiProtocol->set_led_controller(&ledController);
+    bleProtocol->on_command(handle_fsm_commands);
+    // Register connection callback (updates FSM flag)
+    bleProtocol->on_connection(handle_ble_connection);
   } else {
-    Serial.println("[Main] WARNING: WiFiProtocol setup failed");
+    Serial.println("[Main] WARNING: BluetoothProtocol setup failed");
   }
   
   // Create Tasks
@@ -301,13 +322,18 @@ void setup() {
 
 
 void loop() {
-  // WiFi Protocol update (non-blocking)
-  if (wifiProtocol) {
-    wifiProtocol->update();
-  }
+  // [WiFi] WiFi Protocol update (non-blocking)
+  // [WiFi] if (wifiProtocol) {
+  // [WiFi]   wifiProtocol->update();
+  // [WiFi] }
   
-  // LED Controller update
-  ledController.update();
+  // [WiFi] LED Controller update
+  // [WiFi] ledController.update();
+
+  // Bluetooth Protocol update (non-blocking)
+  if (bleProtocol) {
+    bleProtocol->update();
+  }
   
   // Small delay to avoid CPU saturation
   delayMicroseconds(100);

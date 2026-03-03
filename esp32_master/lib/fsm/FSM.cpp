@@ -200,7 +200,19 @@ void fsmStep(FsmContext &ctx, const SensorsData &sensorsData)
     bool launchPressed = ioExpanderData.launchTrigger;
     xSemaphoreGive(ioExpanderMutex);
     
-    // Check WiFi FSM flags if available
+    // Check BLE connection flag - block launch if not connected
+    bool bleConnected = ctx.flags ? ctx.flags->get_ble_connected() : false;
+    if (!bleConnected) {
+      static unsigned long millis_ble_print = 0;
+      if (millis() - millis_ble_print >= 2000) {
+        millis_ble_print = millis();
+        debugPrintf(DBG_FSM, "[IDLE] Waiting for BLE connection...");
+      }
+      break;  // Ne pas vérifier le launch tant que BLE non connecté
+    }
+
+    // Check BLE FSM flags if available
+    // [WiFi] bool wifiTriggerLaunch = ctx.flags ? ctx.flags->get_trigger_launch() : false;
     bool wifiTriggerLaunch = false;
     if (ctx.flags) {
       wifiTriggerLaunch = ctx.flags->get_trigger_launch();
